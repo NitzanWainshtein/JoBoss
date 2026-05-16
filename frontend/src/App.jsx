@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import './styles/global.css';
 import ProfilePage from './pages/ProfilePage.jsx';
+import Spinner from './components/Spinner.jsx';
 
 Amplify.configure(awsConfig);
 
@@ -24,10 +25,10 @@ function App() {
   }, []);
 
   if (loading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontSize: '18px', color: 'var(--primary)' }}>
-      טוען...
-    </div>
-  );
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+    <Spinner text="טוען את joBoss..." />
+  </div>
+);
 
   return (
     <Router>

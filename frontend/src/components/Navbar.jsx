@@ -43,12 +43,6 @@ function Navbar() {
       <button style={styles.logoutBtn} onClick={handleLogout}>
         התנתק
       </button>
-      <button
-  style={{ ...styles.navBtn }}
-  onClick={() => navigate('/admin')}
->
-  🛠️ ניהול
-</button>
     </div>
   );
 }

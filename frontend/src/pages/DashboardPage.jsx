@@ -113,7 +113,7 @@ function DashboardPage() {
                 <div style={styles.appInfo}>
                   <p style={styles.appCompany}>{app.company}</p>
                   <p style={styles.appTitle}>{app.title}</p>
-                  <p style={styles.appDate}>{app.date || app.appliedAt?.slice(0, 10)}</p>
+                  <p style={styles.appDate}>{app.createdAt?.slice(0, 10) || app.date || ''}</p>
                 </div>
                 <div style={{ ...styles.statusBadge, background: statusConfig[app.status]?.color || '#FFC107' }}>
                   {statusConfig[app.status]?.label || 'ממתין'}

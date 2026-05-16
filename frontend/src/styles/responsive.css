@@ -1,0 +1,16 @@
+@media (max-width: 480px) {
+  /* Swipe Page */
+  .card-container {
+    width: 95vw !important;
+  }
+
+  /* Dashboard */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Navbar */
+  .nav-label {
+    display: none;
+  }
+}

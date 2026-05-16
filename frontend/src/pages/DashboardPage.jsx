@@ -38,15 +38,7 @@ function DashboardPage() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <h1 style={styles.logo}>jo<span style={styles.logoAccent}>Boss</span></h1>
-        <div style={styles.headerButtons}>
-          <button style={styles.swipeBtn} onClick={() => navigate('/swipe')}>⬅ חזור ל-Swipe</button>
-          <button style={styles.logoutBtn} onClick={handleLogout}>התנתק</button>
-        </div>
-      </div>
-
+      
       <div style={styles.content}>
 
         {/* סטטיסטיקות */}
@@ -119,7 +111,11 @@ const styles = {
   swipeBtn: { background: 'white', color: 'var(--primary)', border: '2px solid var(--primary)', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
   logoutBtn: { background: '#eee', color: '#666', border: 'none', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
   content: { padding: '24px', maxWidth: '720px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' },
+  statsGrid: { 
+  display: 'grid', 
+  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',  // ← שינוי זה
+  gap: '12px' 
+},
   statCard: { background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   statNumber: { fontSize: '32px', fontWeight: 800, color: 'var(--primary)', margin: 0 },
   statLabel: { fontSize: '12px', color: 'var(--text-light)', margin: '4px 0 0 0' },

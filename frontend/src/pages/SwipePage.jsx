@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import mockJobs from '../data/mockJobs';
 import { useNavigate } from 'react-router-dom';
+import { getJobs, createSwipe } from '../api';
+import Spinner from '../components/Spinner';
 
 function JobCard({ job, onSwipe }) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
-
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-100, 0], [1, 0]);
 
@@ -24,12 +24,9 @@ function JobCard({ job, onSwipe }) {
       onDragEnd={handleDragEnd}
       whileTap={{ cursor: 'grabbing' }}
     >
-      {/* LIKE stamp */}
       <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity }}>
         ✅ YES
       </motion.div>
-
-      {/* NOPE stamp */}
       <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity }}>
         ❌ NOPE
       </motion.div>
@@ -59,31 +56,82 @@ function JobCard({ job, onSwipe }) {
 }
 
 function SwipePage() {
-  const [jobs, setJobs] = useState(mockJobs);
+  const [jobs, setJobs] = useState([]);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [lastSwipe, setLastSwipe] = useState(null);
+  const [swipedRight, setSwipedRight] = useState(0);
   const navigate = useNavigate();
   const autoApply = false;
+
+  useEffect(() => {
+    getJobs().then((data) => {
+      const jobList = data.jobs || [];
+      setJobs(jobList);
+      setTotalJobs(jobList.length);
+      setLoading(false);
+    });
+  }, []);
 
   const currentJob = jobs[jobs.length - 1];
 
   const handleSwipe = (direction) => {
     if (!currentJob) return;
     setLastSwipe({ direction, job: currentJob });
+    if (direction === 'right') {
+      setSwipedRight((prev) => prev + 1);
+      createSwipe(currentJob.jobId, 'LIKE');
+    } else {
+      createSwipe(currentJob.jobId, 'PASS');
+    }
     setJobs((prev) => prev.slice(0, -1));
   };
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+      <Spinner text="טוען משרות..." />
+    </div>
+  );
 
   return (
     <div style={styles.container}>
       <div style={styles.cardContainer}>
         {jobs.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p style={{ fontSize: '64px' }}>🎉</p>
+          <motion.div
+            style={styles.emptyState}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, type: 'spring' }}
+          >
+            <motion.p
+              style={{ fontSize: '80px', margin: 0 }}
+              animate={{ rotate: [0, 10, -10, 10, 0] }}
+              transition={{ duration: 1, delay: 0.3 }}
+            >
+              🎉
+            </motion.p>
             <p style={styles.emptyTitle}>סיימת את כל המשרות!</p>
             <p style={styles.emptySubtitle}>חזור מחר למשרות חדשות</p>
-            <button style={styles.dashboardBtn} onClick={() => navigate('/dashboard')}>
-              ראה את ההגשות שלך
-            </button>
-          </div>
+            <div style={styles.emptyStats}>
+              <div style={styles.emptyStatItem}>
+                <p style={styles.emptyStatNumber}>{totalJobs}</p>
+                <p style={styles.emptyStatLabel}>משרות נסקרו</p>
+              </div>
+              <div style={styles.emptyStatDivider} />
+              <div style={styles.emptyStatItem}>
+                <p style={styles.emptyStatNumber}>{swipedRight}</p>
+                <p style={styles.emptyStatLabel}>הגשות נשלחו</p>
+              </div>
+            </div>
+            <motion.button
+              style={styles.emptyBtn}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/dashboard')}
+            >
+              📋 ראה את ההגשות שלך
+            </motion.button>
+          </motion.div>
         ) : (
           <AnimatePresence>
             <JobCard
@@ -116,7 +164,7 @@ function SwipePage() {
         </div>
       )}
 
-      {lastSwipe && (
+      {lastSwipe && jobs.length > 0 && (
         <motion.p
           key={lastSwipe.job.jobId}
           initial={{ opacity: 0, y: 10 }}
@@ -135,13 +183,9 @@ function SwipePage() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  header: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
-  logo: { fontSize: '28px', fontWeight: 800, color: 'var(--primary)', margin: 0 },
-  logoAccent: { color: 'var(--secondary)' },
-  dashboardBtn: { background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
-  cardContainer: { position: 'relative', width: '360px', height: '500px', marginTop: '32px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  card: { width: '360px', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(255,107,107,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'relative', overflow: 'hidden' },
+  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px' },
+  cardContainer: { position: 'relative', width: 'min(360px, 95vw)', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(255,107,107,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'relative', overflow: 'hidden' },
   stamp: { position: 'absolute', top: '24px', padding: '8px 16px', borderRadius: '12px', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', border: '4px solid', zIndex: 10 },
   likeStamp: { right: '24px', color: '#4CAF50', borderColor: '#4CAF50', transform: 'rotate(15deg)' },
   nopeStamp: { left: '24px', color: '#F44336', borderColor: '#F44336', transform: 'rotate(-15deg)' },
@@ -158,9 +202,15 @@ const styles = {
   rejectBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #F44336', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#F44336' },
   acceptBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #4CAF50', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#4CAF50' },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },
-  emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' },
-  emptyTitle: { fontSize: '22px', fontWeight: 800, margin: 0 },
-  emptySubtitle: { fontSize: '14px', color: 'var(--text-light)', margin: 0 },
+  emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '24px' },
+  emptyTitle: { fontSize: '24px', fontWeight: 800, margin: 0 },
+  emptySubtitle: { fontSize: '14px', color: '#777', margin: 0 },
+  emptyStats: { display: 'flex', alignItems: 'center', gap: '24px', background: 'white', borderRadius: '20px', padding: '20px 32px', boxShadow: '0 4px 16px rgba(255,107,107,0.1)' },
+  emptyStatItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
+  emptyStatNumber: { fontSize: '28px', fontWeight: 800, color: '#FF6B6B', margin: 0 },
+  emptyStatLabel: { fontSize: '12px', color: '#777', margin: 0 },
+  emptyStatDivider: { width: '1px', height: '40px', background: '#eee' },
+  emptyBtn: { background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)', color: 'white', border: 'none', borderRadius: '20px', padding: '14px 28px', cursor: 'pointer', fontWeight: 700, fontSize: '16px' },
 };
 
 export default SwipePage;

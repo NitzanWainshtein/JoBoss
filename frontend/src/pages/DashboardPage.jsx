@@ -1,47 +1,49 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { signOut } from 'aws-amplify/auth';
-
-// Mock data זמני — יוחלף בAPI אמיתי אחר כך
-const mockApplications = [
-  { id: 1, company: 'Google', title: 'Frontend Developer', date: '15/05/2026', status: 'pending' },
-  { id: 2, company: 'Microsoft', title: 'Full Stack Developer', date: '14/05/2026', status: 'accepted' },
-  { id: 3, company: 'Monday.com', title: 'React Developer', date: '13/05/2026', status: 'rejected' },
-  { id: 4, company: 'Wix', title: 'Software Engineer', date: '12/05/2026', status: 'pending' },
-  { id: 5, company: 'Check Point', title: 'Backend Developer', date: '11/05/2026', status: 'accepted' },
-];
+import React, { useState, useEffect } from 'react';
+import { getMyApplications, getMyProfile } from '../api';
+import Spinner from '../components/Spinner';
 
 const statusConfig = {
-  accepted: { color: '#4CAF50', label: 'התקבלת' },
-  pending:  { color: '#FFC107', label: 'ממתין' },
-  rejected: { color: '#F44336', label: 'נדחה' },
+  accepted:  { color: '#4CAF50', label: 'התקבלת' },
+  pending:   { color: '#FFC107', label: 'ממתין' },
+  rejected:  { color: '#F44336', label: 'נדחה' },
+  SUBMITTED: { color: '#FFC107', label: 'ממתין' },
+  REVIEWED:  { color: '#2196F3', label: 'נסקר' },
+  INTERVIEW: { color: '#9C27B0', label: 'ראיון' },
+  REJECTED:  { color: '#F44336', label: 'נדחה' },
+  ACCEPTED:  { color: '#4CAF50', label: 'התקבלת' },
 };
 
-// זמני — אחר כך יבוא מה-DB
-const userPlan = 'free'; // 'free' | 'premium'
 const DAILY_LIMIT = 10;
-const swipesUsedToday = 3;
 
 function DashboardPage() {
-  const navigate = useNavigate();
-  const [applications] = useState(mockApplications);
+  const [applications, setApplications] = useState([]);
+  const [userPlan, setUserPlan] = useState('free');
+  const [swipesUsedToday] = useState(3);
+  const [loading, setLoading] = useState(true);
 
-  const accepted = applications.filter(a => a.status === 'accepted').length;
-  const rejected = applications.filter(a => a.status === 'rejected').length;
-  const pending  = applications.filter(a => a.status === 'pending').length;
+  useEffect(() => {
+    Promise.all([getMyApplications(), getMyProfile()]).then(([appData, profileData]) => {
+      setApplications(appData.applications || []);
+      setUserPlan(profileData.user?.plan?.toLowerCase() || 'free');
+      setLoading(false);
+    });
+  }, []);
+
+  const accepted = applications.filter(a => ['accepted', 'ACCEPTED'].includes(a.status)).length;
+  const rejected = applications.filter(a => ['rejected', 'REJECTED'].includes(a.status)).length;
+  const pending  = applications.filter(a => ['pending', 'SUBMITTED', 'REVIEWED'].includes(a.status)).length;
   const swipesLeft = userPlan === 'premium' ? '∞' : DAILY_LIMIT - swipesUsedToday;
 
-  const handleLogout = async () => {
-    await signOut();
-    window.location.href = '/login';
-  };
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+      <Spinner text="טוען נתונים..." />
+    </div>
+  );
 
   return (
     <div style={styles.container}>
-      
       <div style={styles.content}>
 
-        {/* סטטיסטיקות */}
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
             <p style={styles.statNumber}>{applications.length}</p>
@@ -61,7 +63,6 @@ function DashboardPage() {
           </div>
         </div>
 
-        {/* הגשות שנותרו היום */}
         <div style={styles.quotaCard}>
           <div style={styles.quotaInfo}>
             <p style={styles.quotaTitle}>הגשות שנותרו היום</p>
@@ -80,22 +81,30 @@ function DashboardPage() {
           </button>
         )}
 
-        {/* היסטוריית הגשות */}
         <h2 style={styles.sectionTitle}>היסטוריית הגשות</h2>
-        <div style={styles.applicationsList}>
-          {applications.map((app) => (
-            <div key={app.id} style={styles.applicationCard}>
-              <div style={styles.appInfo}>
-                <p style={styles.appCompany}>{app.company}</p>
-                <p style={styles.appTitle}>{app.title}</p>
-                <p style={styles.appDate}>{app.date}</p>
+
+        {applications.length === 0 ? (
+          <div style={styles.emptyApplications}>
+            <p style={{ fontSize: '48px', margin: 0 }}>📋</p>
+            <p style={styles.emptyTitle}>אין הגשות עדיין</p>
+            <p style={styles.emptySubtitle}>התחל להחליק משרות כדי לראות אותן כאן</p>
+          </div>
+        ) : (
+          <div style={styles.applicationsList}>
+            {applications.map((app, index) => (
+              <div key={app.jobId || app.id || index} style={styles.applicationCard}>
+                <div style={styles.appInfo}>
+                  <p style={styles.appCompany}>{app.company}</p>
+                  <p style={styles.appTitle}>{app.title}</p>
+                  <p style={styles.appDate}>{app.date || app.appliedAt?.slice(0, 10)}</p>
+                </div>
+                <div style={{ ...styles.statusBadge, background: statusConfig[app.status]?.color || '#FFC107' }}>
+                  {statusConfig[app.status]?.label || 'ממתין'}
+                </div>
               </div>
-              <div style={{ ...styles.statusBadge, background: statusConfig[app.status].color }}>
-                {statusConfig[app.status].label}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>
@@ -104,18 +113,8 @@ function DashboardPage() {
 
 const styles = {
   container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column' },
-  header: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
-  logo: { fontSize: '28px', fontWeight: 800, color: 'var(--primary)', margin: 0 },
-  logoAccent: { color: 'var(--secondary)' },
-  headerButtons: { display: 'flex', gap: '12px' },
-  swipeBtn: { background: 'white', color: 'var(--primary)', border: '2px solid var(--primary)', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
-  logoutBtn: { background: '#eee', color: '#666', border: 'none', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
   content: { padding: '24px', maxWidth: '720px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' },
-  statsGrid: { 
-  display: 'grid', 
-  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',  // ← שינוי זה
-  gap: '12px' 
-},
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' },
   statCard: { background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   statNumber: { fontSize: '32px', fontWeight: 800, color: 'var(--primary)', margin: 0 },
   statLabel: { fontSize: '12px', color: 'var(--text-light)', margin: '4px 0 0 0' },
@@ -134,6 +133,9 @@ const styles = {
   appTitle: { fontSize: '14px', color: 'var(--text-light)', margin: 0 },
   appDate: { fontSize: '12px', color: '#bbb', margin: 0 },
   statusBadge: { padding: '6px 14px', borderRadius: '20px', color: 'white', fontSize: '13px', fontWeight: 600 },
+  emptyApplications: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px', background: 'white', borderRadius: '16px', textAlign: 'center' },
+  emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
+  emptySubtitle: { fontSize: '14px', color: '#777', margin: 0 },
 };
 
 export default DashboardPage;

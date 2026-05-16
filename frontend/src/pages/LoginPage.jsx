@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { signIn, signUp, confirmSignUp } from 'aws-amplify/auth';
 import { useNavigate } from 'react-router-dom';
+import { getMyProfile, createMyProfile } from '../api';
 
 function LoginPage() {
   const [mode, setMode] = useState('login');
@@ -34,6 +35,24 @@ function LoginPage() {
     return true;
   };
 
+  const ensureProfile = async () => {
+    try {
+      await getMyProfile();
+    } catch {
+      // פרופיל לא קיים — ניצור אחד
+      await createMyProfile({
+        fullName: name || email,
+        email: email,
+        plan: 'FREE',
+        role: 'USER',
+        autoApply: false,
+        preferredLocation: '',
+        desiredRole: '',
+        experienceLevel: 'Junior'
+      });
+    }
+  };
+
   const handleLogin = async () => {
     if (!validate()) return;
     setLoading(true);
@@ -42,6 +61,7 @@ function LoginPage() {
       const { signOut } = await import('aws-amplify/auth');
       await signOut();
       await signIn({ username: email, password });
+      await ensureProfile();
       window.location.href = '/swipe';
     } catch (err) {
       setError(err.message);

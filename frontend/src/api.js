@@ -4,7 +4,9 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'mock';
 
 const getToken = async () => {
   const session = await fetchAuthSession();
-  return session.tokens?.idToken?.toString();
+  const token = session.tokens?.idToken?.toString();
+  console.log('TOKEN:', token ? token.substring(0, 50) + '...' : 'NULL');
+  return token;
 };
 
 const getUserId = async () => {
@@ -18,15 +20,18 @@ const apiCall = async (method, path, body = null) => {
   }
 
   const token = await getToken();
+  console.log('Sending request:', method, path);
+
   const response = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': token
     },
     body: body ? JSON.stringify(body) : null
   });
 
+  console.log('Response status:', response.status);
   return response.json();
 };
 
@@ -36,45 +41,37 @@ export const getJobById = (jobId) => apiCall('GET', `/jobs/${jobId}`);
 
 // ===== SWIPES =====
 export const createSwipe = async (jobId, decision) => {
-  const userId = await getUserId();
-  return apiCall('POST', '/swipes', { userId, jobId, decision });
+  return apiCall('POST', '/swipes', { jobId, decision });
 };
 
 export const getMySwipes = async () => {
-  const userId = await getUserId();
-  return apiCall('GET', `/swipes/me?userId=${userId}`);
+  return apiCall('GET', '/swipes/me');
 };
 
 // ===== APPLICATIONS =====
 export const createApplication = async (jobId) => {
-  const userId = await getUserId();
-  return apiCall('POST', '/applications', { userId, jobId, resumeVersionId: 'resume-001' });
+  return apiCall('POST', '/applications', { jobId, resumeVersionId: 'resume-001' });
 };
 
 export const getMyApplications = async () => {
-  const userId = await getUserId();
-  return apiCall('GET', `/applications?userId=${userId}`);
+  return apiCall('GET', '/applications');
 };
 
 export const updateApplication = async (jobId, status) => {
-  const userId = await getUserId();
-  return apiCall('PUT', '/applications', { userId, jobId, status });
+  return apiCall('PUT', '/applications', { jobId, status });
 };
 
 // ===== USERS =====
 export const getMyProfile = async () => {
-  const userId = await getUserId();
-  return apiCall('GET', `/users/me?userId=${userId}`);
+  return apiCall('GET', '/users/me');
 };
 
 export const updateMyProfile = async (data) => {
-  const userId = await getUserId();
-  return apiCall('PUT', '/users/me', { userId, ...data });
+  return apiCall('PUT', '/users/me', data);
 };
 
 export const createMyProfile = async (data) => {
-  const userId = await getUserId();
-  return apiCall('POST', '/users/me', { userId, ...data });
+  return apiCall('POST', '/users/me', data);
 };
 
 // ===== MOCK =====

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { getJobs, createSwipe } from '../api';
 import Spinner from '../components/Spinner';
+import { getJobs, createSwipe, createApplication } from '../api';
 
 function JobCard({ job, onSwipe }) {
   const x = useMotionValue(0);
@@ -78,16 +78,17 @@ function SwipePage() {
   const currentJob = jobs[jobs.length - 1];
 
   const handleSwipe = (direction) => {
-    if (!currentJob) return;
-    setLastSwipe({ direction, job: currentJob });
-    if (direction === 'right') {
-      setSwipedRight((prev) => prev + 1);
-      createSwipe(currentJob.jobId, 'LIKE');
-    } else {
-      createSwipe(currentJob.jobId, 'PASS');
-    }
-    setJobs((prev) => prev.slice(0, -1));
-  };
+  if (!currentJob) return;
+  setLastSwipe({ direction, job: currentJob });
+  if (direction === 'right') {
+    setSwipedRight((prev) => prev + 1);
+    createSwipe(currentJob.jobId, 'LIKE');
+    createApplication(currentJob.jobId); // ← הוסף שורה זו
+  } else {
+    createSwipe(currentJob.jobId, 'PASS');
+  }
+  setJobs((prev) => prev.slice(0, -1));
+};
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>

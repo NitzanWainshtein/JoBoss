@@ -1,20 +1,108 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
+import { useJsApiLoader } from '@react-google-maps/api';
+
+const LIBRARIES = ['places'];
+
+function LocationInput({ value, onChange, isLoaded }) {
+  const [inputVal, setInputVal] = useState(value || '');
+  const [suggestions, setSuggestions] = useState([]);
+  const serviceRef = useRef(null);
+
+  useEffect(() => {
+    if (isLoaded && window.google?.maps?.places) {
+      serviceRef.current = new window.google.maps.places.AutocompleteService();
+      console.log('✅ AutocompleteService initialized');
+    } else {
+      console.log('⏳ isLoaded:', isLoaded, '| google:', !!window.google?.maps?.places);
+    }
+  }, [isLoaded]);
+
+  const fetchSuggestions = (input) => {
+    console.log('🔍 fetchSuggestions called:', input);
+    console.log('📦 serviceRef:', serviceRef.current);
+    if (!input || input.length < 2) { setSuggestions([]); return; }
+    if (!serviceRef.current) {
+      console.warn('❌ service not ready');
+      return;
+    }
+    serviceRef.current.getPlacePredictions(
+      { input, types: ['(cities)'] },
+      (predictions, status) => {
+        console.log('📍 status:', status, '| predictions:', predictions);
+        if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+          setSuggestions(predictions || []);
+        } else {
+          setSuggestions([]);
+        }
+      }
+    );
+  };
+
+  const handleChange = (e) => {
+    setInputVal(e.target.value);
+    fetchSuggestions(e.target.value);
+  };
+
+  const handleSelect = (description) => {
+    setInputVal(description);
+    onChange(description);
+    setSuggestions([]);
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <input
+        style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #eee', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+        value={inputVal}
+        onChange={handleChange}
+        placeholder={isLoaded ? 'הקלד עיר...' : 'טוען...'}
+        disabled={!isLoaded}
+      />
+      {suggestions.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 100, overflow: 'hidden', marginTop: '4px' }}>
+          {suggestions.map((s) => (
+            <div
+              key={s.place_id}
+              style={{ padding: '12px 16px', cursor: 'pointer', fontSize: '14px', borderBottom: '1px solid #f5f5f5' }}
+              onClick={() => handleSelect(s.description)}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#FFF5F5'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+            >
+              📍 {s.description}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ProfilePage() {
   const [userName, setUserName] = useState('');
   const [autoApply, setAutoApply] = useState(false);
   const [cvFile, setCvFile] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [location, setLocation] = useState('');
+  const [radius, setRadius] = useState(20);
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_KEY,
+    libraries: LIBRARIES,
+  });
 
   useEffect(() => {
-    getCurrentUser().then((user) => {
-      setUserName(user.username);
-    });
+    getCurrentUser().then((user) => setUserName(user.username));
+    const savedLocation = localStorage.getItem('jobLocation');
+    const savedRadius = localStorage.getItem('jobRadius');
+    if (savedLocation) setLocation(savedLocation);
+    if (savedRadius) setRadius(Number(savedRadius));
   }, []);
 
   const handleSave = () => {
     localStorage.setItem('autoApply', autoApply);
+    localStorage.setItem('jobLocation', location);
+    localStorage.setItem('jobRadius', radius);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -31,11 +119,36 @@ function ProfilePage() {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
+
         <div style={styles.card}>
           <div style={styles.avatar}>{userName.charAt(0).toUpperCase()}</div>
           <h2 style={styles.username}>{userName}</h2>
           <span style={styles.planBadge}>מנוי חינמי</span>
         </div>
+
+        <div style={styles.card}>
+          <h3 style={styles.cardTitle}>📍 העדפות מיקום</h3>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <p style={styles.settingLabel}>מיקום מועדף</p>
+            <LocationInput value={location} onChange={setLocation} isLoaded={isLoaded} />
+          </div>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={styles.settingLabel}>רדיוס חיפוש</p>
+              <span style={styles.radiusBadge}>{radius} ק"מ</span>
+            </div>
+            <input
+              type="range" min="5" max="100" step="5" value={radius}
+              onChange={(e) => setRadius(Number(e.target.value))}
+              style={styles.slider}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={styles.sliderLabel}>5 ק"מ</span>
+              <span style={styles.sliderLabel}>100 ק"מ</span>
+            </div>
+          </div>
+        </div>
+
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>⚙️ הגדרות הגשה</h3>
           <div style={styles.settingRow}>
@@ -53,6 +166,7 @@ function ProfilePage() {
             </div>
           </div>
         </div>
+
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>📄 קורות חיים</h3>
           <p style={styles.settingDesc}>העלה את קורות החיים שלך — ה-AI יתאים אותם לכל משרה</p>
@@ -61,6 +175,7 @@ function ProfilePage() {
             <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCvUpload} />
           </label>
         </div>
+
         <div style={styles.upgradeCard}>
           <div>
             <p style={styles.upgradeTitle}>⭐ שדרג לפרימיום</p>
@@ -68,13 +183,16 @@ function ProfilePage() {
           </div>
           <button style={styles.upgradeBtn}>שדרג</button>
         </div>
+
         <button style={styles.saveBtn} onClick={handleSave}>
           {saved ? '✅ נשמר!' : 'שמור הגדרות'}
         </button>
+
       </div>
     </div>
   );
 }
+
 const styles = {
   container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', justifyContent: 'center' },
   content: { padding: '24px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' },
@@ -88,6 +206,9 @@ const styles = {
   settingDesc: { fontSize: '13px', color: '#777', margin: '4px 0 0 0' },
   toggle: { width: '52px', height: '28px', borderRadius: '14px', padding: '2px', cursor: 'pointer', transition: 'background 0.3s', flexShrink: 0, position: 'relative' },
   toggleCircle: { width: '24px', height: '24px', borderRadius: '50%', background: 'white', transition: 'transform 0.3s', position: 'absolute', top: '2px', left: '2px' },
+  slider: { width: '100%', accentColor: '#FF6B6B', cursor: 'pointer' },
+  sliderLabel: { fontSize: '12px', color: '#999' },
+  radiusBadge: { background: '#FFF5F5', color: '#FF6B6B', padding: '4px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 700, border: '1px solid #FF6B6B' },
   uploadBtn: { width: '100%', padding: '14px', borderRadius: '12px', border: '2px dashed #FF6B6B', color: '#FF6B6B', fontWeight: 600, fontSize: '15px', cursor: 'pointer', textAlign: 'center', background: '#FFF5F5' },
   upgradeCard: { background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)', borderRadius: '20px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   upgradeTitle: { fontSize: '16px', fontWeight: 700, color: 'white', margin: 0 },

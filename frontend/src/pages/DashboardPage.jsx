@@ -20,13 +20,19 @@ function DashboardPage() {
   const [userPlan, setUserPlan] = useState('free');
   const [swipesUsedToday] = useState(3);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    Promise.all([getMyApplications(), getMyProfile()]).then(([appData, profileData]) => {
-      setApplications(appData.applications || []);
-      setUserPlan(profileData.user?.plan?.toLowerCase() || 'free');
-      setLoading(false);
-    });
+    Promise.all([getMyApplications(), getMyProfile()])
+      .then(([appData, profileData]) => {
+        setApplications(appData.applications || []);
+        setUserPlan(profileData.user?.plan?.toLowerCase() || 'free');
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('אין חיבור לשרת. אנא נסה שוב מאוחר יותר.');
+        setLoading(false);
+      });
   }, []);
 
   const accepted = applications.filter(a => ['accepted', 'ACCEPTED'].includes(a.status)).length;
@@ -37,6 +43,19 @@ function DashboardPage() {
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
       <Spinner text="טוען נתונים..." />
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', gap: '16px' }}>
+      <p style={{ fontSize: '48px' }}>⚠️</p>
+      <p style={{ fontSize: '18px', fontWeight: 700, color: '#F44336' }}>{error}</p>
+      <button
+        style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 }}
+        onClick={() => window.location.reload()}
+      >
+        נסה שוב
+      </button>
     </div>
   );
 
@@ -76,9 +95,7 @@ function DashboardPage() {
         </div>
 
         {userPlan === 'free' && (
-          <button style={styles.upgradeBtn}>
-            ⭐ שדרג לפרימיום — הגשות ללא הגבלה
-          </button>
+          <button style={styles.upgradeBtn}>⭐ שדרג לפרימיום — הגשות ללא הגבלה</button>
         )}
 
         <h2 style={styles.sectionTitle}>היסטוריית הגשות</h2>
@@ -105,7 +122,6 @@ function DashboardPage() {
             ))}
           </div>
         )}
-
       </div>
     </div>
   );

@@ -20,26 +20,18 @@ function JobCard({ job, onSwipe }) {
 
   return (
     <motion.div
-      style={{ x, rotate, opacity, ...styles.card }}
+      style={{ x, rotate, opacity, ...styles.card, zIndex: 1 }}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       onDragEnd={handleDragEnd}
       whileTap={{ cursor: 'grabbing' }}
     >
-      <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity }}>
-        ✅ YES
-      </motion.div>
-      <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity }}>
-        ❌ NOPE
-      </motion.div>
+      <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity }}>✅ YES</motion.div>
+      <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity }}>❌ NOPE</motion.div>
 
       <div style={styles.cardHeader}>
-        <img
-          src={logoUrl}
-          alt={job.company}
-          style={styles.logo_img}
-          onError={(e) => { e.target.style.display = 'none'; }}
-        />
+        <img src={logoUrl} alt={job.company} style={styles.logo_img}
+          onError={(e) => { e.target.style.display = 'none'; }} />
         <div>
           <h2 style={styles.company}>{job.company}</h2>
           <p style={styles.location}>📍 {job.location}</p>
@@ -61,38 +53,58 @@ function SwipePage() {
   const [jobs, setJobs] = useState([]);
   const [totalJobs, setTotalJobs] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [lastSwipe, setLastSwipe] = useState(null);
   const [swipedRight, setSwipedRight] = useState(0);
   const navigate = useNavigate();
   const autoApply = false;
 
   useEffect(() => {
-    getJobs().then((data) => {
-      const jobList = data.jobs || [];
-      setJobs(jobList);
-      setTotalJobs(jobList.length);
-      setLoading(false);
-    });
+    getJobs()
+      .then((data) => {
+        const jobList = data.jobs || [];
+        setJobs(jobList);
+        setTotalJobs(jobList.length);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('אין חיבור לשרת. אנא נסה שוב מאוחר יותר.');
+        setLoading(false);
+      });
   }, []);
 
   const currentJob = jobs[jobs.length - 1];
+  const nextJob = jobs[jobs.length - 2];
 
   const handleSwipe = (direction) => {
-  if (!currentJob) return;
-  setLastSwipe({ direction, job: currentJob });
-  if (direction === 'right') {
-    setSwipedRight((prev) => prev + 1);
-    createSwipe(currentJob.jobId, 'LIKE');
-    createApplication(currentJob.jobId); // ← הוסף שורה זו
-  } else {
-    createSwipe(currentJob.jobId, 'PASS');
-  }
-  setJobs((prev) => prev.slice(0, -1));
-};
+    if (!currentJob) return;
+    setLastSwipe({ direction, job: currentJob });
+    if (direction === 'right') {
+      setSwipedRight((prev) => prev + 1);
+      createSwipe(currentJob.jobId, 'LIKE');
+      createApplication(currentJob.jobId);
+    } else {
+      createSwipe(currentJob.jobId, 'PASS');
+    }
+    setJobs((prev) => prev.slice(0, -1));
+  };
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
       <Spinner text="טוען משרות..." />
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', gap: '16px' }}>
+      <p style={{ fontSize: '48px' }}>⚠️</p>
+      <p style={{ fontSize: '18px', fontWeight: 700, color: '#F44336' }}>{error}</p>
+      <button
+        style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 }}
+        onClick={() => window.location.reload()}
+      >
+        נסה שוב
+      </button>
     </div>
   );
 
@@ -136,48 +148,61 @@ function SwipePage() {
             </motion.button>
           </motion.div>
         ) : (
-          <AnimatePresence>
-            <JobCard
-              key={currentJob.jobId}
-              job={currentJob}
-              onSwipe={handleSwipe}
-            />
-          </AnimatePresence>
+          <>
+            {/* קארד הבא — מאחורה */}
+            {nextJob && (
+              <motion.div
+                style={{
+                  ...styles.card,
+                  position: 'absolute',
+                  zIndex: 0,
+                  top: '10px',
+                  filter: 'blur(1.5px)',
+                  opacity: 0.6,
+                  transform: 'scale(0.95)',
+                  pointerEvents: 'none',
+                }}
+              >
+                <div style={styles.cardHeader}>
+                  <img
+                    src={`https://logo.clearbit.com/${nextJob.company?.toLowerCase().replace(/\s/g, '')}.com`}
+                    alt={nextJob.company}
+                    style={styles.logo_img}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div>
+                    <h2 style={styles.company}>{nextJob.company}</h2>
+                    <p style={styles.location}>📍 {nextJob.location}</p>
+                  </div>
+                </div>
+                <h3 style={styles.title}>{nextJob.title}</h3>
+                <p style={styles.salary}>💰 {nextJob.salary || nextJob.jobType || 'לא צוין'}</p>
+              </motion.div>
+            )}
+
+            {/* קארד נוכחי — מעל */}
+            <AnimatePresence>
+              <JobCard
+                key={currentJob.jobId}
+                job={currentJob}
+                onSwipe={handleSwipe}
+              />
+            </AnimatePresence>
+          </>
         )}
       </div>
 
       {jobs.length > 0 && (
         <div style={styles.buttons}>
-          <motion.button
-            style={styles.rejectBtn}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => handleSwipe('left')}
-          >
-            ✕
-          </motion.button>
-          <motion.button
-            style={styles.acceptBtn}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => handleSwipe('right')}
-          >
-            ♥
-          </motion.button>
+          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')}>✕</motion.button>
+          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')}>♥</motion.button>
         </div>
       )}
 
       {lastSwipe && jobs.length > 0 && (
-        <motion.p
-          key={lastSwipe.job.jobId}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={styles.feedback}
-        >
+        <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
           {lastSwipe.direction === 'right'
-            ? autoApply
-              ? `✅ CV נשלח ל-${lastSwipe.job.company}!`
-              : `💾 נשמר למועדפים — ${lastSwipe.job.company}`
+            ? autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר למועדפים — ${lastSwipe.job.company}`
             : `👋 דולגה משרה ב-${lastSwipe.job.company}`}
         </motion.p>
       )}
@@ -188,7 +213,7 @@ function SwipePage() {
 const styles = {
   container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px' },
   cardContainer: { position: 'relative', width: 'min(360px, 95vw)', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(255,107,107,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'relative', overflow: 'hidden' },
+  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(255,107,107,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
   stamp: { position: 'absolute', top: '24px', padding: '8px 16px', borderRadius: '12px', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', border: '4px solid', zIndex: 10 },
   likeStamp: { right: '24px', color: '#4CAF50', borderColor: '#4CAF50', transform: 'rotate(15deg)' },
   nopeStamp: { left: '24px', color: '#F44336', borderColor: '#F44336', transform: 'rotate(-15deg)' },

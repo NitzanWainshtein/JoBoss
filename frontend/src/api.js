@@ -3,7 +3,7 @@ import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 const BASE_URL = import.meta.env.VITE_API_URL || 'mock';
 
 const getToken = async () => {
-  const session = await fetchAuthSession();
+  const session = await fetchAuthSession({ forceRefresh: true });
   const token = session.tokens?.idToken?.toString();
   console.log('TOKEN:', token ? token.substring(0, 50) + '...' : 'NULL');
   return token;
@@ -19,20 +19,26 @@ const apiCall = async (method, path, body = null) => {
     return mockResponse(method, path, body);
   }
 
-  const token = await getToken();
-  console.log('Sending request:', method, path);
+  try {
+    const token = await getToken();
+    const response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token
+      },
+      body: body ? JSON.stringify(body) : null
+    });
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token
-    },
-    body: body ? JSON.stringify(body) : null
-  });
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
 
-  console.log('Response status:', response.status);
-  return response.json();
+    return response.json();
+  } catch (error) {
+    console.error('API call failed:', method, path, error.message);
+    throw error;
+  }
 };
 
 // ===== JOBS =====

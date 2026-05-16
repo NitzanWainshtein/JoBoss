@@ -10,6 +10,7 @@ import Navbar from './components/Navbar.jsx';
 import Spinner from './components/Spinner.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import './styles/global.css';
+import AdminPage from './pages/AdminPage.jsx';
 
 function AnimatedRoutes({ isLoggedIn }) {
   const location = useLocation();
@@ -38,6 +39,7 @@ function AnimatedRoutes({ isLoggedIn }) {
           </PageTransition>
         } />
         <Route path="/" element={<Navigate to={isLoggedIn ? "/swipe" : "/login"} />} />
+        <Route path="/admin" element={isLoggedIn ? <AdminPage /> : <Navigate to="/login" />} />
       </Routes>
     </AnimatePresence>
   );

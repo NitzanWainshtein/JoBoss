@@ -16,6 +16,8 @@ function JobCard({ job, onSwipe }) {
     else if (info.offset.x < -100) onSwipe('left');
   };
 
+  const logoUrl = `https://logo.clearbit.com/${job.company?.toLowerCase().replace(/\s/g, '')}.com`;
+
   return (
     <motion.div
       style={{ x, rotate, opacity, ...styles.card }}
@@ -33,7 +35,7 @@ function JobCard({ job, onSwipe }) {
 
       <div style={styles.cardHeader}>
         <img
-          src={job.logo}
+          src={logoUrl}
           alt={job.company}
           style={styles.logo_img}
           onError={(e) => { e.target.style.display = 'none'; }}
@@ -44,10 +46,10 @@ function JobCard({ job, onSwipe }) {
         </div>
       </div>
       <h3 style={styles.title}>{job.title}</h3>
-      <p style={styles.salary}>💰 {job.salary}</p>
+      <p style={styles.salary}>💰 {job.salary || job.jobType || 'לא צוין'}</p>
       <p style={styles.description}>{job.description}</p>
       <div style={styles.techContainer}>
-        {job.technologies.map((tech) => (
+        {(job.technologies || job.requirements || []).map((tech) => (
           <span key={tech} style={styles.techBadge}>{tech}</span>
         ))}
       </div>

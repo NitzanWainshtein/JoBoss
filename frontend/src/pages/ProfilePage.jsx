@@ -103,6 +103,12 @@ function ProfilePage() {
     else { alert('יש להעלות קובץ PDF בלבד'); }
   };
 
+  const handleLogout = async () => {
+    const { signOut } = await import('aws-amplify/auth');
+    await signOut();
+    window.location.href = '/login';
+  };
+
   if (loadingProfile) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
       <p style={{ color: '#6C4FD4', fontWeight: 600 }}>טוען פרופיל...</p>
@@ -176,6 +182,10 @@ function ProfilePage() {
           {saved ? '✅ נשמר!' : 'שמור הגדרות'}
         </button>
 
+        <button style={styles.logoutBtn} onClick={handleLogout}>
+          🚪 התנתק
+        </button>
+
       </div>
     </div>
   );
@@ -203,6 +213,7 @@ const styles = {
   upgradeDesc: { fontSize: '13px', color: 'rgba(255,255,255,0.85)', margin: '4px 0 0 0' },
   upgradeBtn: { background: 'white', color: '#6C4FD4', border: 'none', borderRadius: '12px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', flexShrink: 0 },
   saveBtn: { width: '100%', padding: '14px', borderRadius: '12px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 700, cursor: 'pointer' },
+  logoutBtn: { width: '100%', padding: '14px', borderRadius: '12px', background: 'white', color: '#F44336', border: '2px solid #F44336', fontSize: '16px', fontWeight: 700, cursor: 'pointer' },
 };
 
 export default ProfilePage;

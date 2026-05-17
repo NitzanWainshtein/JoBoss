@@ -116,8 +116,10 @@ function App() {
           </div>
         ) : (
           <Router>
-            {isLoggedIn && <Navbar />}
-            <AnimatedRoutes isLoggedIn={isLoggedIn} />
+           {isLoggedIn && <Navbar />}
+<div style={{ paddingBottom: isLoggedIn ? '64px' : '0', paddingTop: isLoggedIn ? '56px' : '0' }}>
+  <AnimatedRoutes isLoggedIn={isLoggedIn} />
+</div>
           </Router>
         )
       )}

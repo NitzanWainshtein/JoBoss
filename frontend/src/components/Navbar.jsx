@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'aws-amplify/auth';
 
@@ -14,87 +14,75 @@ function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <div style={styles.navbar}>
-      <img
-        src="/app_logo.png"
-        alt="joBoss"
-        onClick={() => navigate('/swipe')}
-        style={{ height: '32px', cursor: 'pointer', flexShrink: 0 }}
-      />
-
-      <div style={styles.navLinks}>
-        <button
-          style={{ ...styles.navBtn, ...(isActive('/swipe') ? styles.navBtnActive : {}) }}
-          onClick={() => navigate('/swipe')}
-        >
-          🔥
-          <span style={styles.navLabel}>משרות</span>
+    <>
+      <div style={styles.header}>
+        <img src="/app_logo.png" alt="joBoss" style={styles.logo} />
+      </div>
+      <div style={styles.navbar}>
+        <button style={{ ...styles.navBtn, ...(isActive('/swipe') ? styles.active : {}) }} onClick={() => navigate('/swipe')}>
+          <span style={styles.icon}>🔥</span>
+          <span style={styles.label}>משרות</span>
         </button>
-        <button
-          style={{ ...styles.navBtn, ...(isActive('/dashboard') ? styles.navBtnActive : {}) }}
-          onClick={() => navigate('/dashboard')}
-        >
-          📋
-          <span style={styles.navLabel}>הגשות</span>
+        <button style={{ ...styles.navBtn, ...(isActive('/dashboard') ? styles.active : {}) }} onClick={() => navigate('/dashboard')}>
+          <span style={styles.icon}>📋</span>
+          <span style={styles.label}>הגשות</span>
         </button>
-        <button
-          style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.navBtnActive : {}) }}
-          onClick={() => navigate('/profile')}
-        >
-          👤
-          <span style={styles.navLabel}>פרופיל</span>
+        <button style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.active : {}) }} onClick={() => navigate('/profile')}>
+          <span style={styles.icon}>👤</span>
+          <span style={styles.label}>פרופיל</span>
         </button>
       </div>
-
-      <button style={styles.logoutBtn} onClick={handleLogout}>
-        יציאה
-      </button>
-    </div>
+    </>
   );
 }
 
 const styles = {
-  navbar: {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '10px 16px',
+  header: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '56px',
     background: 'white',
     boxShadow: '0 2px 8px rgba(108,79,212,0.1)',
-    position: 'sticky',
-    top: 0,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 100,
-    boxSizing: 'border-box'
   },
-  navLinks: { display: 'flex', gap: '4px' },
+  logo: {
+    height: '36px',
+    objectFit: 'contain',
+  },
+  navbar: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '64px',
+    background: 'white',
+    boxShadow: '0 -2px 12px rgba(108,79,212,0.12)',
+    display: 'flex',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    zIndex: 100,
+    boxSizing: 'border-box',
+  },
   navBtn: {
-    background: 'transparent',
-    border: 'none',
-    borderRadius: '16px',
-    padding: '6px 10px',
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: '13px',
-    color: 'var(--text-light)',
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '2px'
-  },
-  navBtnActive: { background: '#F0F2FF', color: '#6C4FD4' },
-  navLabel: { fontSize: '10px' },
-  logoutBtn: {
-    background: '#eee',
-    color: '#666',
+    gap: '2px',
+    background: 'transparent',
     border: 'none',
-    borderRadius: '16px',
-    padding: '6px 10px',
     cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: '12px',
-    flexShrink: 0
+    padding: '8px 0',
+    color: '#999',
   },
+  active: { color: '#6C4FD4' },
+  icon: { fontSize: '20px' },
+  label: { fontSize: '10px', fontWeight: 600 },
 };
 
 export default Navbar;

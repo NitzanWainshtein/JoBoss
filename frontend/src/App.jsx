@@ -1,16 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { getCurrentUser } from 'aws-amplify/auth';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import LoginPage from './pages/LoginPage.jsx';
 import SwipePage from './pages/SwipePage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import AdminPage from './pages/AdminPage.jsx';
 import Navbar from './components/Navbar.jsx';
-import Spinner from './components/Spinner.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import './styles/global.css';
-import AdminPage from './pages/AdminPage.jsx';
+
+function SplashScreen({ onDone }) {
+  useEffect(() => {
+    const timer = setTimeout(onDone, 2000);
+    return () => clearTimeout(timer);
+  }, [onDone]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 1 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.6 }}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+        display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'center',
+        zIndex: 9999, gap: '24px'
+      }}
+    >
+      <motion.img
+        src="/app_logo.png"
+        alt="joBoss"
+        initial={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5, type: 'spring' }}
+        style={{ width: '200px', borderRadius: '32px' }}
+      />
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.8 }}
+        transition={{ delay: 0.6 }}
+        style={{ color: 'white', fontSize: '16px', margin: 0 }}
+      >
+        Find your next job, in a swipe
+      </motion.p>
+    </motion.div>
+  );
+}
 
 function AnimatedRoutes({ isLoggedIn }) {
   const location = useLocation();
@@ -38,8 +77,12 @@ function AnimatedRoutes({ isLoggedIn }) {
             {isLoggedIn ? <ProfilePage /> : <Navigate to="/login" />}
           </PageTransition>
         } />
+        <Route path="/admin" element={
+          <PageTransition>
+            {isLoggedIn ? <AdminPage /> : <Navigate to="/login" />}
+          </PageTransition>
+        } />
         <Route path="/" element={<Navigate to={isLoggedIn ? "/swipe" : "/login"} />} />
-        <Route path="/admin" element={isLoggedIn ? <AdminPage /> : <Navigate to="/login" />} />
       </Routes>
     </AnimatePresence>
   );
@@ -48,6 +91,7 @@ function AnimatedRoutes({ isLoggedIn }) {
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     getCurrentUser()
@@ -56,17 +100,28 @@ function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-      <Spinner text="טוען את joBoss..." />
-    </div>
-  );
-
   return (
-    <Router>
-      {isLoggedIn && <Navbar />}
-      <AnimatedRoutes isLoggedIn={isLoggedIn} />
-    </Router>
+    <>
+      <AnimatePresence>
+        {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+      </AnimatePresence>
+
+      {!showSplash && (
+        loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--background)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <img src="/app_logo.png" alt="joBoss" style={{ width: '120px', marginBottom: '16px' }} />
+              <p style={{ color: '#6C4FD4', fontWeight: 600 }}>טוען...</p>
+            </div>
+          </div>
+        ) : (
+          <Router>
+            {isLoggedIn && <Navbar />}
+            <AnimatedRoutes isLoggedIn={isLoggedIn} />
+          </Router>
+        )
+      )}
+    </>
   );
 }
 

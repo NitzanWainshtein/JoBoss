@@ -6,15 +6,17 @@
 }
 
 :root {
-  --primary: #FF6B6B;
-  --secondary: #FF8E53;
-  --background: #FFF5F5;
+  --primary: #6C4FD4;
+  --secondary: #4CC9F0;
+  --dark: #1E2A4A;
+  --background: #F0F2FF;
   --card-bg: #FFFFFF;
-  --text-dark: #2D2D2D;
-  --text-light: #777777;
+  --text-dark: #1E2A4A;
+  --text-light: #6B7280;
   --accept: #4CAF50;
   --reject: #F44336;
-  --shadow: 0 8px 32px rgba(255, 107, 107, 0.15);
+  --shadow: 0 8px 32px rgba(108, 79, 212, 0.15);
+  --gradient: linear-gradient(135deg, #6C4FD4, #1E2A4A);
 }
 
 body {

@@ -15,9 +15,12 @@ function Navbar() {
 
   return (
     <div style={styles.navbar}>
-      <h1 style={styles.logo} onClick={() => navigate('/swipe')}>
-        jo<span style={styles.logoAccent}>Boss</span>
-      </h1>
+      <img
+        src="/app_logo.png"
+        alt="joBoss"
+        onClick={() => navigate('/swipe')}
+        style={{ height: '36px', cursor: 'pointer' }}
+      />
 
       <div style={styles.navLinks}>
         <button
@@ -48,12 +51,10 @@ function Navbar() {
 }
 
 const styles = {
-  navbar: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 },
-  logo: { fontSize: '24px', fontWeight: 800, color: 'var(--primary)', margin: 0, cursor: 'pointer' },
-  logoAccent: { color: 'var(--secondary)' },
+  navbar: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', background: 'white', boxShadow: '0 2px 8px rgba(108,79,212,0.1)', position: 'sticky', top: 0, zIndex: 100 },
   navLinks: { display: 'flex', gap: '8px' },
   navBtn: { background: 'transparent', border: 'none', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', color: 'var(--text-light)', transition: 'all 0.2s' },
-  navBtnActive: { background: 'var(--background)', color: 'var(--primary)' },
+  navBtnActive: { background: '#F0F2FF', color: 'var(--primary)' },
   logoutBtn: { background: '#eee', color: '#666', border: 'none', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
 };
 

@@ -51,7 +51,7 @@ function DashboardPage() {
       <p style={{ fontSize: '48px' }}>⚠️</p>
       <p style={{ fontSize: '18px', fontWeight: 700, color: '#F44336' }}>{error}</p>
       <button
-        style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 }}
+        style={{ background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 }}
         onClick={() => window.location.reload()}
       >
         נסה שוב
@@ -140,7 +140,7 @@ const styles = {
   quotaSubtitle: { fontSize: '13px', color: 'var(--text-light)', margin: 0 },
   quotaBadge: { width: '56px', height: '56px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   quotaNumber: { fontSize: '22px', fontWeight: 800, color: 'white', margin: 0 },
-  upgradeBtn: { background: 'linear-gradient(135deg, var(--primary), var(--secondary))', color: 'white', border: 'none', borderRadius: '12px', padding: '14px', cursor: 'pointer', fontWeight: 700, fontSize: '15px' },
+  upgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '12px', padding: '14px', cursor: 'pointer', fontWeight: 700, fontSize: '15px' },
   sectionTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
   applicationsList: { display: 'flex', flexDirection: 'column', gap: '12px' },
   applicationCard: { background: 'white', borderRadius: '16px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },

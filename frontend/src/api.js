@@ -42,7 +42,26 @@ const apiCall = async (method, path, body = null) => {
 };
 
 // ===== JOBS =====
-export const getJobs = () => apiCall('GET', '/jobs');
+export const getJobs = async () => {
+  const location = localStorage.getItem('jobLocation');
+  const radius = localStorage.getItem('jobRadius');
+
+  if (!location || !radius) return apiCall('GET', '/jobs');
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'he', 'User-Agent': 'joBoss-app' } }
+    );
+    const data = await res.json();
+    if (data.length > 0) {
+      const { lat, lon } = data[0];
+      return apiCall('GET', `/jobs?lat=${lat}&lng=${lon}&radius=${radius}`);
+    }
+  } catch {}
+
+  return apiCall('GET', '/jobs');
+};
 export const getJobById = (jobId) => apiCall('GET', `/jobs/${jobId}`);
 
 // ===== SWIPES =====

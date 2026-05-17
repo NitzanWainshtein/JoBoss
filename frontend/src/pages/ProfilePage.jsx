@@ -1,42 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
-import { useJsApiLoader } from '@react-google-maps/api';
+import { getMyProfile, updateMyProfile } from '../api';
 
-const LIBRARIES = ['places'];
-
-function LocationInput({ value, onChange, isLoaded }) {
+function LocationInput({ value, onChange }) {
   const [inputVal, setInputVal] = useState(value || '');
   const [suggestions, setSuggestions] = useState([]);
-  const serviceRef = useRef(null);
 
   useEffect(() => {
-    if (isLoaded && window.google?.maps?.places) {
-      serviceRef.current = new window.google.maps.places.AutocompleteService();
-      console.log('✅ AutocompleteService initialized');
-    } else {
-      console.log('⏳ isLoaded:', isLoaded, '| google:', !!window.google?.maps?.places);
-    }
-  }, [isLoaded]);
+    setInputVal(value || '');
+  }, [value]);
 
-  const fetchSuggestions = (input) => {
-    console.log('🔍 fetchSuggestions called:', input);
-    console.log('📦 serviceRef:', serviceRef.current);
+  const fetchSuggestions = async (input) => {
     if (!input || input.length < 2) { setSuggestions([]); return; }
-    if (!serviceRef.current) {
-      console.warn('❌ service not ready');
-      return;
-    }
-    serviceRef.current.getPlacePredictions(
-      { input, types: ['(cities)'] },
-      (predictions, status) => {
-        console.log('📍 status:', status, '| predictions:', predictions);
-        if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-          setSuggestions(predictions || []);
-        } else {
-          setSuggestions([]);
-        }
-      }
-    );
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=5&featuretype=city&addressdetails=1`,
+        { headers: { 'Accept-Language': 'he', 'User-Agent': 'joBoss-app' } }
+      );
+      const data = await res.json();
+      setSuggestions(data.map(item => ({
+        place_id: item.place_id,
+        description: item.display_name
+      })));
+    } catch { setSuggestions([]); }
   };
 
   const handleChange = (e) => {
@@ -56,15 +42,14 @@ function LocationInput({ value, onChange, isLoaded }) {
         style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #eee', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
         value={inputVal}
         onChange={handleChange}
-        placeholder={isLoaded ? 'הקלד עיר...' : 'טוען...'}
-        disabled={!isLoaded}
+        placeholder="הקלד עיר..."
       />
       {suggestions.length > 0 && (
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 100, overflow: 'hidden', marginTop: '4px' }}>
           {suggestions.map((s) => (
             <div
               key={s.place_id}
-              style={{ padding: '12px 16px', cursor: 'pointer', fontSize: '14px', borderBottom: '1px solid #f5f5f5' }}
+              style={{ padding: '12px 16px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f5f5f5' }}
               onClick={() => handleSelect(s.description)}
               onMouseEnter={(e) => e.currentTarget.style.background = '#FFF5F5'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
@@ -85,24 +70,41 @@ function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState(20);
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_KEY,
-    libraries: LIBRARIES,
-  });
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
     getCurrentUser().then((user) => setUserName(user.username));
-    const savedLocation = localStorage.getItem('jobLocation');
-    const savedRadius = localStorage.getItem('jobRadius');
-    if (savedLocation) setLocation(savedLocation);
-    if (savedRadius) setRadius(Number(savedRadius));
+
+    getMyProfile().then((data) => {
+      const user = data.user;
+      if (user?.preferredLocation) setLocation(user.preferredLocation);
+      if (user?.searchRadius) setRadius(Number(user.searchRadius));
+      if (user?.autoApply !== undefined) setAutoApply(user.autoApply);
+      setLoadingProfile(false);
+    }).catch(() => {
+      const savedLocation = localStorage.getItem('jobLocation');
+      const savedRadius = localStorage.getItem('jobRadius');
+      if (savedLocation) setLocation(savedLocation);
+      if (savedRadius) setRadius(Number(savedRadius));
+      setLoadingProfile(false);
+    });
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     localStorage.setItem('autoApply', autoApply);
     localStorage.setItem('jobLocation', location);
     localStorage.setItem('jobRadius', radius);
+
+    try {
+      await updateMyProfile({
+        autoApply,
+        preferredLocation: location,
+        searchRadius: radius,
+      });
+    } catch (e) {
+      console.error('שגיאה בשמירה:', e);
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -115,6 +117,12 @@ function ProfilePage() {
       alert('יש להעלות קובץ PDF בלבד');
     }
   };
+
+  if (loadingProfile) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+      <p style={{ color: '#FF6B6B', fontWeight: 600 }}>טוען פרופיל...</p>
+    </div>
+  );
 
   return (
     <div style={styles.container}>
@@ -130,7 +138,7 @@ function ProfilePage() {
           <h3 style={styles.cardTitle}>📍 העדפות מיקום</h3>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <p style={styles.settingLabel}>מיקום מועדף</p>
-            <LocationInput value={location} onChange={setLocation} isLoaded={isLoaded} />
+            <LocationInput value={location} onChange={setLocation} />
           </div>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

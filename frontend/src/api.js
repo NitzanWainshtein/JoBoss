@@ -43,25 +43,25 @@ const apiCall = async (method, path, body = null) => {
 
 // ===== JOBS =====
 export const getJobs = async () => {
-  const location = localStorage.getItem('jobLocation');
+  const latitude = localStorage.getItem('jobLatitude');
+  const longitude = localStorage.getItem('jobLongitude');
   const radius = localStorage.getItem('jobRadius');
 
-  if (!location || !radius) return apiCall('GET', '/jobs');
-
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
-      { headers: { 'Accept-Language': 'he', 'User-Agent': 'joBoss-app' } }
-    );
-    const data = await res.json();
-    if (data.length > 0) {
-      const { lat, lon } = data[0];
-      return apiCall('GET', `/jobs?lat=${lat}&lng=${lon}&radius=${radius}`);
+  // נסה עם סינון גיאוגרפי, אם timeout - חזור לכל המשרות
+  if (latitude && longitude && radius) {
+    try {
+      return await apiCall('GET', `/jobs?lat=${latitude}&lng=${longitude}&radius=${radius}`);
+    } catch (error) {
+      console.log('Geocoding timeout, falling back to all jobs');
+      // אם נכשל (timeout/CORS) - תחזיר את כל המשרות בלי סינון
+      return await apiCall('GET', '/jobs');
     }
-  } catch {}
+  }
 
+  // אחרת, קרא את כל המשרות
   return apiCall('GET', '/jobs');
 };
+
 export const getJobById = (jobId) => apiCall('GET', `/jobs/${jobId}`);
 
 // ===== SWIPES =====

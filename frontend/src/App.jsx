@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { getCurrentUser } from 'aws-amplify/auth';
+import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import LoginPage from './pages/LoginPage.jsx';
 import SwipePage from './pages/SwipePage.jsx';
@@ -9,6 +10,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
+import { createMyProfile } from './api';
 import './styles/global.css';
 
 function SplashScreen({ onDone }) {
@@ -93,11 +95,38 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
 
+  const checkAuth = async () => {
+    try {
+      const user = await getCurrentUser();
+      const session = await fetchAuthSession();
+      setIsLoggedIn(true);
+    } catch {
+      setIsLoggedIn(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    getCurrentUser()
-      .then(() => setIsLoggedIn(true))
-      .catch(() => setIsLoggedIn(false))
-      .finally(() => setLoading(false));
+    checkAuth();
+
+    // האזן ל-OAuth callbacks
+    const hubListenerCancelToken = Hub.listen('auth', ({ payload }) => {
+      switch (payload.event) {
+        case 'signInWithRedirect':
+          checkAuth();
+          break;
+        case 'signInWithRedirect_failure':
+          console.error('OAuth sign in failed:', payload.data);
+          setLoading(false);
+          break;
+        case 'customOAuthState':
+          // טיפול ב-custom state אם צריך
+          break;
+      }
+    });
+
+    return () => hubListenerCancelToken();
   }, []);
 
   return (
@@ -116,10 +145,10 @@ function App() {
           </div>
         ) : (
           <Router>
-           {isLoggedIn && <Navbar />}
-<div style={{ paddingBottom: isLoggedIn ? '64px' : '0', paddingTop: isLoggedIn ? '56px' : '0' }}>
-  <AnimatedRoutes isLoggedIn={isLoggedIn} />
-</div>
+            {isLoggedIn && <Navbar />}
+            <div style={{ paddingBottom: isLoggedIn ? '64px' : '0', paddingTop: isLoggedIn ? '56px' : '0' }}>
+              <AnimatedRoutes isLoggedIn={isLoggedIn} />
+            </div>
           </Router>
         )
       )}

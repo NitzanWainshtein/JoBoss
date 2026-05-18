@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signIn, signUp, confirmSignUp } from 'aws-amplify/auth';
+import { signIn, signUp, confirmSignUp, signInWithRedirect } from 'aws-amplify/auth';
 import { getMyProfile, createMyProfile } from '../api';
 
 function LoginPage() {
@@ -61,6 +61,16 @@ function LoginPage() {
     setLoading(false);
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithRedirect({ provider: 'Google' });
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
@@ -70,6 +80,21 @@ function LoginPage() {
           {mode === 'register' && 'צור חשבון חדש'}
           {mode === 'confirm' && 'אמת את האימייל שלך'}
         </p>
+
+        {mode !== 'confirm' && (
+          <>
+            <button style={styles.googleBtn} onClick={handleGoogleSignIn} disabled={loading}>
+              <img src="https://www.google.com/favicon.ico" alt="Google" style={{ width: '18px', height: '18px' }} />
+              {mode === 'login' ? 'המשך עם Google' : 'הרשם עם Google'}
+            </button>
+            
+            <div style={styles.divider}>
+              <span style={styles.dividerLine}></span>
+              <span style={styles.dividerText}>או</span>
+              <span style={styles.dividerLine}></span>
+            </div>
+          </>
+        )}
 
         {mode === 'register' && (
           <input style={styles.input} placeholder="שם מלא" value={name}
@@ -116,6 +141,39 @@ const styles = {
   container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' },
   card: { background: 'white', borderRadius: '24px', padding: '40px', width: '100%', maxWidth: '360px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' },
   subtitle: { color: '#6B7280', fontSize: '14px', margin: 0 },
+  googleBtn: { 
+    width: '100%', 
+    padding: '12px', 
+    borderRadius: '12px', 
+    background: 'white', 
+    border: '1.5px solid #eee', 
+    fontSize: '15px', 
+    fontWeight: 600, 
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    color: '#333',
+    transition: 'all 0.2s'
+  },
+  divider: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    margin: '4px 0'
+  },
+  dividerLine: {
+    flex: 1,
+    height: '1px',
+    background: '#eee'
+  },
+  dividerText: {
+    fontSize: '13px',
+    color: '#999',
+    fontWeight: 500
+  },
   input: { width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #eee', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   btn: { width: '100%', padding: '14px', borderRadius: '12px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s' },
   error: { fontSize: '13px', margin: 0, textAlign: 'center' },

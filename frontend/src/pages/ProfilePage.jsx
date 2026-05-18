@@ -5,49 +5,109 @@ import { getMyProfile, updateMyProfile } from '../api';
 function LocationInput({ value, onChange }) {
   const [inputVal, setInputVal] = useState(value || '');
   const [suggestions, setSuggestions] = useState([]);
+  const [debounceTimer, setDebounceTimer] = useState(null);
 
   useEffect(() => {
     setInputVal(value || '');
   }, [value]);
 
   const fetchSuggestions = async (input) => {
-    if (!input || input.length < 2) { setSuggestions([]); return; }
+    if (!input || input.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=5&featuretype=city&addressdetails=1`,
-        { headers: { 'Accept-Language': 'he', 'User-Agent': 'joBoss-app' } }
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=5&featuretype=city&addressdetails=1&countrycodes=il`,
+        { 
+          headers: { 
+            'Accept-Language': 'he', 
+            'User-Agent': 'joBoss-app' 
+          }
+        }
       );
+      
+      if (!res.ok) {
+        setSuggestions([]);
+        return;
+      }
+      
       const data = await res.json();
-      setSuggestions(data.map(item => ({ place_id: item.place_id, description: item.display_name })));
-    } catch { setSuggestions([]); }
+      setSuggestions(data.map(item => ({
+        place_id: item.place_id,
+        description: item.display_name,
+        latitude: item.lat,
+        longitude: item.lon
+      })));
+    } catch (error) {
+      console.error('שגיאה בחיפוש מיקום:', error);
+      setSuggestions([]);
+    }
   };
 
   const handleChange = (e) => {
-    setInputVal(e.target.value);
-    fetchSuggestions(e.target.value);
+    const newValue = e.target.value;
+    setInputVal(newValue);
+
+    // נקה את ה-timer הקודם
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    // חכה 500ms לפני הקריאה (Debounce)
+    const timer = setTimeout(() => {
+      fetchSuggestions(newValue);
+    }, 500);
+
+    setDebounceTimer(timer);
   };
 
-  const handleSelect = (description) => {
-    setInputVal(description);
-    onChange(description);
+  const handleSelect = (suggestion) => {
+    setInputVal(suggestion.description);
+    onChange(suggestion.description);
+    localStorage.setItem('jobLatitude', suggestion.latitude);
+    localStorage.setItem('jobLongitude', suggestion.longitude);
     setSuggestions([]);
   };
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <input
-        style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #eee', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+        style={{
+          width: '100%',
+          padding: '12px 16px',
+          borderRadius: '12px',
+          border: '1.5px solid #eee',
+          fontSize: '14px',
+          outline: 'none',
+          boxSizing: 'border-box'
+        }}
         value={inputVal}
         onChange={handleChange}
         placeholder="הקלד עיר..."
       />
       {suggestions.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 100, overflow: 'hidden', marginTop: '4px' }}>
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          background: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+          zIndex: 100,
+          overflow: 'hidden',
+          marginTop: '4px'
+        }}>
           {suggestions.map((s) => (
             <div
               key={s.place_id}
-              style={{ padding: '12px 16px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f5f5f5' }}
-              onClick={() => handleSelect(s.description)}
+              style={{
+                padding: '12px 16px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                borderBottom: '1px solid #f5f5f5'
+              }}
+              onClick={() => handleSelect(s)}
               onMouseEnter={(e) => e.currentTarget.style.background = '#F0F2FF'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
             >
@@ -61,46 +121,74 @@ function LocationInput({ value, onChange }) {
 }
 
 function ProfilePage() {
+  const [profileImage, setProfileImage] = useState(null);
   const [userName, setUserName] = useState('');
   const [autoApply, setAutoApply] = useState(false);
   const [cvFile, setCvFile] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState(20);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  useEffect(() => {
-    getCurrentUser().then((user) => setUserName(user.username));
-    getMyProfile().then((data) => {
-      const user = data.user;
-      if (user?.preferredLocation) setLocation(user.preferredLocation);
-      if (user?.searchRadius) setRadius(Number(user.searchRadius));
-      if (user?.autoApply !== undefined) setAutoApply(user.autoApply);
-      setLoadingProfile(false);
-    }).catch(() => {
-      const savedLocation = localStorage.getItem('jobLocation');
-      const savedRadius = localStorage.getItem('jobRadius');
-      if (savedLocation) setLocation(savedLocation);
-      if (savedRadius) setRadius(Number(savedRadius));
-      setLoadingProfile(false);
-    });
+ useEffect(() => {
+  getCurrentUser().then((user) => {
+    setUserName(user.signInDetails?.loginId || user.username);
+  });
+    getMyProfile()
+      .then((data) => {
+        const user = data.user;
+        if (user?.preferredLocation) setLocation(user.preferredLocation);
+        if (user?.searchRadius) setRadius(Number(user.searchRadius));
+        if (user?.autoApply !== undefined) setAutoApply(user.autoApply);
+        if (user?.latitude) localStorage.setItem('jobLatitude', user.latitude);
+        if (user?.longitude) localStorage.setItem('jobLongitude', user.longitude);
+        setLoadingProfile(false);
+      })
+      .catch(() => {
+        const savedLocation = localStorage.getItem('jobLocation');
+        const savedRadius = localStorage.getItem('jobRadius');
+        if (savedLocation) setLocation(savedLocation);
+        if (savedRadius) setRadius(Number(savedRadius));
+        setLoadingProfile(false);
+      });
   }, []);
 
-  const handleSave = async () => {
-    localStorage.setItem('autoApply', autoApply);
-    localStorage.setItem('jobLocation', location);
-    localStorage.setItem('jobRadius', radius);
-    try {
-      await updateMyProfile({ autoApply, preferredLocation: location, searchRadius: radius });
-    } catch (e) { console.error('שגיאה בשמירה:', e); }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  useEffect(() => {
+    if (loadingProfile) return;
+
+    const saveTimer = setTimeout(async () => {
+      const latitude = localStorage.getItem('jobLatitude');
+      const longitude = localStorage.getItem('jobLongitude');
+
+      if (!latitude || !longitude || !location) return;
+
+      localStorage.setItem('autoApply', autoApply);
+      localStorage.setItem('jobLocation', location);
+      localStorage.setItem('jobRadius', radius);
+
+      try {
+        await updateMyProfile({
+          autoApply,
+          preferredLocation: location,
+          searchRadius: radius,
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude)
+        });
+        console.log('✅ הגדרות נשמרו אוטומטית');
+      } catch (e) {
+        console.error('שגיאה בשמירה:', e);
+      }
+    }, 1000);
+
+    return () => clearTimeout(saveTimer);
+  }, [location, radius, autoApply, loadingProfile]);
 
   const handleCvUpload = (e) => {
     const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') { setCvFile(file); }
-    else { alert('יש להעלות קובץ PDF בלבד'); }
+    if (file && file.type === 'application/pdf') {
+      setCvFile(file);
+    } else {
+      alert('יש להעלות קובץ PDF בלבד');
+    }
   };
 
   const handleLogout = async () => {
@@ -109,21 +197,49 @@ function ProfilePage() {
     window.location.href = '/login';
   };
 
-  if (loadingProfile) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-      <p style={{ color: '#6C4FD4', fontWeight: 600 }}>טוען פרופיל...</p>
-    </div>
-  );
+  if (loadingProfile) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '80vh'
+      }}>
+        <p style={{ color: '#6C4FD4', fontWeight: 600 }}>טוען פרופיל...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-
         <div style={styles.card}>
-          <div style={styles.avatar}>{userName.charAt(0).toUpperCase()}</div>
-          <h2 style={styles.username}>{userName}</h2>
-          <span style={styles.planBadge}>מנוי חינמי</span>
-        </div>
+  <div style={{ position: 'relative' }}>
+    {profileImage ? (
+      <img src={profileImage} alt="Profile" style={styles.avatar} />
+    ) : (
+      <div style={styles.avatar}>{userName.charAt(0).toUpperCase()}</div>
+    )}
+    <label style={styles.cameraIcon}>
+      📷
+      <input
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => setProfileImage(reader.result);
+            reader.readAsDataURL(file);
+          }
+        }}
+      />
+    </label>
+  </div>
+  <h2 style={styles.username}>{userName}</h2>
+  <span style={styles.planBadge}>מנוי חינמי</span>
+</div>
 
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>📍 העדפות מיקום</h3>
@@ -136,8 +252,15 @@ function ProfilePage() {
               <p style={styles.settingLabel}>רדיוס חיפוש</p>
               <span style={styles.radiusBadge}>{radius} ק"מ</span>
             </div>
-            <input type="range" min="5" max="100" step="5" value={radius}
-              onChange={(e) => setRadius(Number(e.target.value))} style={styles.slider} />
+            <input
+              type="range"
+              min="5"
+              max="100"
+              step="5"
+              value={radius}
+              onChange={(e) => setRadius(Number(e.target.value))}
+              style={styles.slider}
+            />
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={styles.sliderLabel}>5 ק"מ</span>
               <span style={styles.sliderLabel}>100 ק"מ</span>
@@ -151,12 +274,24 @@ function ProfilePage() {
             <div>
               <p style={styles.settingLabel}>הגשה אוטומטית</p>
               <p style={styles.settingDesc}>
-                {autoApply ? 'CV יישלח אוטומטית לכל משרה שתחליק ימינה' : 'כל הגשה תחכה לאישור שלך לפני השליחה'}
+                {autoApply
+                  ? 'CV יישלח אוטומטית לכל משרה שתחליק ימינה'
+                  : 'כל הגשה תחכה לאישור שלך לפני השליחה'}
               </p>
             </div>
-            <div style={{ ...styles.toggle, background: autoApply ? '#4CAF50' : '#ccc' }}
-              onClick={() => setAutoApply(!autoApply)}>
-              <div style={{ ...styles.toggleCircle, transform: autoApply ? 'translateX(24px)' : 'translateX(0)' }} />
+            <div
+              style={{
+                ...styles.toggle,
+                background: autoApply ? '#4CAF50' : '#ccc'
+              }}
+              onClick={() => setAutoApply(!autoApply)}
+            >
+              <div
+                style={{
+                  ...styles.toggleCircle,
+                  transform: autoApply ? 'translateX(24px)' : 'translateX(0)'
+                }}
+              />
             </div>
           </div>
         </div>
@@ -166,7 +301,12 @@ function ProfilePage() {
           <p style={styles.settingDesc}>העלה את קורות החיים שלך — ה-AI יתאים אותם לכל משרה</p>
           <label style={styles.uploadBtn}>
             {cvFile ? `✅ ${cvFile.name}` : '📎 העלה PDF'}
-            <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCvUpload} />
+            <input
+              type="file"
+              accept=".pdf"
+              style={{ display: 'none' }}
+              onChange={handleCvUpload}
+            />
           </label>
         </div>
 
@@ -178,42 +318,207 @@ function ProfilePage() {
           <button style={styles.upgradeBtn}>שדרג</button>
         </div>
 
-        <button style={styles.saveBtn} onClick={handleSave}>
-          {saved ? '✅ נשמר!' : 'שמור הגדרות'}
-        </button>
-
         <button style={styles.logoutBtn} onClick={handleLogout}>
           🚪 התנתק
         </button>
-
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', justifyContent: 'center' },
-  content: { padding: '24px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' },
-  card: { background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 2px 8px rgba(108,79,212,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' },
-  avatar: { width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '32px', fontWeight: 800, color: 'white' },
-  username: { fontSize: '20px', fontWeight: 700, margin: 0 },
-  planBadge: { background: '#F0F2FF', color: '#6C4FD4', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600, border: '1px solid #6C4FD4' },
-  cardTitle: { fontSize: '16px', fontWeight: 700, margin: 0, alignSelf: 'flex-start' },
-  settingRow: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' },
-  settingLabel: { fontSize: '15px', fontWeight: 600, margin: 0 },
-  settingDesc: { fontSize: '13px', color: '#777', margin: '4px 0 0 0' },
-  toggle: { width: '52px', height: '28px', borderRadius: '14px', padding: '2px', cursor: 'pointer', transition: 'background 0.3s', flexShrink: 0, position: 'relative' },
-  toggleCircle: { width: '24px', height: '24px', borderRadius: '50%', background: 'white', transition: 'transform 0.3s', position: 'absolute', top: '2px', left: '2px' },
-  slider: { width: '100%', accentColor: '#6C4FD4', cursor: 'pointer' },
-  sliderLabel: { fontSize: '12px', color: '#999' },
-  radiusBadge: { background: '#F0F2FF', color: '#6C4FD4', padding: '4px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 700, border: '1px solid #6C4FD4' },
-  uploadBtn: { width: '100%', padding: '14px', borderRadius: '12px', border: '2px dashed #6C4FD4', color: '#6C4FD4', fontWeight: 600, fontSize: '15px', cursor: 'pointer', textAlign: 'center', background: '#F0F2FF' },
-  upgradeCard: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', borderRadius: '20px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  upgradeTitle: { fontSize: '16px', fontWeight: 700, color: 'white', margin: 0 },
-  upgradeDesc: { fontSize: '13px', color: 'rgba(255,255,255,0.85)', margin: '4px 0 0 0' },
-  upgradeBtn: { background: 'white', color: '#6C4FD4', border: 'none', borderRadius: '12px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', flexShrink: 0 },
-  saveBtn: { width: '100%', padding: '14px', borderRadius: '12px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 700, cursor: 'pointer' },
-  logoutBtn: { width: '100%', padding: '14px', borderRadius: '12px', background: 'white', color: '#F44336', border: '2px solid #F44336', fontSize: '16px', fontWeight: 700, cursor: 'pointer' },
+  container: {
+    minHeight: '100vh',
+    background: 'var(--background)',
+    display: 'flex',
+    justifyContent: 'center'
+  },
+  content: {
+    padding: '24px',
+    maxWidth: '480px',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
+  card: {
+    background: 'white',
+    borderRadius: '20px',
+    padding: '24px',
+    boxShadow: '0 2px 8px rgba(108,79,212,0.08)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  avatar: {
+  width: '80px',
+  height: '80px',
+  borderRadius: '50%',
+  background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '32px',
+  fontWeight: 800,
+  color: 'white',
+  objectFit: 'cover'
+},
+  cameraIcon: {
+  position: 'absolute',
+  bottom: '0',
+  right: '0',
+  width: '28px',
+  height: '28px',
+  borderRadius: '50%',
+  background: '#6C4FD4',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '14px',
+  cursor: 'pointer',
+  border: '3px solid white',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+},
+  username: {
+    fontSize: '20px',
+    fontWeight: 700,
+    margin: 0
+  },
+  planBadge: {
+    background: '#F0F2FF',
+    color: '#6C4FD4',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '13px',
+    fontWeight: 600,
+    border: '1px solid #6C4FD4'
+  },
+  cardTitle: {
+    fontSize: '16px',
+    fontWeight: 700,
+    margin: 0,
+    alignSelf: 'flex-start'
+  },
+  settingRow: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '16px'
+  },
+  settingLabel: {
+    fontSize: '15px',
+    fontWeight: 600,
+    margin: 0
+  },
+  settingDesc: {
+    fontSize: '13px',
+    color: '#777',
+    margin: '4px 0 0 0'
+  },
+  toggle: {
+    width: '52px',
+    height: '28px',
+    borderRadius: '14px',
+    padding: '2px',
+    cursor: 'pointer',
+    transition: 'background 0.3s',
+    flexShrink: 0,
+    position: 'relative'
+  },
+  toggleCircle: {
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    background: 'white',
+    transition: 'transform 0.3s',
+    position: 'absolute',
+    top: '2px',
+    left: '2px'
+  },
+  slider: {
+    width: '100%',
+    accentColor: '#6C4FD4',
+    cursor: 'pointer'
+  },
+  sliderLabel: {
+    fontSize: '12px',
+    color: '#999'
+  },
+  radiusBadge: {
+    background: '#F0F2FF',
+    color: '#6C4FD4',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '14px',
+    fontWeight: 700,
+    border: '1px solid #6C4FD4'
+  },
+  uploadBtn: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '12px',
+    border: '2px dashed #6C4FD4',
+    color: '#6C4FD4',
+    fontWeight: 600,
+    fontSize: '15px',
+    cursor: 'pointer',
+    textAlign: 'center',
+    background: '#F0F2FF'
+  },
+  upgradeCard: {
+    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+    borderRadius: '20px',
+    padding: '20px 24px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  upgradeTitle: {
+    fontSize: '16px',
+    fontWeight: 700,
+    color: 'white',
+    margin: 0
+  },
+  upgradeDesc: {
+    fontSize: '13px',
+    color: 'rgba(255,255,255,0.85)',
+    margin: '4px 0 0 0'
+  },
+  upgradeBtn: {
+    background: 'white',
+    color: '#6C4FD4',
+    border: 'none',
+    borderRadius: '12px',
+    padding: '10px 20px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+    flexShrink: 0
+  },
+  saveBtn: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+    color: 'white',
+    border: 'none',
+    fontSize: '16px',
+    fontWeight: 700,
+    cursor: 'pointer'
+  },
+  logoutBtn: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '12px',
+    background: 'white',
+    color: '#F44336',
+    border: '2px solid #F44336',
+    fontSize: '16px',
+    fontWeight: 700,
+    cursor: 'pointer'
+  }
 };
 
 export default ProfilePage;

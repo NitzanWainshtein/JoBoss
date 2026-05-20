@@ -230,9 +230,7 @@ function SwipePage() {
         await updateMyProfile({
           autoApply,
           preferredLocation: location,
-          searchRadius: radius,
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude)
+          ...(radius ? { searchRadius: Number(radius) } : {})
         });
         console.log('✅ הגדרות נשמרו אוטומטית');
       } catch (e) {

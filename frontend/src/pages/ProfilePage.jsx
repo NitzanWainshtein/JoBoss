@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
-import { getMyProfile, updateMyProfile } from '../api';
+import { getMyProfile, updateMyProfile, uploadResume } from '../api';
 
 function LocationInput({ value, onChange }) {
   const [inputVal, setInputVal] = useState(value || '');
@@ -125,17 +125,29 @@ function ProfilePage() {
   const [userName, setUserName] = useState('');
   const [autoApply, setAutoApply] = useState(false);
   const [cvFile, setCvFile] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState(20);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
  useEffect(() => {
-  getCurrentUser().then((user) => {
-    setUserName(user.signInDetails?.loginId || user.username);
-  });
+  getCurrentUser().then(async (user) => {
+  try {
+    const { fetchAuthSession } = await import('aws-amplify/auth');
+    const session = await fetchAuthSession();
+    const idToken = session.tokens?.idToken?.payload;
+    
+    // נסה לקחת שם מ-Google, אחרת email
+    const displayName = idToken?.name || idToken?.email || user.username;
+    setUserName(displayName);
+  } catch {
+    setUserName(user.username);
+  }
+});
     getMyProfile()
       .then((data) => {
         const user = data.user;
+        setProfile(user);
         if (user?.preferredLocation) setLocation(user.preferredLocation);
         if (user?.searchRadius) setRadius(Number(user.searchRadius));
         if (user?.autoApply !== undefined) setAutoApply(user.autoApply);
@@ -182,12 +194,72 @@ function ProfilePage() {
     return () => clearTimeout(saveTimer);
   }, [location, radius, autoApply, loadingProfile]);
 
-  const handleCvUpload = (e) => {
+  const handleCvUpload = async (e) => {
     const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setCvFile(file);
-    } else {
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
       alert('יש להעלות קובץ PDF בלבד');
+      return;
+    }
+
+    try {
+      setCvFile(file);
+      const result = await uploadResume(file);
+
+      await updateMyProfile({
+        resumeData: {
+          resumeId: result.resumeId || `resume_${Date.now()}`,
+          resumeUrl: result.resumeUrl,
+          fileName: result.fileName || file.name,
+          uploadedAt: result.uploadedAt || new Date().toISOString()
+        }
+      });
+
+      const updated = await getMyProfile();
+      setProfile(updated.user);
+
+      alert('✅ קורות החיים הועלו בהצלחה!');
+      setCvFile(null);
+    } catch (error) {
+      console.error('שגיאה בהעלאת קורות חיים:', error);
+      alert('❌ שגיאה בהעלאה');
+    }
+  };
+
+  const handleSetActive = async (resumeId) => {
+    try {
+      await updateMyProfile({
+        action: 'setActive',
+        resumeId
+      });
+
+      const updated = await getMyProfile();
+      setProfile(updated.user);
+
+      alert('✅ קובץ הפעיל עודכן!');
+    } catch (error) {
+      console.error('שגיאה:', error);
+      alert('❌ שגיאה בעדכון');
+    }
+  };
+
+  const handleDeleteResume = async (resumeId) => {
+    if (!confirm('למחוק את הקובץ?')) return;
+
+    try {
+      await updateMyProfile({
+        action: 'delete',
+        resumeId
+      });
+
+      const updated = await getMyProfile();
+      setProfile(updated.user);
+
+      alert('✅ הקובץ נמחק!');
+    } catch (error) {
+      console.error('שגיאה:', error);
+      alert('❌ שגיאה במחיקה');
     }
   };
 
@@ -298,16 +370,97 @@ function ProfilePage() {
 
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>📄 קורות חיים</h3>
-          <p style={styles.settingDesc}>העלה את קורות החיים שלך — ה-AI יתאים אותם לכל משרה</p>
-          <label style={styles.uploadBtn}>
-            {cvFile ? `✅ ${cvFile.name}` : '📎 העלה PDF'}
-            <input
-              type="file"
-              accept=".pdf"
-              style={{ display: 'none' }}
-              onChange={handleCvUpload}
-            />
-          </label>
+          <p style={styles.settingDesc}>
+            העלה עד 3 קבצי קורות חיים — ה-AI יתאים את הפעיל לכל משרה
+          </p>
+
+          {profile?.resumes?.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', width: '100%' }}>
+              {profile.resumes.map((resume) => (
+                <div
+                  key={resume.resumeId}
+                  style={{
+                    padding: '12px',
+                    background: resume.isActive ? '#F0F2FF' : '#F5F5F5',
+                    borderRadius: '12px',
+                    border: resume.isActive ? '2px solid #6C4FD4' : '1px solid #E0E0E0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: resume.isActive ? 700 : 600,
+                        color: resume.isActive ? '#6C4FD4' : '#333'
+                      }}
+                    >
+                      {resume.isActive && '⭐ '}{resume.fileName}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                      הועלה: {new Date(resume.uploadedAt).toLocaleDateString('he-IL')}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {!resume.isActive && (
+                      <button
+                        style={{
+                          padding: '6px 12px',
+                          background: '#6C4FD4',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 600
+                        }}
+                        onClick={() => handleSetActive(resume.resumeId)}
+                      >
+                        הפוך לפעיל
+                      </button>
+                    )}
+                    <button
+                      style={{
+                        padding: '6px 12px',
+                        background: 'transparent',
+                        color: '#F44336',
+                        border: '1px solid #F44336',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 600
+                      }}
+                      onClick={() => handleDeleteResume(resume.resumeId)}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(!profile?.resumes || profile.resumes.length < 3) && (
+            <label style={styles.uploadBtn}>
+              {cvFile ? `✅ ${cvFile.name}` : '📎 העלה קורות חיים'}
+              <input
+                type="file"
+                accept=".pdf"
+                style={{ display: 'none' }}
+                onChange={handleCvUpload}
+              />
+            </label>
+          )}
+
+          {profile?.resumes?.length >= 3 && (
+            <p style={{ fontSize: '13px', color: '#F44336', textAlign: 'center', margin: 0 }}>
+              הגעת למקסימום של 3 קבצים. מחק קובץ כדי להעלות חדש.
+            </p>
+          )}
         </div>
 
         <div style={styles.upgradeCard}>

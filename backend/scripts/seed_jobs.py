@@ -2,11 +2,15 @@ import os
 import re
 import uuid
 import asyncio
+import time
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import boto3
 from telethon import TelegramClient
 from boto3.dynamodb.conditions import Attr
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
 # ---------- Env ----------
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -22,6 +26,29 @@ SESSION_NAME = "joboss_telegram_session"
 # ---------- AWS ----------
 dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
 table = dynamodb.Table(TABLE_NAME)
+
+# ---------- Geocoding ----------
+_geolocator = Nominatim(user_agent="JoBossProject/1.0 (student project)")
+_SKIP_LOCATIONS = {"remote", "מרחוק", "עבודה מרחוק", "unknown", ""}
+
+
+def geocode_location(location: str):
+    """Returns (Decimal lat, Decimal lng) or (None, None). Includes Nominatim rate-limit sleep."""
+    if not location or location.strip().lower() in _SKIP_LOCATIONS:
+        return None, None
+
+    time.sleep(1.1)
+    try:
+        result = _geolocator.geocode(location, country_codes="il", timeout=10)
+        if result:
+            return (
+                Decimal(str(round(result.latitude, 6))),
+                Decimal(str(round(result.longitude, 6))),
+            )
+    except (GeocoderTimedOut, GeocoderServiceError) as e:
+        print(f"  ⚠️  Geocoding error for '{location}': {e}")
+
+    return None, None
 
 
 def require_env():
@@ -118,6 +145,8 @@ def insert_jobs(messages):
                 skipped_duplicates += 1
                 continue
 
+            lat, lng = geocode_location(parsed["location"])
+
             item = {
                 "jobId": str(uuid.uuid4()),
                 "source": source,
@@ -130,6 +159,10 @@ def insert_jobs(messages):
                 "createdAt": datetime.now(timezone.utc).isoformat(),
                 "isActive": True,
             }
+
+            if lat is not None and lng is not None:
+                item["latitude"] = lat
+                item["longitude"] = lng
 
             batch.put_item(Item=item)
             inserted += 1

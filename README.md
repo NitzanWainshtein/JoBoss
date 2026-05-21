@@ -1,4 +1,4 @@
-# <img width="1774" height="887" alt="app_logo" src="https://github.com/user-attachments/assets/c270606b-acbe-4b30-9c55-26658d0dc1ba" />
+# <img width="1200" height="250" alt="app_logo" src="https://github.com/user-attachments/assets/c270606b-acbe-4b30-9c55-26658d0dc1ba" />
 
 
 **JoBoss** is a mobile-first job discovery platform that turns the job search experience into a fast, swipe-based workflow. Candidates can discover roles, apply in one tap, and track their application pipeline from a personalized dashboard.

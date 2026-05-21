@@ -18,7 +18,7 @@ The project combines a **React + Vite frontend** with **AWS-backed serverless se
 ---
 
 ## Core Features
-
+https://github.com/user-attachments/assets/d7e78c06-9a79-481e-9562-8e33a5dfc2ec
 ### Candidate Experience
 - Secure sign-in flow with AWS Amplify/Cognito integration.
 - Swipe right/left job browsing with animated cards.
@@ -35,6 +35,10 @@ The project combines a **React + Vite frontend** with **AWS-backed serverless se
 - Lambda function composes a prompt from resume text + job description.
 - Calls Amazon Bedrock (`amazon.nova-micro-v1:0` by default).
 - Returns an ATS-friendly tailored resume draft.
+
+
+
+
 
 ---
 

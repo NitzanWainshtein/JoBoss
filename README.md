@@ -121,16 +121,6 @@ Run these scripts with your AWS credentials and environment configured.
 
 ---
 
-## Engineering Highlights (for CV / interviews)
-
-- Built a **consumer-style, motion-rich frontend** focused on conversion and speed.
-- Implemented a **serverless backend pattern** suitable for low-ops scaling.
-- Integrated **AI inference in production-style Lambda logic** with failure handling.
-- Designed for **graceful fallback** via local mock APIs during development.
-- Separated concerns across UI, API client, Lambda functions, and infra scripts.
-
----
-
 ## Roadmap
 
 - Add automated test coverage (frontend + Lambda unit tests).
@@ -143,8 +133,3 @@ Run these scripts with your AWS credentials and environment configured.
 ## Author
 
 Created by the JoBoss team.
-
-If you want, I can also generate:
-- a short one-paragraph CV summary for this project,
-- optimized bullet points for LinkedIn,
-- and a recruiter-friendly “impact metrics” section you can paste directly into your resume.

@@ -5,7 +5,11 @@
       "PowerShell($url = aws lambda get-function --function-name joboss-users --query \"Code.Location\" --output text; Invoke-WebRequest -Uri $url -OutFile \"$env:TEMP\\\\joboss-users.zip\"; Expand-Archive -Path \"$env:TEMP\\\\joboss-users.zip\" -DestinationPath \"$env:TEMP\\\\joboss-users\" -Force; Get-ChildItem \"$env:TEMP\\\\joboss-users\")",
       "PowerShell(aws lambda update-function-code --function-name joboss-jobs --zip-file \"fileb://$env:TEMP\\\\joboss-jobs-new.zip\" --query \"FunctionName\" --output text 2>&1)",
       "Bash(aws dynamodb *)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(aws apigateway *)",
+      "Read(//tmp/**)",
+      "Bash(zip -j handler.zip handler.py)",
+      "Bash(python3 -c \"import zipfile; z=zipfile.ZipFile\\('handler.zip','w',zipfile.ZIP_DEFLATED\\); z.write\\('handler.py'\\); z.close\\(\\); print\\('zipped'\\)\")"
     ]
   }
 }

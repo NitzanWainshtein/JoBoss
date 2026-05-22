@@ -23,7 +23,7 @@ function Navbar() {
           <span style={styles.icon}>🔥</span>
           <span style={styles.label}>משרות</span>
         </button>
-        <button style={{ ...styles.navBtn, ...(isActive('/dashboard') ? styles.active : {}) }} onClick={() => navigate('/dashboard')}>
+        <button style={{ ...styles.navBtn, ...(isActive('/applications') ? styles.active : {}) }} onClick={() => navigate('/applications')}>
           <span style={styles.icon}>📋</span>
           <span style={styles.label}>הגשות</span>
         </button>

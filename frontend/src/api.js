@@ -74,8 +74,8 @@ export const getMySwipes = async () => {
 };
 
 // ===== APPLICATIONS =====
-export const createApplication = async (jobId) => {
-  return apiCall('POST', '/applications', { jobId, resumeVersionId: 'resume-001' });
+export const createApplication = async (jobId, { company = '', title = '', tailoredResumeUrl = '' } = {}) => {
+  return apiCall('POST', '/applications', { jobId, company, title, tailoredResumeUrl });
 };
 
 export const getMyApplications = async () => {

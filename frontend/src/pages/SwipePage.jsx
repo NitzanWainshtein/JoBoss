@@ -2,12 +2,134 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
-import { getJobs, createSwipe, createApplication, updateMyProfile, getMySwipes, undoSwipe } from '../api';
+import {
+  getJobs,
+  createSwipe,
+  createApplication,
+  getMyProfile,
+  tailorResume,
+  updateMyProfile,
+  getMySubscription,
+  consumeApplicationQuota,
+  getMySwipes,
+  undoSwipe,
+} from '../api';
 
-function JobDetailModal({ job, onClose }) {
+function JobDetailModal({ job, onClose, activeResume }) {
   const [logoError, setLogoError] = useState(false);
+  const [tailoring, setTailoring] = useState(false);
+  const [tailoringError, setTailoringError] = useState('');
+  const [tailoredResult, setTailoredResult] = useState(null);
   const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(job.company)}.com&sz=128`;
   const companyInitial = job.company?.charAt(0).toUpperCase() || '?';
+  const requirements = job.technologies || job.requirements || [];
+
+  const handleTailorResume = async () => {
+    if (!activeResume?.resumeId) {
+      setTailoringError('כדי להתאים קורות חיים צריך להעלות קובץ בפרופיל.');
+      return;
+    }
+
+    setTailoring(true);
+    setTailoringError('');
+
+    try {
+      const result = await tailorResume({
+        jobId: job.jobId,
+        resumeId: activeResume.resumeId,
+        resumeText: activeResume.resumeText,
+      });
+      setTailoredResult(result);
+    } catch {
+      setTailoringError('לא הצלחנו להתאים את קורות החיים. נסה שוב.');
+    } finally {
+      setTailoring(false);
+    }
+  };
+
+  const handleDownloadTailoredResume = () => {
+    if (!tailoredResult?.tailoredResume) return;
+
+    const fileName = `joboss-tailored-${job.company || 'company'}-${job.jobId || 'job'}.pdf`
+      .replace(/[\\/:*?"<>|]/g, '-');
+    const blob = buildSimplePdfBlob(tailoredResult.tailoredResume);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const buildSimplePdfBlob = (text) => {
+    const escapePdfText = (value) => value
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)');
+
+    const wrapLine = (line, maxChars = 82) => {
+      const words = line.split(/\s+/).filter(Boolean);
+      const lines = [];
+      let current = '';
+
+      words.forEach((word) => {
+        if ((current + ' ' + word).trim().length > maxChars) {
+          lines.push(current);
+          current = word;
+        } else {
+          current = `${current} ${word}`.trim();
+        }
+      });
+
+      if (current) lines.push(current);
+      return lines.length ? lines : [''];
+    };
+
+    const lines = text
+      .split('\n')
+      .flatMap((line) => wrapLine(line))
+      .slice(0, 52);
+
+    const content = [
+      'BT',
+      '/F1 11 Tf',
+      '50 790 Td',
+      '14 TL',
+      ...lines.flatMap((line, index) => [
+        ...(index > 0 ? ['T*'] : []),
+        `(${escapePdfText(line)}) Tj`,
+      ]),
+      'ET',
+    ].join('\n');
+
+    const objects = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    ];
+
+    let pdf = '%PDF-1.4\n';
+    const offsets = [];
+
+    objects.forEach((obj, index) => {
+      offsets.push(pdf.length);
+      pdf += `${index + 1} 0 obj\n${obj}\nendobj\n`;
+    });
+
+    const xrefStart = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n`;
+    pdf += '0000000000 65535 f \n';
+    offsets.forEach((offset) => {
+      pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    });
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+    return new Blob([pdf], { type: 'application/pdf' });
+  };
 
   return (
     <motion.div
@@ -84,9 +206,85 @@ function JobDetailModal({ job, onClose }) {
           </div>
         )}
 
+        <div style={modal.aiBox}>
+          <div style={modal.aiHeader}>
+            <div>
+              <p style={modal.aiTitle}>התאמת קורות חיים עם AI</p>
+              <p style={modal.aiSubtitle}>
+                {activeResume?.fileName
+                  ? `קובץ פעיל: ${activeResume.fileName}`
+                  : 'לא נמצא קובץ קורות חיים פעיל'}
+              </p>
+            </div>
+            <button
+              style={{
+                ...modal.aiButton,
+                ...((tailoring || !activeResume?.resumeId) ? modal.aiButtonDisabled : {}),
+              }}
+              onClick={handleTailorResume}
+              disabled={tailoring || !activeResume?.resumeId}
+            >
+              {tailoring ? 'מתאים...' : 'התאם'}
+            </button>
+          </div>
+
+          {tailoringError && <p style={modal.aiError}>{tailoringError}</p>}
+
+          <div style={modal.previewGrid}>
+            <div style={modal.previewPanel}>
+              <p style={modal.previewTitle}>לפני</p>
+              {activeResume?.previewDataUrl ? (
+                <iframe
+                  title="תצוגה מקדימה של קורות החיים"
+                  src={activeResume.previewDataUrl}
+                  style={modal.resumeFrame}
+                />
+              ) : (
+                <p style={modal.previewText}>
+                  {activeResume?.fileName
+                    ? `קורות החיים המקוריים: ${activeResume.fileName}. כדי לראות preview מלא, העלה את הקובץ שוב בפרופיל.`
+                    : 'העלה קורות חיים בפרופיל כדי להפעיל התאמה.'}
+                </p>
+              )}
+            </div>
+            <div style={modal.previewPanel}>
+              <p style={modal.previewTitle}>אחרי</p>
+              {tailoredResult?.tailoredResume && (
+                <p style={modal.previewHint}>גרסה מותאמת למשרה הזו, לפי הדרישות והקובץ הפעיל.</p>
+              )}
+              {tailoredResult?.tailoredResume ? (
+                <div style={modal.tailoredDocument}>
+                  <pre style={modal.tailoredText}>{tailoredResult.tailoredResume}</pre>
+                </div>
+              ) : (
+                <p style={modal.previewText}>כאן יוצגו קורות החיים המותאמים לאחר לחיצה על התאמה.</p>
+              )}
+            </div>
+          </div>
+
+          {tailoredResult?.tailoredResumeUrl && (
+            <div style={modal.resultActions}>
+              <p style={modal.aiSuccess}>נשמר: {tailoredResult.tailoredResumeUrl}</p>
+              <button style={modal.downloadBtn} onClick={handleDownloadTailoredResume}>
+                הורד קורות חיים מותאמים
+              </button>
+            </div>
+          )}
+        </div>
+
         <div style={modal.footer}>
           <button style={modal.passBtn} onClick={onClose}>דלג ✕</button>
-          <button style={modal.applyBtn} onClick={() => { onClose('apply'); }}>הגש ♥</button>
+          <button
+            style={tailoredResult ? modal.applyBtn : modal.secondaryApplyBtn}
+            onClick={() => {
+              onClose({
+                action: 'apply',
+                tailoredResumeUrl: tailoredResult?.tailoredResumeUrl,
+              });
+            }}
+          >
+            {tailoredResult ? 'אשר והגש' : 'הגש בלי התאמה'}
+          </button>
         </div>
       </motion.div>
     </motion.div>
@@ -183,6 +381,8 @@ function SwipePage() {
   const [radius, setRadius] = useState(localStorage.getItem('jobRadius') || '');
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [swipedJobs, setSwipedJobs] = useState(new Set()); // משרות שכבר נעשה להן swipe
+  const [activeResume, setActiveResume] = useState(null);
+  const [applyError, setApplyError] = useState('');
   const navigate = useNavigate();
 
   const loadJobs = useCallback(async () => {
@@ -230,6 +430,24 @@ function SwipePage() {
   }, []);
 
   useEffect(() => {
+    getMyProfile()
+      .then((data) => {
+        const resumes = data.user?.resumes || [];
+        const active = resumes.find((resume) => resume.isActive) || resumes[0] || null;
+        const previewDataUrl = active?.resumeId
+          ? sessionStorage.getItem(`resumePreview:${active.resumeId}`)
+          : null;
+        const resumeText = active?.resumeId
+          ? sessionStorage.getItem(`resumeText:${active.resumeId}`)
+          : '';
+        setActiveResume(active ? { ...active, previewDataUrl, resumeText } : null);
+      })
+      .catch(() => {
+        setActiveResume(null);
+      });
+  }, []);
+
+  useEffect(() => {
     if (loadingProfile) return; // לא לשמור בזמן טעינה ראשונית
 
     const saveTimer = setTimeout(async () => {
@@ -262,22 +480,59 @@ function SwipePage() {
   const currentJob = filteredJobs[filteredJobs.length - 1];
   const nextJob = filteredJobs[filteredJobs.length - 2];
 
-  const handleSwipe = (direction) => {
+  const handleSwipe = async (direction, options = {}) => {
     if (!currentJob) return;
-    
-    setLastSwipe({ direction, job: currentJob });
-    
-    // הוסף ל-Set של swipes
-    setSwipedJobs(prev => new Set([...prev, currentJob.jobId]));
-    
+
+    setApplyError('');
+
     if (direction === 'right') {
+      try {
+        const subscription = await getMySubscription();
+        const used = subscription?.used ?? 0;
+        const dailyLimit = subscription?.dailyLimit ?? 5;
+
+        if (used >= dailyLimit) {
+          setApplyError('Daily application limit reached. Upgrade your subscription or wait for the daily reset.');
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to check subscription. Continuing in development mode:', error);
+      }
+
+      try {
+        await createSwipe(currentJob.jobId, 'LIKE');
+      } catch (error) {
+        console.warn('Failed to save swipe. Continuing in development mode:', error);
+      }
+
+      try {
+        await createApplication(currentJob.jobId, {
+          company: currentJob.company,
+          title: currentJob.title,
+          resumeVersionId: activeResume?.resumeId || 'resume-001',
+          tailoredResumeUrl: options.tailoredResumeUrl,
+        });
+      } catch (error) {
+        console.warn('Failed to create application. Continuing in development mode:', error);
+      }
+
+      try {
+        await consumeApplicationQuota();
+      } catch (error) {
+        console.warn('Failed to consume application quota. This is expected until /subscriptions/consume is implemented:', error);
+      }
+
       setSwipedRight((prev) => prev + 1);
-      createSwipe(currentJob.jobId, 'LIKE');
-      createApplication(currentJob.jobId, { company: currentJob.company, title: currentJob.title });
     } else {
-      createSwipe(currentJob.jobId, 'PASS');
+      try {
+        await createSwipe(currentJob.jobId, 'PASS');
+      } catch (error) {
+        console.warn('Failed to save pass swipe. Continuing in development mode:', error);
+      }
     }
-    
+
+    setLastSwipe({ direction, job: currentJob });
+    setSwipedJobs((prev) => new Set([...prev, currentJob.jobId]));
     setJobs((prev) => prev.slice(0, -1));
   };
 
@@ -313,7 +568,11 @@ function SwipePage() {
   };
 
   const handleModalClose = (action) => {
-    if (action === 'apply') handleSwipe('right');
+    if (action?.action === 'apply') {
+      handleSwipe('right', { tailoredResumeUrl: action.tailoredResumeUrl });
+    } else if (action === 'apply') {
+      handleSwipe('right');
+    }
     setSelectedJob(null);
   };
 
@@ -343,6 +602,15 @@ function SwipePage() {
           <span>📍 {locationFilter.name} · עד {locationFilter.radius} ק"מ</span>
           <button style={styles.refreshBtn} onClick={loadJobs} title="רענן משרות">
             🔄
+          </button>
+        </div>
+      )}
+
+      {applyError && (
+        <div style={styles.applyError}>
+          <span>{applyError}</span>
+          <button style={styles.upgradeInlineBtn} onClick={() => navigate('/subscription')}>
+            שדרוג מנוי
           </button>
         </div>
       )}
@@ -437,7 +705,13 @@ function SwipePage() {
       )}
 
       <AnimatePresence>
-        {selectedJob && <JobDetailModal job={selectedJob} onClose={handleModalClose} />}
+        {selectedJob && (
+          <JobDetailModal
+            job={selectedJob}
+            activeResume={activeResume}
+            onClose={handleModalClose}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
@@ -450,6 +724,33 @@ const styles = {
     background: '#E8F5E9', color: '#2E7D32', borderRadius: '12px',
     padding: '8px 16px', fontSize: '13px', fontWeight: 600,
     width: 'min(360px, 95vw)', marginBottom: '8px', gap: '8px'
+  },
+  applyError: {
+    width: 'min(520px, 95vw)',
+    background: '#FEF3F2',
+    color: '#B42318',
+    border: '1px solid #FDA29B',
+    borderRadius: '12px',
+    padding: '10px 12px',
+    marginBottom: '10px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px',
+    fontSize: '13px',
+    fontWeight: 700,
+    direction: 'rtl',
+  },
+  upgradeInlineBtn: {
+    border: 'none',
+    borderRadius: '10px',
+    background: '#B42318',
+    color: 'white',
+    padding: '8px 10px',
+    fontSize: '12px',
+    fontWeight: 800,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   refreshBtn: {
     background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '0 4px'
@@ -529,8 +830,27 @@ const modal = {
   tag: { background: '#F0F2FF', color: '#6C4FD4', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600, border: '1px solid #6C4FD4' },
   description: { fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: 0 },
   applyLink: { color: '#6C4FD4', fontSize: '14px', fontWeight: 600 },
+  aiBox: { background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '14px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px', direction: 'rtl' },
+  aiHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' },
+  aiTitle: { fontSize: '15px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
+  aiSubtitle: { fontSize: '12px', color: '#6B7280', margin: '4px 0 0' },
+  aiButton: { border: 'none', borderRadius: '10px', background: '#1E2A4A', color: 'white', fontSize: '13px', fontWeight: 800, padding: '10px 14px', cursor: 'pointer', minWidth: '76px' },
+  aiButtonDisabled: { opacity: 0.5, cursor: 'not-allowed' },
+  aiError: { background: '#FEF3F2', color: '#B42318', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', margin: 0 },
+  aiSuccess: { color: '#067647', fontSize: '11px', margin: 0, direction: 'ltr', textAlign: 'left', overflowWrap: 'anywhere' },
+  resultActions: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
+  downloadBtn: { border: '1px solid #067647', background: '#E8FFF3', color: '#067647', borderRadius: '10px', padding: '8px 12px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
+  previewGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' },
+  previewPanel: { background: 'white', border: '1px solid #EAECF0', borderRadius: '10px', padding: '10px', minHeight: '92px' },
+  previewTitle: { fontSize: '12px', fontWeight: 800, color: '#6C4FD4', margin: '0 0 6px' },
+  previewHint: { fontSize: '11px', color: '#067647', margin: '0 0 8px', fontWeight: 700 },
+  previewText: { fontSize: '12px', color: '#475467', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto' },
+  resumeFrame: { width: '100%', height: '220px', border: '1px solid #EAECF0', borderRadius: '8px', background: 'white' },
+  tailoredDocument: { height: '220px', overflowY: 'auto', background: '#FFFFFF', border: '1px solid #EAECF0', borderRadius: '8px', padding: '16px', direction: 'rtl' },
+  tailoredText: { fontFamily: 'Arial, sans-serif', fontSize: '13px', lineHeight: 1.7, color: '#1D2939', margin: 0, whiteSpace: 'pre-wrap', textAlign: 'right' },
   footer: { display: 'flex', gap: '12px', paddingTop: '8px' },
   passBtn: { flex: 1, padding: '14px', borderRadius: '14px', border: '2px solid #F44336', background: 'white', color: '#F44336', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
+  secondaryApplyBtn: { flex: 1, padding: '14px', borderRadius: '14px', border: '2px solid #6C4FD4', background: 'white', color: '#6C4FD4', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
   applyBtn: { flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
 };
 

@@ -250,7 +250,7 @@ function SwipePage() {
     if (direction === 'right') {
       setSwipedRight((prev) => prev + 1);
       createSwipe(currentJob.jobId, 'LIKE');
-      createApplication(currentJob.jobId);
+      createApplication(currentJob.jobId, { company: currentJob.company, title: currentJob.title });
     } else {
       createSwipe(currentJob.jobId, 'PASS');
     }

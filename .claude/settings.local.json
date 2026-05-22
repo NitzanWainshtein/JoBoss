@@ -10,7 +10,13 @@
       "Read(//tmp/**)",
       "Bash(zip -j handler.zip handler.py)",
       "Bash(python3 -c \"import zipfile; z=zipfile.ZipFile\\('handler.zip','w',zipfile.ZIP_DEFLATED\\); z.write\\('handler.py'\\); z.close\\(\\); print\\('zipped'\\)\")",
-      "Bash(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/swipes/test-job-123)"
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/swipes/test-job-123)",
+      "Bash(python3)",
+      "Bash(curl -s -X OPTIONS https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/profile/image -H 'Origin: http://localhost:5173' -o /dev/null -w 'OPTIONS /profile/image: %{http_code}\\\\n')",
+      "Bash(aws iam *)",
+      "Bash(aws s3api *)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://joboss-resumes-171109860478.s3.amazonaws.com/users/test-123/profile/avatar_04e5ac22.jpg)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://joboss-resumes-171109860478.s3.amazonaws.com/users/test-123/resume.pdf)"
     ]
   }
 }

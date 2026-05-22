@@ -99,6 +99,27 @@ export const updateMyProfile = async (data) => {
   return apiCall('PUT', '/users/me', data);
 };
 
+export const uploadProfileImage = async (file) => {
+  const reader = new FileReader();
+
+  return new Promise((resolve, reject) => {
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result.split(',')[1];
+        const response = await apiCall('POST', '/profile/image', {
+          image: base64,
+          fileName: file.name,
+        });
+        resolve(response);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export const uploadResume = async (file) => {
   const reader = new FileReader();
   

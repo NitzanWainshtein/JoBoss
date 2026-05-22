@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
-import { getMyProfile, updateMyProfile, uploadResume } from '../api';
+import { getMyProfile, updateMyProfile, uploadResume, uploadProfileImage } from '../api';
 
 function LocationInput({ value, onChange }) {
   const [inputVal, setInputVal] = useState(value || '');
@@ -122,6 +122,7 @@ function LocationInput({ value, onChange }) {
 
 function ProfilePage() {
   const [profileImage, setProfileImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [userName, setUserName] = useState('');
   const [autoApply, setAutoApply] = useState(false);
   const [cvFile, setCvFile] = useState(null);
@@ -151,6 +152,7 @@ function ProfilePage() {
         if (user?.preferredLocation) setLocation(user.preferredLocation);
         if (user?.searchRadius) setRadius(Number(user.searchRadius));
         if (user?.autoApply !== undefined) setAutoApply(user.autoApply);
+        if (user?.profileImageUrl) setProfileImage(user.profileImageUrl);
         if (user?.latitude) localStorage.setItem('jobLatitude', user.latitude);
         if (user?.longitude) localStorage.setItem('jobLongitude', user.longitude);
         setLoadingProfile(false);
@@ -288,22 +290,38 @@ function ProfilePage() {
         <div style={styles.card}>
   <div style={{ position: 'relative' }}>
     {profileImage ? (
-      <img src={profileImage} alt="Profile" style={styles.avatar} />
+      <img src={profileImage} alt="Profile" style={{ ...styles.avatar, opacity: uploadingImage ? 0.5 : 1 }} />
     ) : (
       <div style={styles.avatar}>{userName.charAt(0).toUpperCase()}</div>
     )}
+    {uploadingImage && (
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+        <span style={{ fontSize: '20px' }}>⏳</span>
+      </div>
+    )}
     <label style={styles.cameraIcon}>
-      📷
+      {uploadingImage ? '⏳' : '📷'}
       <input
         type="file"
         accept="image/*"
         style={{ display: 'none' }}
-        onChange={(e) => {
+        onChange={async (e) => {
           const file = e.target.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => setProfileImage(reader.result);
-            reader.readAsDataURL(file);
+          if (!file) return;
+          if (file.size > 5 * 1024 * 1024) {
+            alert('התמונה גדולה מדי (מקסימום 5MB)');
+            return;
+          }
+          setProfileImage(URL.createObjectURL(file));
+          setUploadingImage(true);
+          try {
+            const result = await uploadProfileImage(file);
+            setProfileImage(result.imageUrl);
+          } catch {
+            alert('שגיאה בהעלאת התמונה');
+            setProfileImage(null);
+          } finally {
+            setUploadingImage(false);
           }
         }}
       />

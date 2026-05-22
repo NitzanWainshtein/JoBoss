@@ -3,7 +3,7 @@ import re
 import uuid
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
 import boto3
@@ -12,6 +12,7 @@ from boto3.dynamodb.conditions import Attr
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
+########### LOCAL ###########
 # ---------- Env ----------
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 TABLE_NAME = os.getenv("DYNAMODB_JOBS_TABLE", "jobs")
@@ -108,12 +109,23 @@ def parse_message(text: str):
 
 
 def exists_by_source_job(source: str, source_job_id: str) -> bool:
-    resp = table.scan(
-        FilterExpression=Attr("source").eq(source) & Attr("sourceJobId").eq(source_job_id),
-        ProjectionExpression="jobId",
-        Limit=1,
-    )
-    return len(resp.get("Items", [])) > 0
+    scan_kwargs = {
+        "FilterExpression": Attr("source").eq(source) & Attr("sourceJobId").eq(source_job_id),
+        "ProjectionExpression": "jobId",
+    }
+
+    while True:
+        resp = table.scan(**scan_kwargs)
+
+        if resp.get("Items"):
+            return True
+
+        last_evaluated_key = resp.get("LastEvaluatedKey")
+
+        if not last_evaluated_key:
+            return False
+
+        scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
 
 
 async def fetch_messages():
@@ -149,6 +161,9 @@ def insert_jobs(messages):
 
             lat, lng = geocode_location(parsed["location"])
 
+            created_at = datetime.now(timezone.utc)
+            expires_at = int((created_at + timedelta(days=10)).timestamp())
+
             item = {
                 "jobId": str(uuid.uuid4()),
                 "source": source,
@@ -158,7 +173,8 @@ def insert_jobs(messages):
                 "location": parsed["location"],
                 "description": parsed["description"],
                 "applyUrl": f"https://t.me/{TG_CHANNEL}/{msg_id}",
-                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "createdAt": created_at.isoformat(),
+                "expiresAt": expires_at,
                 "isActive": True,
             }
 

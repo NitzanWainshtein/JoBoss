@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { getMyProfile, updateMyProfile, uploadResume, uploadProfileImage } from '../api';
+import { extractPdfText } from '../utils/pdfText';
 
 function LocationInput({ value, onChange }) {
   const [inputVal, setInputVal] = useState(value || '');
@@ -207,11 +208,20 @@ function ProfilePage() {
 
     try {
       setCvFile(file);
+      const resumeText = await extractPdfText(file);
       const result = await uploadResume(file);
+      const resumeId = result.resumeId || `resume_${Date.now()}`;
+
+      try {
+        sessionStorage.setItem(`resumePreview:${resumeId}`, result.previewDataUrl);
+        sessionStorage.setItem(`resumeText:${resumeId}`, resumeText);
+      } catch (storageError) {
+        console.warn('Could not store resume preview locally:', storageError);
+      }
 
       await updateMyProfile({
         resumeData: {
-          resumeId: result.resumeId || `resume_${Date.now()}`,
+          resumeId,
           resumeUrl: result.resumeUrl,
           fileName: result.fileName || file.name,
           uploadedAt: result.uploadedAt || new Date().toISOString()

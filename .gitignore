@@ -25,3 +25,6 @@ backend/lambdas/**/*.zip
 # Local test files
 sample.pdf
 backend/lambdas/uploads/sample.pdf
+.npm-cache/
+.tmp_lambda/
+*.zip

@@ -27,6 +27,10 @@ function Navbar() {
           <span style={styles.icon}>📋</span>
           <span style={styles.label}>הגשות</span>
         </button>
+        <button style={{ ...styles.navBtn, ...(isActive('/subscription') ? styles.active : {}) }} onClick={() => navigate('/subscription')}>
+          <span style={styles.icon}>★</span>
+          <span style={styles.label}>מנוי</span>
+        </button>
         <button style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.active : {}) }} onClick={() => navigate('/profile')}>
           <span style={styles.icon}>👤</span>
           <span style={styles.label}>פרופיל</span>
@@ -81,7 +85,7 @@ const styles = {
     color: '#999',
   },
   active: { color: '#6C4FD4' },
-  icon: { fontSize: '20px' },
+  icon: { fontSize: '17px', minHeight: '22px', display: 'flex', alignItems: 'center' },
   label: { fontSize: '10px', fontWeight: 600 },
 };
 

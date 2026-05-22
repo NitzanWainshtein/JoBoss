@@ -1,0 +1,27 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.session
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node dependencies
+node_modules/
+
+# Lambda deployment artifacts
+backend/lambdas/**/package/
+backend/lambdas/**/*.zip
+
+# Local IDE and OS files
+.idea/
+.DS_Store
+
+# Local test files
+sample.pdf
+backend/lambdas/uploads/sample.pdf

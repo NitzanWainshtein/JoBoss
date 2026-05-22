@@ -21,7 +21,7 @@ TABLE_NAME = os.getenv("DYNAMODB_JOBS_TABLE", "jobs")
 TG_API_ID = int(os.getenv("TG_API_ID", "0"))
 TG_API_HASH = os.getenv("TG_API_HASH", "")
 TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "")
-TG_CHANNEL = os.getenv("TG_CHANNEL", "techjobtracker_il")
+TG_CHANNEL = os.getenv("TG_CHANNEL", "")
 TG_LIMIT = int(os.getenv("TG_LIMIT", "120"))
 
 # ---------- AWS ----------
@@ -66,6 +66,9 @@ def require_env():
 
     if not TG_SESSION_STRING:
         missing.append("TG_SESSION_STRING")
+
+    if not TG_CHANNEL:
+        missing.append("TG_CHANNEL")
 
     if not TABLE_NAME:
         missing.append("DYNAMODB_JOBS_TABLE")

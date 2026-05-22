@@ -18,8 +18,8 @@ TABLE_NAME = os.getenv("DYNAMODB_JOBS_TABLE", "jobs")
 
 TG_API_ID = int(os.getenv("TG_API_ID", "0"))
 TG_API_HASH = os.getenv("TG_API_HASH", "")
-TG_CHANNEL = os.getenv("TG_CHANNEL", "techjobtracker_il")
-TG_LIMIT = int(os.getenv("TG_LIMIT", "120"))  # כמה הודעות למשוך
+TG_CHANNEL = os.getenv("TG_CHANNEL", "")
+TG_LIMIT = int(os.getenv("TG_LIMIT", "120"))
 
 SESSION_NAME = "joboss_telegram_session"
 
@@ -57,6 +57,8 @@ def require_env():
         missing.append("TG_API_ID")
     if not TG_API_HASH:
         missing.append("TG_API_HASH")
+    if not TG_CHANNEL:
+        missing.append("TG_CHANNEL")
     if not TABLE_NAME:
         missing.append("DYNAMODB_JOBS_TABLE")
     if missing:

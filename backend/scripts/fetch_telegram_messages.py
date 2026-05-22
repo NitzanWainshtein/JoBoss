@@ -12,7 +12,7 @@ API_ID = int(os.getenv("TG_API_ID", "0"))
 API_HASH = os.getenv("TG_API_HASH", "")
 SESSION_NAME = "joboss_telegram_session"
 
-CHANNEL_USERNAME = os.getenv("TG_CHANNEL", "nixos_jobs")
+CHANNEL_USERNAME = os.getenv("TG_CHANNEL", "")
 GEOCODE_PREVIEW = os.getenv("GEOCODE_PREVIEW", "0") == "1"
 
 _geolocator = Nominatim(user_agent="JoBossProject/1.0 (student project)")
@@ -41,8 +41,8 @@ def parse_location(text: str) -> str:
 
 
 async def main():
-    if not API_ID or not API_HASH:
-        raise ValueError("Missing TG_API_ID or TG_API_HASH env vars")
+    if not API_ID or not API_HASH or not CHANNEL_USERNAME:
+        raise ValueError("Missing TG_API_ID, TG_API_HASH or TG_CHANNEL env vars")
 
     client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
     await client.start()

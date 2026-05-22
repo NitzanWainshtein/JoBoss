@@ -9,7 +9,8 @@
       "Bash(aws apigateway *)",
       "Read(//tmp/**)",
       "Bash(zip -j handler.zip handler.py)",
-      "Bash(python3 -c \"import zipfile; z=zipfile.ZipFile\\('handler.zip','w',zipfile.ZIP_DEFLATED\\); z.write\\('handler.py'\\); z.close\\(\\); print\\('zipped'\\)\")"
+      "Bash(python3 -c \"import zipfile; z=zipfile.ZipFile\\('handler.zip','w',zipfile.ZIP_DEFLATED\\); z.write\\('handler.py'\\); z.close\\(\\); print\\('zipped'\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/swipes/test-job-123)"
     ]
   }
 }

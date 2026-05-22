@@ -73,6 +73,10 @@ export const getMySwipes = async () => {
   return apiCall('GET', '/swipes/me');
 };
 
+export const undoSwipe = async (jobId) => {
+  return apiCall('DELETE', `/swipes/${jobId}`);
+};
+
 // ===== APPLICATIONS =====
 export const createApplication = async (jobId, { company = '', title = '', tailoredResumeUrl = '' } = {}) => {
   return apiCall('POST', '/applications', { jobId, company, title, tailoredResumeUrl });
@@ -132,6 +136,8 @@ const mockJobs = [
   { jobId: '2', company: 'Microsoft', title: 'Full Stack Developer', location: 'Herzliya', salary: '30,000 ₪', description: 'פיתוח Full Stack', requirements: ['Node.js', 'React'] },
 ];
 
+let mockSwipes = []; // מערך לשמירת swipes ב-mock mode
+
 let mockProfile = {
   userId: 'mock-user',
   plan: 'FREE',
@@ -147,8 +153,25 @@ let mockProfile = {
 const mockResponse = (method, path, body) => {
   if (path === '/jobs') return { jobs: mockJobs };
   if (path.startsWith('/jobs/')) return { job: mockJobs[0] };
-  if (path.startsWith('/swipes/me')) return { swipes: [] };
+  
+  // SWIPES
+  if (path === '/swipes' && method === 'POST') {
+    mockSwipes.push({ jobId: body.jobId, decision: body.decision, swipedAt: new Date().toISOString() });
+    return { success: true, message: 'Swipe saved' };
+  }
+  if (path === '/swipes/me' && method === 'GET') {
+    return { swipes: mockSwipes };
+  }
+  if (path.startsWith('/swipes/') && method === 'DELETE') {
+    const jobId = path.split('/')[2];
+    mockSwipes = mockSwipes.filter(s => s.jobId !== jobId);
+    return { success: true, message: 'Swipe deleted' };
+  }
+  
+  // APPLICATIONS
   if (path.startsWith('/applications')) return { applications: mockApplications };
+  
+  // RESUMES
   if (path === '/resumes/upload' && method === 'POST') {
     const resumeId = `resume_${Date.now()}`;
     return {
@@ -158,6 +181,8 @@ const mockResponse = (method, path, body) => {
       uploadedAt: new Date().toISOString(),
     };
   }
+  
+  // USERS
   if (path === '/users/me' && method === 'GET') return { user: mockProfile };
   if (path === '/users/me' && method === 'PUT') {
     if (body?.resumeData) {
@@ -215,5 +240,6 @@ const mockResponse = (method, path, body) => {
 
     return { message: 'User profile updated successfully', user: mockProfile };
   }
+  
   return { success: true };
 };

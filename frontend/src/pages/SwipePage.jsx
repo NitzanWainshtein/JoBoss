@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
-import { getJobs, createSwipe, createApplication, updateMyProfile } from '../api';
+import { getJobs, createSwipe, createApplication, updateMyProfile, getMySwipes, undoSwipe } from '../api';
 
 function JobDetailModal({ job, onClose }) {
   const [logoError, setLogoError] = useState(false);
@@ -182,6 +182,7 @@ function SwipePage() {
   const [location, setLocation] = useState(localStorage.getItem('jobLocation') || '');
   const [radius, setRadius] = useState(localStorage.getItem('jobRadius') || '');
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [swipedJobs, setSwipedJobs] = useState(new Set()); // משרות שכבר נעשה להן swipe
   const navigate = useNavigate();
 
   const loadJobs = useCallback(async () => {
@@ -213,6 +214,21 @@ function SwipePage() {
     loadJobs();
   }, [loadJobs]);
 
+  // טען swipes קיימים
+  useEffect(() => {
+    const loadSwipes = async () => {
+      try {
+        const data = await getMySwipes();
+        const jobIds = new Set((data.swipes || []).map(s => s.jobId));
+        setSwipedJobs(jobIds);
+        console.log(`✅ נטענו ${jobIds.size} swipes קיימים`);
+      } catch (error) {
+        console.error('Failed to load swipes:', error);
+      }
+    };
+    loadSwipes();
+  }, []);
+
   useEffect(() => {
     if (loadingProfile) return; // לא לשמור בזמן טעינה ראשונית
 
@@ -241,12 +257,19 @@ function SwipePage() {
     return () => clearTimeout(saveTimer);
   }, [location, radius, autoApply, loadingProfile]);
 
-  const currentJob = jobs[jobs.length - 1];
-  const nextJob = jobs[jobs.length - 2];
+  // סנן משרות שכבר נעשה להן swipe
+  const filteredJobs = jobs.filter(job => !swipedJobs.has(job.jobId));
+  const currentJob = filteredJobs[filteredJobs.length - 1];
+  const nextJob = filteredJobs[filteredJobs.length - 2];
 
   const handleSwipe = (direction) => {
     if (!currentJob) return;
+    
     setLastSwipe({ direction, job: currentJob });
+    
+    // הוסף ל-Set של swipes
+    setSwipedJobs(prev => new Set([...prev, currentJob.jobId]));
+    
     if (direction === 'right') {
       setSwipedRight((prev) => prev + 1);
       createSwipe(currentJob.jobId, 'LIKE');
@@ -254,7 +277,39 @@ function SwipePage() {
     } else {
       createSwipe(currentJob.jobId, 'PASS');
     }
+    
     setJobs((prev) => prev.slice(0, -1));
+  };
+
+  const handleUndo = async () => {
+    if (!lastSwipe) return;
+    
+    try {
+      // מחק מהשרת
+      await undoSwipe(lastSwipe.job.jobId);
+      
+      // הסר מה-Set
+      setSwipedJobs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(lastSwipe.job.jobId);
+        return newSet;
+      });
+      
+      // החזר את המשרה לרשימה
+      setJobs(prev => [...prev, lastSwipe.job]);
+      
+      // אם זה היה Swipe ימינה - הפחת מהמונה
+      if (lastSwipe.direction === 'right') {
+        setSwipedRight(prev => Math.max(0, prev - 1));
+      }
+      
+      setLastSwipe(null);
+      console.log('↩️ Swipe בוטל!');
+      
+    } catch (error) {
+      console.error('Undo failed:', error);
+      alert('❌ שגיאה בביטול Swipe');
+    }
   };
 
   const handleModalClose = (action) => {
@@ -293,7 +348,7 @@ function SwipePage() {
       )}
 
       <div style={styles.cardContainer}>
-        {jobs.length === 0 ? (
+        {filteredJobs.length === 0 ? (
           <motion.div
             style={styles.emptyState}
             initial={{ opacity: 0, scale: 0.8 }}
@@ -314,7 +369,7 @@ function SwipePage() {
                 <p style={styles.emptyStatLabel}>הגשות נשלחו</p>
               </div>
             </div>
-            <motion.button style={styles.emptyBtn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/dashboard')}>
+            <motion.button style={styles.emptyBtn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/applications')}>
               📋 ראה את ההגשות שלך
             </motion.button>
           </motion.div>
@@ -353,19 +408,32 @@ function SwipePage() {
         )}
       </div>
 
-      {jobs.length > 0 && (
+      {filteredJobs.length > 0 && (
         <div style={styles.buttons}>
           <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')}>✕</motion.button>
           <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')}>♥</motion.button>
         </div>
       )}
 
-      {lastSwipe && jobs.length > 0 && (
-        <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
-          {lastSwipe.direction === 'right'
-            ? autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר למועדפים — ${lastSwipe.job.company}`
-            : `👋 דולגה משרה ב-${lastSwipe.job.company}`}
-        </motion.p>
+      {lastSwipe && filteredJobs.length > 0 && (
+        <>
+          <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
+            {lastSwipe.direction === 'right'
+              ? autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר למועדפים — ${lastSwipe.job.company}`
+              : `👋 דולגה משרה ב-${lastSwipe.job.company}`}
+          </motion.p>
+          
+          <motion.button
+            style={styles.undoBtn}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleUndo}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            ↩️ Undo
+          </motion.button>
+        </>
       )}
 
       <AnimatePresence>
@@ -376,7 +444,7 @@ function SwipePage() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px' },
+  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px', paddingBottom: '80px' },
   filterBanner: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     background: '#E8F5E9', color: '#2E7D32', borderRadius: '12px',
@@ -411,6 +479,21 @@ const styles = {
   buttons: { display: 'flex', gap: '40px', marginTop: '24px' },
   rejectBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #F44336', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#F44336' },
   acceptBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #4CAF50', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#4CAF50' },
+  undoBtn: {
+    position: 'absolute',
+    bottom: '120px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '10px 24px',
+    background: '#FF9800',
+    color: 'white',
+    border: 'none',
+    borderRadius: '24px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 600,
+    boxShadow: '0 4px 12px rgba(255,152,0,0.3)'
+  },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '24px' },
   emptyTitle: { fontSize: '24px', fontWeight: 800, margin: 0 },

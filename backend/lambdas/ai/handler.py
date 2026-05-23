@@ -126,6 +126,17 @@ def find_resume(user, resume_id):
     return resumes[0] if resumes else None
 
 
+def build_resume_from_text(resume_id, resume_text):
+    if not resume_text:
+        return None
+
+    return {
+        "resumeId": resume_id or "provided-resume-text",
+        "fileName": "provided-resume-text.txt",
+        "url": "",
+    }
+
+
 def read_resume_text(resume):
     bucket, key = parse_s3_url(resume.get("url") or resume.get("resumeUrl"))
 
@@ -173,9 +184,10 @@ You are an expert resume editor.
 Task:
 Tailor the candidate resume to the given job description.
 - Keep facts truthful. Do not invent experience, tools, or years.
-- Emphasize relevant skills and achievements.
-- Use concise ATS-friendly bullet points.
-- Return plain text only.
+- Keep the output suitable for a real resume. Do not include notes about what you changed.
+- Preserve the candidate's identity, education, projects, links, and factual experience.
+- Emphasize only the resume facts that match the job.
+- Return clean resume-ready text only.
 
 Candidate Resume:
 {resume_text}
@@ -184,7 +196,12 @@ Job Description:
 {job_description}
 
 Return:
-A tailored resume version with a short summary, experience bullets, and skills.
+A concise resume-ready draft with these sections only:
+PROFESSIONAL SUMMARY
+TECHNICAL SKILLS
+PROJECTS
+EDUCATION
+EXPERIENCE
 """.strip()
 
 
@@ -217,49 +234,92 @@ def invoke_bedrock_nova(prompt):
 def build_mock_tailored_resume(user, job, resume_text):
     title = job.get("title", "the role")
     company = job.get("company", "the company")
-    desired_role = user.get("desiredRole") or title
-    experience = user.get("experienceLevel") or "relevant"
     requirements = job.get("requirements") or job.get("technologies") or []
     skills = ", ".join(requirements[:6]) if isinstance(requirements, list) else str(requirements)
-    skills = skills or "Python, React, AWS, problem solving"
-    resume_summary = summarize_resume_text(resume_text)
+    skills = skills or extract_resume_skills(resume_text)
+    candidate_name = find_resume_name(resume_text)
+    project_lines = find_resume_lines(
+        resume_text,
+        ["project", "github", "developed", "built", "implemented", "react", "java", "python", "aws"],
+        5,
+    )
+    education_lines = find_resume_lines(
+        resume_text,
+        ["university", "college", "bachelor", "computer science", "student", "degree"],
+        3,
+    )
+    experience_lines = find_resume_lines(
+        resume_text,
+        ["experience", "supervisor", "manager", "led", "maintained", "worked", "developed"],
+        4,
+    )
 
     return f"""
-Tailored Resume - {title} at {company}
+{candidate_name}
+Target Role: {title} | {company}
 
-Professional Summary
-Candidate targeting {desired_role} roles with {experience} experience. This version emphasizes the candidate's real resume experience and aligns it with {company}'s {title} position.
+PROFESSIONAL SUMMARY
+Computer Science student and software developer focused on {title} roles. Brings hands-on software project experience and a practical foundation aligned with {company}'s requirements: {skills}.
 
-Selected Resume Evidence
-{resume_summary}
-
-Tailored Experience Highlights
-- Reframed the candidate's existing experience around the job requirements: {skills}.
-- Highlighted relevant software, cloud, backend, frontend, and delivery experience where it appears in the resume.
-- Kept the wording truthful and based on the uploaded resume content.
-
-Fit For This Role
-- Job target: {title} at {company}.
-- Key matched requirements: {skills}.
-- ATS-friendly wording focused on the overlap between the resume and job description.
-
-Skills
+TECHNICAL SKILLS
 {skills}
+
+PROJECTS
+{format_resume_bullets(project_lines, ["Built software projects demonstrating practical development, problem solving, and implementation skills.", "Applied programming fundamentals and modern development tools in academic and personal projects."])}
+
+EDUCATION
+{format_resume_bullets(education_lines, ["Computer Science studies with emphasis on software development fundamentals."])}
+
+EXPERIENCE
+{format_resume_bullets(experience_lines, ["Demonstrated responsibility, communication, ownership, and structured problem solving in previous roles."])}
 """.strip()
 
 
-def summarize_resume_text(resume_text):
-    clean_lines = [
-        line.strip()
+def get_resume_lines(resume_text):
+    skipped_headings = {
+        "summary", "professional summary", "projects", "project", "skills",
+        "technical skills", "education", "experience", "work experience",
+        "contact", "contact information",
+    }
+
+    return [
+        line.strip(" -•\t")
         for line in resume_text.replace("\r", "\n").split("\n")
-        if line.strip()
+        if line.strip() and line.strip().lower() not in skipped_headings
     ]
 
-    if not clean_lines:
-        return "- Resume text could not be extracted, so this version uses profile and job details."
 
-    selected = clean_lines[:8]
-    return "\n".join(f"- {line[:180]}" for line in selected)
+def find_resume_name(resume_text):
+    for line in get_resume_lines(resume_text)[:8]:
+        if 2 <= len(line.split()) <= 4 and not any(char.isdigit() for char in line):
+            if "@" not in line and "student" not in line.lower() and "resume" not in line.lower():
+                return line
+    return "Candidate"
+
+
+def extract_resume_skills(resume_text):
+    known_skills = [
+        "React", "JavaScript", "TypeScript", "Node.js", "Python", "Java", "C", "C++",
+        "AWS", "Lambda", "DynamoDB", "SQL", "MongoDB", "Git", "HTML", "CSS",
+    ]
+    text = resume_text.lower()
+    matched = [skill for skill in known_skills if skill.lower() in text]
+    return ", ".join(matched[:10]) or "Software development, problem solving, teamwork"
+
+
+def find_resume_lines(resume_text, keywords, limit):
+    keyword_set = [keyword.lower() for keyword in keywords]
+    clean_lines = [
+        line for line in get_resume_lines(resume_text)
+        if any(keyword in line.lower() for keyword in keyword_set)
+    ]
+
+    return clean_lines[:limit]
+
+
+def format_resume_bullets(lines, fallback):
+    selected = lines or fallback
+    return "\n".join(f"- {line[:190]}" for line in selected)
 
 
 def generate_tailored_resume(user, job, resume_text):
@@ -412,11 +472,11 @@ def lambda_handler(event, context):
         if not user:
             return response(404, {"error": "User was not found"})
 
-        job = get_job(job_id)
+        job = get_job(job_id) or body.get("job")
         if not job:
             return response(404, {"error": "Job was not found"})
 
-        resume = find_resume(user, resume_id)
+        resume = find_resume(user, resume_id) or build_resume_from_text(resume_id, provided_resume_text)
         if not resume:
             return response(404, {"error": "Resume was not found"})
 

@@ -38,6 +38,7 @@ function JobDetailModal({ job, onClose, activeResume }) {
         jobId: job.jobId,
         resumeId: activeResume.resumeId,
         resumeText: activeResume.resumeText,
+        job,
       });
       setTailoredResult(result);
     } catch {
@@ -250,7 +251,7 @@ function JobDetailModal({ job, onClose, activeResume }) {
             <div style={modal.previewPanel}>
               <p style={modal.previewTitle}>אחרי</p>
               {tailoredResult?.tailoredResume && (
-                <p style={modal.previewHint}>גרסה מותאמת למשרה הזו, לפי הדרישות והקובץ הפעיל.</p>
+                <p style={modal.previewHint}>טיוטת טקסט להתאמה. עדיין לא PDF סופי עם העיצוב והקישורים של הקובץ המקורי.</p>
               )}
               {tailoredResult?.tailoredResume ? (
                 <div style={modal.tailoredDocument}>
@@ -264,9 +265,9 @@ function JobDetailModal({ job, onClose, activeResume }) {
 
           {tailoredResult?.tailoredResumeUrl && (
             <div style={modal.resultActions}>
-              <p style={modal.aiSuccess}>נשמר: {tailoredResult.tailoredResumeUrl}</p>
+              <p style={modal.aiSuccess}>טיוטה זמנית נשמרה: {tailoredResult.tailoredResumeUrl}</p>
               <button style={modal.downloadBtn} onClick={handleDownloadTailoredResume}>
-                הורד קורות חיים מותאמים
+                הורד טיוטת טקסט זמנית
               </button>
             </div>
           )}

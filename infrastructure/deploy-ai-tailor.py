@@ -248,29 +248,37 @@ def put_cors_options(resource_id):
         requestTemplates={"application/json": '{"statusCode": 200}'},
     )
 
-    api_client.put_method_response(
-        restApiId=API_ID,
-        resourceId=resource_id,
-        httpMethod="OPTIONS",
-        statusCode="200",
-        responseParameters={
-            "method.response.header.Access-Control-Allow-Headers": True,
-            "method.response.header.Access-Control-Allow-Methods": True,
-            "method.response.header.Access-Control-Allow-Origin": True,
-        },
-    )
+    try:
+        api_client.put_method_response(
+            restApiId=API_ID,
+            resourceId=resource_id,
+            httpMethod="OPTIONS",
+            statusCode="200",
+            responseParameters={
+                "method.response.header.Access-Control-Allow-Headers": True,
+                "method.response.header.Access-Control-Allow-Methods": True,
+                "method.response.header.Access-Control-Allow-Origin": True,
+            },
+        )
+    except ClientError as error:
+        if error.response["Error"]["Code"] != "ConflictException":
+            raise
 
-    api_client.put_integration_response(
-        restApiId=API_ID,
-        resourceId=resource_id,
-        httpMethod="OPTIONS",
-        statusCode="200",
-        responseParameters={
-            "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
-            "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
-            "method.response.header.Access-Control-Allow-Origin": "'*'",
-        },
-    )
+    try:
+        api_client.put_integration_response(
+            restApiId=API_ID,
+            resourceId=resource_id,
+            httpMethod="OPTIONS",
+            statusCode="200",
+            responseParameters={
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+                "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+            },
+        )
+    except ClientError as error:
+        if error.response["Error"]["Code"] != "ConflictException":
+            raise
 
 
 def allow_api_gateway_invoke():

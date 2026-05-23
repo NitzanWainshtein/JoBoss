@@ -2,6 +2,7 @@ import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'mock';
 const SUBSCRIPTIONS_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL || BASE_URL;
+const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || BASE_URL;
 
 const getToken = async () => {
   const session = await fetchAuthSession({ forceRefresh: true });
@@ -117,6 +118,34 @@ export const createApplication = async (jobId, data = {}) => {
     tailoredResumeUrl: data.tailoredResumeUrl,
   });
 };
+const aiApiCall = async (method, path, body = null) => {
+  if (AI_BASE_URL === 'mock') {
+    return mockResponse(method, path, body);
+  }
+
+  try {
+    const token = await getToken();
+
+    const response = await fetch(`${AI_BASE_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token
+      },
+      body: body ? JSON.stringify(body) : null
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AI API Error: ${response.status} ${errorText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('AI API call failed:', method, path, error.message);
+    throw error;
+  }
+};
 
 export const getMyApplications = async () => {
   return apiCall('GET', '/applications');
@@ -206,12 +235,34 @@ export const consumeApplicationQuota = async () => {
 };
 
 // ===== AI TAILORING =====
-export const tailorResume = async ({ jobId, resumeId, resumeText }) => {
-  return apiCall('POST', '/ai/tailor', { jobId, resumeId, resumeText });
+export const tailorResume = async ({ jobId, resumeId, resumeText, job }) => {
+  const userId = await getUserId();
+  return aiApiCall('POST', '/ai/tailor', { userId, jobId, resumeId, resumeText, job });
 };
 
 // ===== MOCK =====
-const mockApplications = [
+const readMockStorage = (key, fallback) => {
+  if (typeof localStorage === 'undefined') return fallback;
+
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writeMockStorage = (key, value) => {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn('Could not persist mock data:', key, error);
+  }
+};
+
+const defaultMockApplications = [
   { jobId: '1', company: 'Google', title: 'Frontend Developer', date: '15/05/2026', status: 'pending' },
   { jobId: '2', company: 'Microsoft', title: 'Full Stack Developer', date: '14/05/2026', status: 'accepted' },
   { jobId: '3', company: 'Monday.com', title: 'React Developer', date: '13/05/2026', status: 'rejected' },
@@ -226,9 +277,7 @@ const mockJobs = [
   { jobId: '6', company: 'Taboola', title: 'Full Stack Engineer', location: 'Ramat Gan', salary: '29,000 NIS', description: 'Create interfaces and services for recommendation systems', requirements: ['React', 'Java'] },
 ];
 
-let mockSwipes = []; // מערך לשמירת swipes ב-mock mode
-
-let mockProfile = {
+const defaultMockProfile = {
   userId: 'mock-user',
   plan: 'FREE',
   autoApply: false,
@@ -239,6 +288,10 @@ let mockProfile = {
   resumeUrl: null,
   resumes: []
 };
+
+let mockApplications = readMockStorage('joboss:mockApplications', defaultMockApplications);
+let mockSwipes = readMockStorage('joboss:mockSwipes', []);
+let mockProfile = readMockStorage('joboss:mockProfile', defaultMockProfile);
 
 let mockSubscription = {
   userId: 'mock-user',
@@ -255,6 +308,7 @@ const mockResponse = (method, path, body) => {
   // SWIPES
   if (path === '/swipes' && method === 'POST') {
     mockSwipes.push({ jobId: body.jobId, decision: body.decision, swipedAt: new Date().toISOString() });
+    writeMockStorage('joboss:mockSwipes', mockSwipes);
     return { success: true, message: 'Swipe saved' };
   }
   if (path === '/swipes/me' && method === 'GET') {
@@ -263,6 +317,7 @@ const mockResponse = (method, path, body) => {
   if (path.startsWith('/swipes/') && method === 'DELETE') {
     const jobId = path.split('/')[2];
     mockSwipes = mockSwipes.filter(s => s.jobId !== jobId);
+    writeMockStorage('joboss:mockSwipes', mockSwipes);
     return { success: true, message: 'Swipe deleted' };
   }
   
@@ -278,6 +333,7 @@ const mockResponse = (method, path, body) => {
       tailoredResumeUrl: body?.tailoredResumeUrl || null,
     };
     mockApplications.unshift(application);
+    writeMockStorage('joboss:mockApplications', mockApplications);
     return { message: 'Application created', application };
   }
   if (path.startsWith('/applications')) return { applications: mockApplications };
@@ -349,6 +405,7 @@ const mockResponse = (method, path, body) => {
       mockProfile.resumeUrl = body.resumeUrl;
     }
 
+    writeMockStorage('joboss:mockProfile', mockProfile);
     return { message: 'User profile updated successfully', user: mockProfile };
   }
   

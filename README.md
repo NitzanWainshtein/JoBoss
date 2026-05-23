@@ -126,6 +126,14 @@ Run these scripts with your AWS credentials and environment configured.
 
 ---
 
+## API Documentation
+
+Feature-level API documentation is available here:
+
+- [AI Resume Tailoring + Subscription System API](docs/aviv-ai-subscriptions-api.md)
+
+---
+
 ## Roadmap
 
 - Add automated test coverage (frontend + Lambda unit tests).

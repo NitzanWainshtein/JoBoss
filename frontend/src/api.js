@@ -116,6 +116,7 @@ export const createApplication = async (jobId, data = {}) => {
     title: data.title || '',
     resumeVersionId: data.resumeVersionId || 'resume-001',
     tailoredResumeUrl: data.tailoredResumeUrl,
+    tailoredResume: data.tailoredResume,
   });
 };
 const aiApiCall = async (method, path, body = null) => {
@@ -293,13 +294,15 @@ let mockApplications = readMockStorage('joboss:mockApplications', defaultMockApp
 let mockSwipes = readMockStorage('joboss:mockSwipes', []);
 let mockProfile = readMockStorage('joboss:mockProfile', defaultMockProfile);
 
-let mockSubscription = {
+const defaultMockSubscription = {
   userId: 'mock-user',
   plan: 'FREE',
   dailyLimit: 5,
   used: 0,
   resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 };
+
+let mockSubscription = readMockStorage('joboss:mockSubscription', defaultMockSubscription);
 
 const mockResponse = (method, path, body) => {
   if (path === '/jobs') return { jobs: mockJobs };
@@ -331,10 +334,20 @@ const mockResponse = (method, path, body) => {
       date: new Date().toLocaleDateString('he-IL'),
       status: 'pending',
       tailoredResumeUrl: body?.tailoredResumeUrl || null,
+      tailoredResume: body?.tailoredResume || null,
     };
     mockApplications.unshift(application);
     writeMockStorage('joboss:mockApplications', mockApplications);
     return { message: 'Application created', application };
+  }
+  if (path === '/applications' && method === 'PUT') {
+    mockApplications = mockApplications.map((application) => (
+      application.jobId === body?.jobId
+        ? { ...application, status: body.status, lastUpdated: new Date().toISOString() }
+        : application
+    ));
+    writeMockStorage('joboss:mockApplications', mockApplications);
+    return { message: 'Application updated successfully' };
   }
   if (path.startsWith('/applications')) return { applications: mockApplications };
   
@@ -419,6 +432,8 @@ const mockResponse = (method, path, body) => {
       dailyLimit: 50,
     };
     mockProfile.plan = 'PREMIUM';
+    writeMockStorage('joboss:mockSubscription', mockSubscription);
+    writeMockStorage('joboss:mockProfile', mockProfile);
     return {
       message: 'Mock checkout completed successfully',
       plan: 'PREMIUM',
@@ -432,6 +447,8 @@ const mockResponse = (method, path, body) => {
       dailyLimit: 5,
     };
     mockProfile.plan = 'FREE';
+    writeMockStorage('joboss:mockSubscription', mockSubscription);
+    writeMockStorage('joboss:mockProfile', mockProfile);
     return {
       message: 'Subscription cancelled',
       plan: 'FREE',
@@ -447,6 +464,7 @@ const mockResponse = (method, path, body) => {
       ...mockSubscription,
       used: mockSubscription.used + 1,
     };
+    writeMockStorage('joboss:mockSubscription', mockSubscription);
 
     return {
       message: 'Application quota consumed',

@@ -281,6 +281,7 @@ function JobDetailModal({ job, onClose, activeResume }) {
               onClose({
                 action: 'apply',
                 tailoredResumeUrl: tailoredResult?.tailoredResumeUrl,
+                tailoredResume: tailoredResult?.tailoredResume,
               });
             }}
           >
@@ -384,6 +385,7 @@ function SwipePage() {
   const [swipedJobs, setSwipedJobs] = useState(new Set()); // משרות שכבר נעשה להן swipe
   const [activeResume, setActiveResume] = useState(null);
   const [applyError, setApplyError] = useState('');
+  const [limitModal, setLimitModal] = useState(null);
   const navigate = useNavigate();
 
   const loadJobs = useCallback(async () => {
@@ -493,7 +495,11 @@ function SwipePage() {
         const dailyLimit = subscription?.dailyLimit ?? 5;
 
         if (used >= dailyLimit) {
-          setApplyError('Daily application limit reached. Upgrade your subscription or wait for the daily reset.');
+          setLimitModal({
+            used,
+            dailyLimit,
+            resetAt: subscription?.resetAt,
+          });
           return;
         }
       } catch (error) {
@@ -512,6 +518,7 @@ function SwipePage() {
           title: currentJob.title,
           resumeVersionId: activeResume?.resumeId || 'resume-001',
           tailoredResumeUrl: options.tailoredResumeUrl,
+          tailoredResume: options.tailoredResume,
         });
       } catch (error) {
         console.warn('Failed to create application. Continuing in development mode:', error);
@@ -570,7 +577,10 @@ function SwipePage() {
 
   const handleModalClose = (action) => {
     if (action?.action === 'apply') {
-      handleSwipe('right', { tailoredResumeUrl: action.tailoredResumeUrl });
+      handleSwipe('right', {
+        tailoredResumeUrl: action.tailoredResumeUrl,
+        tailoredResume: action.tailoredResume,
+      });
     } else if (action === 'apply') {
       handleSwipe('right');
     }
@@ -613,6 +623,31 @@ function SwipePage() {
           <button style={styles.upgradeInlineBtn} onClick={() => navigate('/subscription')}>
             שדרוג מנוי
           </button>
+        </div>
+      )}
+
+      {limitModal && (
+        <div style={styles.limitOverlay} onClick={() => setLimitModal(null)}>
+          <div style={styles.limitDialog} onClick={(event) => event.stopPropagation()} dir="rtl">
+            <p style={styles.limitBadge}>מכסת ההגשות היומית מלאה</p>
+            <h2 style={styles.limitTitle}>הגעת ל־{limitModal.used} מתוך {limitModal.dailyLimit} הגשות היום</h2>
+            <p style={styles.limitText}>
+              במסלול Free אפשר להגיש עד 5 משרות ביום. כדי להמשיך להגיש היום, אפשר לשדרג ל־Premium ולקבל מכסה גבוהה יותר יחד עם יכולות AI להתאמת קורות חיים.
+            </p>
+            <div style={styles.limitBenefits}>
+              <span>50 הגשות ביום</span>
+              <span>התאמת קורות חיים עם AI</span>
+              <span>מתאים לחיפוש עבודה אינטנסיבי יותר</span>
+            </div>
+            <div style={styles.limitActions}>
+              <button type="button" style={styles.limitSecondaryBtn} onClick={() => setLimitModal(null)}>
+                לא עכשיו
+              </button>
+              <button type="button" style={styles.limitPrimaryBtn} onClick={() => navigate('/subscription')}>
+                עבור לשדרוג Premium
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -752,6 +787,77 @@ const styles = {
     fontWeight: 800,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+  },
+  limitOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 2000,
+    background: 'rgba(15, 23, 42, 0.45)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+  },
+  limitDialog: {
+    width: 'min(520px, 94vw)',
+    background: 'white',
+    borderRadius: '24px',
+    padding: '28px',
+    boxShadow: '0 30px 80px rgba(15, 23, 42, 0.3)',
+    border: '1px solid #fecaca',
+    color: '#111827',
+  },
+  limitBadge: {
+    margin: '0 0 12px',
+    display: 'inline-flex',
+    padding: '7px 12px',
+    borderRadius: '999px',
+    background: '#fef2f2',
+    color: '#b91c1c',
+    fontSize: '13px',
+    fontWeight: 800,
+  },
+  limitTitle: {
+    margin: '0 0 12px',
+    fontSize: '24px',
+    lineHeight: 1.35,
+  },
+  limitText: {
+    margin: '0 0 18px',
+    color: '#4b5563',
+    lineHeight: 1.7,
+    fontSize: '15px',
+  },
+  limitBenefits: {
+    display: 'grid',
+    gap: '8px',
+    marginBottom: '22px',
+    color: '#166534',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+  limitActions: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1.4fr',
+    gap: '10px',
+  },
+  limitSecondaryBtn: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '14px',
+    background: 'white',
+    color: '#374151',
+    padding: '12px 14px',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  limitPrimaryBtn: {
+    border: 'none',
+    borderRadius: '14px',
+    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+    color: 'white',
+    padding: '12px 14px',
+    fontWeight: 800,
+    cursor: 'pointer',
   },
   refreshBtn: {
     background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '0 4px'

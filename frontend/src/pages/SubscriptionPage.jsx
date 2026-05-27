@@ -11,6 +11,7 @@ function SubscriptionPage() {
   const used = subscription?.used ?? 0;
   const dailyLimit = subscription?.dailyLimit ?? 5;
   const resetAt = subscription?.resetAt;
+  const isLimitReached = !isPremium && dailyLimit > 0 && used >= dailyLimit;
 
   const usagePercent = Math.min(
     100,
@@ -119,12 +120,12 @@ function SubscriptionPage() {
       )}
 
       <section style={styles.grid}>
-        <article style={styles.card}>
+        <article style={isLimitReached ? { ...styles.card, ...styles.limitReachedCard } : styles.card}>
           <h2 style={styles.cardTitle}>שימוש יומי</h2>
 
           <div style={styles.usageRow}>
             <span style={styles.usageLabel}>הגשות שבוצעו היום</span>
-            <strong style={styles.usageCounter}>
+            <strong style={isLimitReached ? { ...styles.usageCounter, ...styles.usageCounterDanger } : styles.usageCounter}>
               {used} / {dailyLimit}
             </strong>
           </div>
@@ -133,10 +134,20 @@ function SubscriptionPage() {
             <div
               style={{
                 ...styles.progressFill,
+                ...(isLimitReached ? styles.progressFillDanger : {}),
                 width: `${usagePercent}%`
               }}
             />
           </div>
+
+          {isLimitReached && (
+            <div style={styles.limitNotice}>
+              <strong style={styles.limitNoticeTitle}>הגעת למכסה היומית במסלול Free</strong>
+              <span>
+                לא ניתן לשלוח הגשות נוספות עד איפוס המכסה. שדרוג ל־Premium פותח 50 הגשות ביום ויכולות AI מתקדמות.
+              </span>
+            </div>
+          )}
 
           <p style={styles.helpText}>
             {resetAt
@@ -166,8 +177,14 @@ function SubscriptionPage() {
           ) : (
             <>
               <p style={styles.helpText}>
-                שדרוג ל־Premium יגדיל את מכסת ההגשות היומית ויפתח יכולות מתקדמות.
+                שדרוג ל – Premium נותן לך יותר מרווח להגיש למשרות, בלי להיתקע באמצע יום חיפוש פעיל.
               </p>
+
+              <div style={styles.upgradeReasons}>
+                <span>50 הגשות ביום במקום 5</span>
+                <span>גישה ל־AI tailoring לקורות חיים מותאמים</span>
+                <span>מתאים למי שמגיש לכמה משרות ביום ורוצה לעבוד מהר יותר</span>
+              </div>
 
               <button
                 type="button"
@@ -175,7 +192,7 @@ function SubscriptionPage() {
                 onClick={handleUpgrade}
                 disabled={saving}
               >
-                {saving ? 'משדרג...' : 'שדרג ל־Premium'}
+                {saving ? 'משדרג...' : 'שדרג ל – Premium'}
               </button>
             </>
           )}
@@ -300,6 +317,9 @@ const styles = {
     fontSize: '24px',
     color: '#111827'
   },
+  usageCounterDanger: {
+    color: '#dc2626'
+  },
   progressTrack: {
     width: '100%',
     height: '12px',
@@ -313,10 +333,43 @@ const styles = {
     background: 'linear-gradient(90deg, #4f46e5, #7c3aed)',
     transition: 'width 0.25s ease'
   },
+  progressFillDanger: {
+    background: 'linear-gradient(90deg, #ef4444, #b91c1c)'
+  },
+  limitReachedCard: {
+    border: '1px solid #fecaca',
+    boxShadow: '0 18px 45px rgba(220, 38, 38, 0.12)'
+  },
+  limitNotice: {
+    marginTop: '16px',
+    padding: '14px 16px',
+    borderRadius: '16px',
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    color: '#991b1b',
+    display: 'grid',
+    gap: '6px',
+    lineHeight: 1.6
+  },
+  limitNoticeTitle: {
+    color: '#7f1d1d'
+  },
   helpText: {
     margin: '14px 0 0',
     color: '#6b7280',
     lineHeight: 1.7
+  },
+  upgradeReasons: {
+    marginTop: '18px',
+    padding: '16px',
+    borderRadius: '16px',
+    background: '#f8fafc',
+    border: '1px solid #e5e7eb',
+    color: '#374151',
+    display: 'grid',
+    gap: '10px',
+    fontSize: '15px',
+    lineHeight: 1.6
   },
   primaryButton: {
     width: '100%',

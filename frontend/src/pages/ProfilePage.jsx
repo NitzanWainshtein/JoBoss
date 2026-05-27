@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
-import { getMyProfile, updateMyProfile, uploadResume, uploadProfileImage } from '../api';
+import { useNavigate } from 'react-router-dom';
+import { getMyProfile, updateMyProfile, uploadResume, uploadProfileImage, getMySubscription } from '../api';
 import { extractPdfText } from '../utils/pdfText';
 
 function LocationInput({ value, onChange }) {
@@ -122,15 +123,18 @@ function LocationInput({ value, onChange }) {
 }
 
 function ProfilePage() {
+  const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [userName, setUserName] = useState('');
   const [autoApply, setAutoApply] = useState(false);
   const [cvFile, setCvFile] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [subscription, setSubscription] = useState(null);
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState(20);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const isPremium = (subscription?.plan || profile?.plan) === 'PREMIUM';
 
  useEffect(() => {
   getCurrentUser().then(async (user) => {
@@ -164,6 +168,11 @@ function ProfilePage() {
         if (savedLocation) setLocation(savedLocation);
         if (savedRadius) setRadius(Number(savedRadius));
         setLoadingProfile(false);
+      });
+    getMySubscription()
+      .then((data) => setSubscription(data))
+      .catch((error) => {
+        console.warn('Failed to load subscription in profile:', error);
       });
   }, []);
 
@@ -338,7 +347,9 @@ function ProfilePage() {
     </label>
   </div>
   <h2 style={styles.username}>{userName}</h2>
-  <span style={styles.planBadge}>מנוי חינמי</span>
+  <span style={isPremium ? styles.planBadgePremium : styles.planBadge}>
+    {isPremium ? 'Premium פעיל' : 'מנוי חינמי'}
+  </span>
 </div>
 
         <div style={styles.card}>
@@ -491,13 +502,24 @@ function ProfilePage() {
           )}
         </div>
 
-        <div style={styles.upgradeCard}>
-          <div>
-            <p style={styles.upgradeTitle}>⭐ שדרג לפרימיום</p>
-            <p style={styles.upgradeDesc}>הגשות ללא הגבלה + AI tailoring מלא</p>
+        {isPremium ? (
+          <div style={styles.premiumCard}>
+            <div>
+              <p style={styles.upgradeTitle}>Premium פעיל</p>
+              <p style={styles.upgradeDesc}>יש לך מכסה גבוהה יותר ויכולות AI tailoring מתקדמות.</p>
+            </div>
           </div>
-          <button style={styles.upgradeBtn}>שדרג</button>
-        </div>
+        ) : (
+          <div style={styles.upgradeCard}>
+            <div>
+              <p style={styles.upgradeTitle}>שדרג לפרימיום</p>
+              <p style={styles.upgradeDesc}>מכסה גבוהה יותר + AI tailoring מתקדם</p>
+            </div>
+            <button type="button" style={styles.upgradeBtn} onClick={() => navigate('/subscription')}>
+              שדרג
+            </button>
+          </div>
+        )}
 
         <button style={styles.logoutBtn} onClick={handleLogout}>
           🚪 התנתק
@@ -575,6 +597,15 @@ const styles = {
     fontWeight: 600,
     border: '1px solid #6C4FD4'
   },
+  planBadgePremium: {
+    background: '#ECFDF5',
+    color: '#047857',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '13px',
+    fontWeight: 700,
+    border: '1px solid #34D399'
+  },
   cardTitle: {
     fontSize: '16px',
     fontWeight: 700,
@@ -650,6 +681,14 @@ const styles = {
   },
   upgradeCard: {
     background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+    borderRadius: '20px',
+    padding: '20px 24px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  premiumCard: {
+    background: 'linear-gradient(135deg, #059669, #1E2A4A)',
     borderRadius: '20px',
     padding: '20px 24px',
     display: 'flex',

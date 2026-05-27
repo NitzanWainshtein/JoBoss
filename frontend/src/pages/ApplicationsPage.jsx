@@ -30,6 +30,7 @@ function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [previewApplication, setPreviewApplication] = useState(null);
 
   useEffect(() => {
     loadApplications();
@@ -68,6 +69,22 @@ function ApplicationsPage() {
   const filtered = filter === 'all'
     ? applications
     : applications.filter(a => (a.status || '').toUpperCase() === filter.toUpperCase());
+
+  const downloadTailoredResume = (app) => {
+    if (!app.tailoredResume) return;
+
+    const fileName = `joboss-tailored-${app.company || 'company'}-${app.jobId || 'job'}.pdf`
+      .replace(/[\\/:*?"<>|]/g, '-');
+    const blob = buildSimplePdfBlob(app.tailoredResume);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
@@ -146,6 +163,37 @@ function ApplicationsPage() {
                     </div>
                   </div>
 
+                  {app.tailoredResumeUrl && (
+                    <div style={styles.tailoredBox}>
+                      <div>
+                        <p style={styles.tailoredTitle}>קורות חיים מותאמים צורפו</p>
+                        <p style={styles.tailoredSub}>
+                          {app.tailoredResume
+                            ? 'ניתן לצפות בטיוטה או להוריד אותה כקובץ.'
+                            : 'הקובץ נשמר בענן. צפייה והורדה זמינות בהגשות חדשות.'}
+                        </p>
+                      </div>
+                      {app.tailoredResume && (
+                        <div style={styles.tailoredActions}>
+                          <button
+                            type="button"
+                            style={styles.tailoredButton}
+                            onClick={() => setPreviewApplication(app)}
+                          >
+                            צפייה
+                          </button>
+                          <button
+                            type="button"
+                            style={styles.tailoredButton}
+                            onClick={() => downloadTailoredResume(app)}
+                          >
+                            הורדה
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div style={styles.actions}>
                     {STATUS_ACTIONS.map(s => (
                       <button
@@ -170,9 +218,107 @@ function ApplicationsPage() {
           </div>
         )}
       </div>
+
+      {previewApplication && (
+        <div style={styles.previewOverlay} onClick={() => setPreviewApplication(null)}>
+          <div style={styles.previewModal} onClick={(event) => event.stopPropagation()}>
+            <div style={styles.previewHeader}>
+              <div>
+                <p style={styles.previewTitle}>קורות חיים מותאמים</p>
+                <p style={styles.previewSub}>
+                  {previewApplication.company} · {previewApplication.title}
+                </p>
+              </div>
+              <button
+                type="button"
+                style={styles.closePreview}
+                onClick={() => setPreviewApplication(null)}
+              >
+                סגור
+              </button>
+            </div>
+            <pre style={styles.previewText}>{previewApplication.tailoredResume}</pre>
+            <button
+              type="button"
+              style={styles.downloadPreview}
+              onClick={() => downloadTailoredResume(previewApplication)}
+            >
+              הורדה
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const buildSimplePdfBlob = (text) => {
+  const escapePdfText = (value) => value
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+
+  const wrapLine = (line, maxChars = 82) => {
+    const words = line.split(/\s+/).filter(Boolean);
+    const lines = [];
+    let current = '';
+
+    words.forEach((word) => {
+      if ((current + ' ' + word).trim().length > maxChars) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = `${current} ${word}`.trim();
+      }
+    });
+
+    if (current) lines.push(current);
+    return lines.length ? lines : [''];
+  };
+
+  const lines = text
+    .split('\n')
+    .flatMap((line) => wrapLine(line))
+    .slice(0, 52);
+
+  const content = [
+    'BT',
+    '/F1 11 Tf',
+    '50 790 Td',
+    '14 TL',
+    ...lines.flatMap((line, index) => [
+      ...(index > 0 ? ['T*'] : []),
+      `(${escapePdfText(line)}) Tj`,
+    ]),
+    'ET',
+  ].join('\n');
+
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+
+  objects.forEach((obj, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${obj}\nendobj\n`;
+  });
+
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  offsets.forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+};
 
 const styles = {
   container: { minHeight: '100vh', background: 'var(--background)' },
@@ -192,6 +338,11 @@ const styles = {
   title: { fontSize: '13px', color: '#6C4FD4', fontWeight: 600, margin: 0 },
   date: { fontSize: '11px', color: '#bbb', margin: 0 },
   badge: { padding: '4px 12px', borderRadius: '20px', color: 'white', fontSize: '12px', fontWeight: 700, flexShrink: 0 },
+  tailoredBox: { background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', direction: 'rtl' },
+  tailoredTitle: { margin: 0, fontSize: '12px', fontWeight: 800, color: '#166534' },
+  tailoredSub: { margin: '4px 0 0', fontSize: '11px', color: '#15803D' },
+  tailoredActions: { display: 'flex', gap: '8px', flexShrink: 0 },
+  tailoredButton: { border: '1px solid #86EFAC', borderRadius: '999px', background: 'white', color: '#166534', padding: '7px 12px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
   actions: { display: 'flex', gap: '6px', flexWrap: 'wrap' },
   actionBtn: { padding: '5px 10px', borderRadius: '20px', border: '1.5px solid', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' },
   actionActive: {},
@@ -199,6 +350,14 @@ const styles = {
   emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
   emptySub: { fontSize: '14px', color: '#777', margin: 0 },
   retryBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 },
+  previewOverlay: { position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 },
+  previewModal: { width: 'min(760px, 96vw)', maxHeight: '86vh', background: 'white', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 24px 80px rgba(15, 23, 42, 0.25)', direction: 'rtl' },
+  previewHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },
+  previewTitle: { margin: 0, fontSize: '18px', fontWeight: 800, color: '#1E2A4A' },
+  previewSub: { margin: '4px 0 0', fontSize: '13px', color: '#6C4FD4', fontWeight: 700 },
+  closePreview: { border: '1px solid #E5E7EB', borderRadius: '999px', background: 'white', padding: '8px 12px', cursor: 'pointer', fontWeight: 800 },
+  previewText: { margin: 0, padding: '16px', background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '12px', overflow: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'Arial, sans-serif', fontSize: '13px', lineHeight: 1.65, color: '#111827', direction: 'ltr', textAlign: 'left' },
+  downloadPreview: { alignSelf: 'flex-start', border: 'none', borderRadius: '999px', background: '#166534', color: 'white', padding: '10px 16px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' },
 };
 
 export default ApplicationsPage;

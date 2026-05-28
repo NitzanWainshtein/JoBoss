@@ -238,9 +238,9 @@ function SwipePage() {
         title: currentJob.title,
       });
 
-      // Update quota from response
+      // Update quota from response — preserve unlimited flag from initial load
       if (result?.quota) {
-        setQuota(q => ({ ...q, ...result.quota, used: (q?.used || 0) + (direction === 'right' ? 1 : 0) }));
+        setQuota(q => ({ ...q, ...result.quota, unlimited: result.quota.unlimited ?? q?.unlimited, used: (q?.used || 0) + (direction === 'right' ? 1 : 0) }));
       }
     } catch (err) {
       if (err.status === 429 || err.code === 'LIMIT_REACHED') {

@@ -3,7 +3,7 @@ import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 const BASE_URL = import.meta.env.VITE_API_URL || 'mock';
 
 const getToken = async () => {
-  const session = await fetchAuthSession({ forceRefresh: true });
+  const session = await fetchAuthSession();
   const token = session.tokens?.idToken?.toString();
   return token;
 };

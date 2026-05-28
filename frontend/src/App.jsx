@@ -60,6 +60,13 @@ function AnimatedRoutes({ isLoggedIn, onboardingCompleted, onOnboardingComplete 
 
   const home = isLoggedIn ? (onboardingCompleted ? '/swipe' : '/onboarding') : '/login';
 
+  // Logged in but needs onboarding — force redirect from any non-onboarding route.
+  // Covers the case where OAuth callback lands the user on /swipe (stale URL) instead of /.
+  const needsOnboarding = isLoggedIn && !onboardingCompleted;
+  if (needsOnboarding && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
@@ -122,8 +129,10 @@ function App() {
         const { getMyProfile } = await import('./api');
         const data = await getMyProfile();
         setOnboardingCompleted(data?.user?.onboardingCompleted === true);
-      } catch {
-        setOnboardingCompleted(true); // If profile fetch fails, don't block
+      } catch (e) {
+        // 404 = new user, no profile yet → must go through onboarding
+        // Any other error (network, 500) → assume done to not block returning users
+        setOnboardingCompleted(e?.status !== 404);
       }
     } catch {
       setIsLoggedIn(false);

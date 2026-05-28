@@ -1,17 +1,16 @@
 import os
-import re
 import uuid
 import asyncio
-import time
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal
 
 import boto3
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from boto3.dynamodb.conditions import Attr
-from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+
+from geocoding import geocode_location
+from job_description_fetcher import fetch_full_description
+from jobs_repository import exists_by_source_job
+from telegram_jobs import extract_apply_url, extract_preview_description, parse_message
 
 ######## CONNECTED TO AWS #########
 # ---------- Env ----------
@@ -27,32 +26,6 @@ TG_LIMIT = int(os.getenv("TG_LIMIT", "120"))
 # ---------- AWS ----------
 dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
 table = dynamodb.Table(TABLE_NAME)
-
-# ---------- Geocoding ----------
-_geolocator = Nominatim(user_agent="JoBossProject/1.0 (student project)")
-_SKIP_LOCATIONS = {"remote", "מרחוק", "עבודה מרחוק", "unknown", ""}
-
-
-def geocode_location(location: str):
-    """Returns (Decimal lat, Decimal lng) or (None, None)."""
-    if not location or location.strip().lower() in _SKIP_LOCATIONS:
-        return None, None
-
-    time.sleep(1.1)
-
-    try:
-        result = _geolocator.geocode(location, country_codes="il", timeout=10)
-
-        if result:
-            return (
-                Decimal(str(round(result.latitude, 6))),
-                Decimal(str(round(result.longitude, 6))),
-            )
-
-    except (GeocoderTimedOut, GeocoderServiceError) as e:
-        print(f"Geocoding error for '{location}': {e}")
-
-    return None, None
 
 
 def require_env():
@@ -75,96 +48,6 @@ def require_env():
 
     if missing:
         raise ValueError(f"Missing required env vars: {', '.join(missing)}")
-
-
-def parse_message(text: str):
-    if not text:
-        return None
-
-    clean = " ".join(text.split())
-
-    if "@" not in clean:
-        return None
-
-    title_part, rest = clean.split("@", 1)
-    title = title_part.strip(" -•\t")
-
-    company = rest
-
-    for stop in ["Posted on:", "Location:", "Click here", "#"]:
-        idx = company.find(stop)
-
-        if idx != -1:
-            company = company[:idx]
-
-    company = company.strip(" -•\t")
-
-    location = "Unknown"
-
-    loc_match = re.search(
-        r"Location:\s*(.*?)(Click here|#|$)",
-        clean,
-        flags=re.IGNORECASE
-    )
-
-    if loc_match:
-        location = loc_match.group(1).strip(" -•\t")
-
-    if not title or not company:
-        return None
-
-    return {
-        "title": title,
-        "company": company,
-        "location": location,
-        "description": clean[:5000],
-    }
-
-def text_slice_by_entity(text: str, offset: int, length: int) -> str:
-    encoded = text.encode("utf-16-le")
-    return encoded[offset * 2:(offset + length) * 2].decode("utf-16-le")
-
-
-def is_telegram_url(url: str) -> bool:
-    return "t.me/" in url or "telegram.me/" in url
-
-
-def extract_apply_url(message, fallback_url: str) -> str:
-    text = message.message or ""
-
-    for entity in message.entities or []:
-        if entity.__class__.__name__ == "MessageEntityTextUrl":
-            url = getattr(entity, "url", "")
-            if url and not is_telegram_url(url):
-                return url
-
-    for entity in message.entities or []:
-        if entity.__class__.__name__ == "MessageEntityUrl":
-            url = text_slice_by_entity(text, entity.offset, entity.length)
-            if url and not is_telegram_url(url):
-                return url
-
-    return fallback_url
-
-
-def exists_by_source_job(source: str, source_job_id: str) -> bool:
-    scan_kwargs = {
-        "FilterExpression": Attr("source").eq(source) & Attr("sourceJobId").eq(source_job_id),
-        "ProjectionExpression": "jobId",
-    }
-
-    while True:
-        resp = table.scan(**scan_kwargs)
-
-        if resp.get("Items"):
-            return True
-
-        last_evaluated_key = resp.get("LastEvaluatedKey")
-
-        if not last_evaluated_key:
-            return False
-
-        scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
 
 
 async def fetch_messages():
@@ -207,8 +90,9 @@ def insert_jobs(messages):
             source = "telegram"
             source_job_id = f"{TG_CHANNEL}:{msg_id}"
             telegram_url = f"https://t.me/{TG_CHANNEL}/{msg_id}"
+            apply_url = extract_apply_url(msg, telegram_url)
 
-            if exists_by_source_job(source, source_job_id):
+            if exists_by_source_job(table, source, source_job_id):
                 skipped_duplicates += 1
                 continue
 
@@ -224,8 +108,11 @@ def insert_jobs(messages):
                 "title": parsed["title"],
                 "company": parsed["company"],
                 "location": parsed["location"],
-                "description": parsed["description"],
-                "applyUrl": extract_apply_url(msg, telegram_url),
+                "description": fetch_full_description(
+                    apply_url,
+                    extract_preview_description(msg, parsed["description"]),
+                ),
+                "applyUrl": apply_url,
                 "telegramUrl": telegram_url,
                 "createdAt": created_at.isoformat(),
                 "expiresAt": expires_at,

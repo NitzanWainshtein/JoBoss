@@ -35,6 +35,8 @@ function ProfilePage() {
   const [planKey, setPlanKey] = useState('FREE');
   const [preferredRoles, setPreferredRoles] = useState([]);
   const [showRoleEditor, setShowRoleEditor] = useState(false);
+  const [experienceLevel, setExperienceLevel] = useState('');
+  const [availability, setAvailability] = useState('');
 
   // Handle ?tab=subscription from LimitModal redirect
   useEffect(() => {
@@ -62,6 +64,8 @@ function ProfilePage() {
       if (user?.latitude) localStorage.setItem('jobLatitude', user.latitude);
       if (user?.longitude) localStorage.setItem('jobLongitude', user.longitude);
       if (user?.preferredRoles?.length) setPreferredRoles(user.preferredRoles);
+      if (user?.experienceLevel) setExperienceLevel(user.experienceLevel);
+      if (user?.availability) setAvailability(user.availability);
       setPlanKey(subData?.planKey || 'FREE');
       setLoadingProfile(false);
     }).catch(() => setLoadingProfile(false));
@@ -72,16 +76,25 @@ function ProfilePage() {
     const t = setTimeout(async () => {
       const lat = localStorage.getItem('jobLatitude');
       const lng = localStorage.getItem('jobLongitude');
-      if (!lat || !lng || !location) return;
       localStorage.setItem('autoApply', autoApply);
-      localStorage.setItem('jobLocation', location);
-      localStorage.setItem('jobRadius', radius);
+      if (location) {
+        localStorage.setItem('jobLocation', location);
+        localStorage.setItem('jobRadius', radius);
+      }
+      console.log('Saving preferences:', { preferredRoles, autoApply, location });
       try {
-        await updateMyProfile({ autoApply, preferredLocation: location, searchRadius: radius, preferredRoles, latitude: parseFloat(lat), longitude: parseFloat(lng) });
+        await updateMyProfile({
+          autoApply,
+          preferredRoles,
+          experienceLevel,
+          availability,
+          ...(location && { preferredLocation: location, searchRadius: radius }),
+          ...(lat && lng && { latitude: parseFloat(lat), longitude: parseFloat(lng) }),
+        });
       } catch {}
     }, 1000);
     return () => clearTimeout(t);
-  }, [location, radius, autoApply, preferredRoles, loadingProfile]);
+  }, [location, radius, autoApply, preferredRoles, experienceLevel, availability, loadingProfile]);
 
   const handleCvUpload = async (e) => {
     const file = e.target.files[0];
@@ -267,9 +280,35 @@ function ProfilePage() {
               )}
             </div>
 
-            {/* Preferred roles */}
+            {/* Experience & availability */}
             <div style={styles.card}>
               <h3 style={styles.cardTitle}>🎯 העדפות חיפוש</h3>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <p style={styles.settingLabel}>רמת ניסיון</p>
+                <select value={experienceLevel} onChange={e => setExperienceLevel(e.target.value)} style={{ ...styles.input, appearance: 'none', cursor: 'pointer' }}>
+                  <option value="">בחר רמה...</option>
+                  <option value="Student">סטודנט</option>
+                  <option value="Junior">ג'וניור (0-2 שנים)</option>
+                  <option value="Mid">מיד (2-5 שנים)</option>
+                  <option value="Senior">סניור (5+ שנים)</option>
+                  <option value="Lead">לידרשיפ / ארכיטקט</option>
+                </select>
+              </div>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <p style={styles.settingLabel}>זמינות</p>
+                <select value={availability} onChange={e => setAvailability(e.target.value)} style={{ ...styles.input, appearance: 'none', cursor: 'pointer' }}>
+                  <option value="">בחר זמינות...</option>
+                  <option value="Immediately">מיידית</option>
+                  <option value="2 weeks">תוך שבועיים</option>
+                  <option value="1 month">תוך חודש</option>
+                  <option value="3 months">תוך 3 חודשים</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Preferred roles */}
+            <div style={styles.card}>
+              <h3 style={styles.cardTitle}>💼 תפקידים מועדפים</h3>
               {preferredRoles.length > 0 ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%' }}>
                   {preferredRoles.map(role => (

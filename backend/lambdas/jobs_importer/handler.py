@@ -120,6 +120,32 @@ def parse_message(text: str):
         "description": clean[:5000],
     }
 
+def text_slice_by_entity(text: str, offset: int, length: int) -> str:
+    encoded = text.encode("utf-16-le")
+    return encoded[offset * 2:(offset + length) * 2].decode("utf-16-le")
+
+
+def is_telegram_url(url: str) -> bool:
+    return "t.me/" in url or "telegram.me/" in url
+
+
+def extract_apply_url(message, fallback_url: str) -> str:
+    text = message.message or ""
+
+    for entity in message.entities or []:
+        if entity.__class__.__name__ == "MessageEntityTextUrl":
+            url = getattr(entity, "url", "")
+            if url and not is_telegram_url(url):
+                return url
+
+    for entity in message.entities or []:
+        if entity.__class__.__name__ == "MessageEntityUrl":
+            url = text_slice_by_entity(text, entity.offset, entity.length)
+            if url and not is_telegram_url(url):
+                return url
+
+    return fallback_url
+
 
 def exists_by_source_job(source: str, source_job_id: str) -> bool:
     scan_kwargs = {
@@ -180,6 +206,7 @@ def insert_jobs(messages):
 
             source = "telegram"
             source_job_id = f"{TG_CHANNEL}:{msg_id}"
+            telegram_url = f"https://t.me/{TG_CHANNEL}/{msg_id}"
 
             if exists_by_source_job(source, source_job_id):
                 skipped_duplicates += 1
@@ -198,7 +225,8 @@ def insert_jobs(messages):
                 "company": parsed["company"],
                 "location": parsed["location"],
                 "description": parsed["description"],
-                "applyUrl": f"https://t.me/{TG_CHANNEL}/{msg_id}",
+                "applyUrl": extract_apply_url(msg, telegram_url),
+                "telegramUrl": telegram_url,
                 "createdAt": created_at.isoformat(),
                 "expiresAt": expires_at,
                 "isActive": True,

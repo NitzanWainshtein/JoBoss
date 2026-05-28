@@ -16,7 +16,30 @@
       "Bash(aws iam *)",
       "Bash(aws s3api *)",
       "Bash(curl -s -o /dev/null -w '%{http_code}' https://joboss-resumes-171109860478.s3.amazonaws.com/users/test-123/profile/avatar_04e5ac22.jpg)",
-      "Bash(curl -s -o /dev/null -w '%{http_code}' https://joboss-resumes-171109860478.s3.amazonaws.com/users/test-123/resume.pdf)"
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://joboss-resumes-171109860478.s3.amazonaws.com/users/test-123/resume.pdf)",
+      "Bash(API_GATEWAY_ID=pi6i87ag1c AI_MODE=auto python infrastructure/deploy-ai-tailor.py)",
+      "Bash(npm run *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); b=json.loads\\(d['body']\\); print\\('mode:', b.get\\('mode'\\)\\); print\\('has tailoredResume:', bool\\(b.get\\('tailoredResume'\\)\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); b=json.loads\\(d['body']\\); print\\(json.dumps\\(b, indent=2\\)\\)\")",
+      "Bash(python .tmp_lambda/test_swipes.py)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/subscriptions/me)",
+      "Bash(curl -s -X POST https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/ai/tailor -H \"Content-Type: application/json\" -d '{\"jobId\":\"1\",\"resumeText\":\"test\"}' -w \"\\\\nHTTP_CODE:%{http_code}\")",
+      "Bash(curl -s https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/subscriptions/me -w \"\\\\nHTTP:%{http_code}\")",
+      "Bash(curl -s -X POST https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/subscriptions/consume -H \"Content-Type: application/json\" -d '{}' -w \"\\\\nHTTP:%{http_code}\")",
+      "Bash(curl -s -X OPTIONS https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/subscriptions/me -w \"\\\\nHTTP:%{http_code}\")",
+      "Bash(python .tmp_lambda/pack_swipes.py)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('State:', d.get\\('State'\\), '| Status:', d.get\\('LastUpdateStatus'\\)\\)\")",
+      "Bash(curl -sI -X OPTIONS https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/swipes/quota)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Methods:', d['responseParameters'].get\\('method.response.header.Access-Control-Allow-Methods'\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; print\\('Deployed:', json.load\\(sys.stdin\\).get\\('id'\\)\\)\")",
+      "Bash(python .tmp_lambda/test_checkout.py)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Integration:', d.get\\('type'\\)\\)\")",
+      "Bash(curl -s -X POST https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/subscriptions/webhook -w \"\\\\nHTTP:%{http_code}\")",
+      "Bash(wc -l \"c:/Users/NITZAN/.claude/projects/c--Users-NITZAN-JoBoss/359a79e3-c50b-4dd2-9f6f-1bbc27adf410.jsonl\" 2>&1)",
+      "Read(//c/Users/NITZAN/.claude/projects/c--Users-NITZAN-JoBoss/**)",
+      "Bash(python .tmp_lambda/extract_files.py)",
+      "Bash(python .tmp_lambda/fix_encoding.py)",
+      "Bash(python .tmp_lambda/extract_subscription.py)"
     ]
   }
 }

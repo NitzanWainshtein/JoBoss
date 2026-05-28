@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage.jsx';
 import SwipePage from './pages/SwipePage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
-import SubscriptionPage from './pages/SubscriptionPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import ApplicationsPage from './pages/ApplicationsPage.jsx';
 import Navbar from './components/Navbar.jsx';
@@ -84,11 +83,6 @@ function AnimatedRoutes({ isLoggedIn }) {
         <Route path="/applications" element={
           <PageTransition>
             {isLoggedIn ? <ApplicationsPage /> : <Navigate to="/login" />}
-          </PageTransition>
-        } />
-        <Route path="/subscription" element={
-          <PageTransition>
-            {isLoggedIn ? <SubscriptionPage /> : <Navigate to="/login" />}
           </PageTransition>
         } />
         <Route path="/admin" element={

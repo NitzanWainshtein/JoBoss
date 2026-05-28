@@ -1,19 +1,11 @@
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'mock';
-const SUBSCRIPTIONS_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL || BASE_URL;
-const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || BASE_URL;
 
 const getToken = async () => {
   const session = await fetchAuthSession({ forceRefresh: true });
   const token = session.tokens?.idToken?.toString();
-  console.log('TOKEN:', token ? token.substring(0, 50) + '...' : 'NULL');
   return token;
-};
-
-const getUserId = async () => {
-  const user = await getCurrentUser();
-  return user.userId || user.username;
 };
 
 const apiCall = async (method, path, body = null) => {
@@ -27,47 +19,23 @@ const apiCall = async (method, path, body = null) => {
       method,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': token
+        'Authorization': token,
       },
-      body: body ? JSON.stringify(body) : null
+      body: body ? JSON.stringify(body) : null,
     });
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      const err = await response.json().catch(() => ({}));
+      const error = new Error(err.message || `API Error: ${response.status}`);
+      error.status = response.status;
+      error.code = err.code;
+      error.data = err;
+      throw error;
     }
 
     return response.json();
   } catch (error) {
     console.error('API call failed:', method, path, error.message);
-    throw error;
-  }
-};
-
-const subscriptionApiCall = async (method, path, body = null) => {
-  if (SUBSCRIPTIONS_BASE_URL === 'mock') {
-    return mockResponse(method, path, body);
-  }
-
-  try {
-    const token = await getToken();
-
-    const response = await fetch(`${SUBSCRIPTIONS_BASE_URL}${path}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token
-      },
-      body: body ? JSON.stringify(body) : null
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Subscriptions API Error: ${response.status} ${errorText}`);
-    }
-
-    return response.json();
-  } catch (error) {
-    console.error('Subscriptions API call failed:', method, path, error.message);
     throw error;
   }
 };
@@ -78,96 +46,49 @@ export const getJobs = async () => {
   const longitude = localStorage.getItem('jobLongitude');
   const radius = localStorage.getItem('jobRadius');
 
-  // נסה עם סינון גיאוגרפי, אם timeout - חזור לכל המשרות
   if (latitude && longitude && radius) {
     try {
       return await apiCall('GET', `/jobs?lat=${latitude}&lng=${longitude}&radius=${radius}`);
-    } catch (error) {
-      console.log('Geocoding timeout, falling back to all jobs');
-      // אם נכשל (timeout/CORS) - תחזיר את כל המשרות בלי סינון
+    } catch {
       return await apiCall('GET', '/jobs');
     }
   }
-
-  // אחרת, קרא את כל המשרות
   return apiCall('GET', '/jobs');
 };
 
 export const getJobById = (jobId) => apiCall('GET', `/jobs/${jobId}`);
 
 // ===== SWIPES =====
-export const createSwipe = async (jobId, decision) => {
-  return apiCall('POST', '/swipes', { jobId, decision });
+export const createSwipe = async (jobId, decision, extra = {}) => {
+  return apiCall('POST', '/swipes', { jobId, decision, ...extra });
 };
 
-export const getMySwipes = async () => {
-  return apiCall('GET', '/swipes/me');
-};
+export const getMySwipes = async () => apiCall('GET', '/swipes/me');
 
-export const undoSwipe = async (jobId) => {
-  return apiCall('DELETE', `/swipes/${jobId}`);
-};
+export const undoSwipe = async (jobId) => apiCall('DELETE', `/swipes/${jobId}`);
+
+export const getQuotaStatus = async () => apiCall('GET', '/swipes/quota');
 
 // ===== APPLICATIONS =====
-export const createApplication = async (jobId, data = {}) => {
-  return apiCall('POST', '/applications', {
-    jobId,
-    company: data.company || '',
-    title: data.title || '',
-    resumeVersionId: data.resumeVersionId || 'resume-001',
-    tailoredResumeUrl: data.tailoredResumeUrl,
-    tailoredResume: data.tailoredResume,
-  });
-};
-const aiApiCall = async (method, path, body = null) => {
-  if (AI_BASE_URL === 'mock') {
-    return mockResponse(method, path, body);
-  }
-
-  try {
-    const token = await getToken();
-
-    const response = await fetch(`${AI_BASE_URL}${path}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token
-      },
-      body: body ? JSON.stringify(body) : null
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`AI API Error: ${response.status} ${errorText}`);
-    }
-
-    return response.json();
-  } catch (error) {
-    console.error('AI API call failed:', method, path, error.message);
-    throw error;
-  }
+export const createApplication = async (jobId, { company = '', title = '', tailoredResumeUrl = '' } = {}) => {
+  return apiCall('POST', '/applications', { jobId, company, title, tailoredResumeUrl });
 };
 
-export const getMyApplications = async () => {
-  return apiCall('GET', '/applications');
-};
+export const getMyApplications = async () => apiCall('GET', '/applications');
 
 export const updateApplication = async (jobId, status) => {
   return apiCall('PUT', '/applications', { jobId, status });
 };
 
 // ===== USERS =====
-export const getMyProfile = async () => {
-  return apiCall('GET', '/users/me');
-};
+export const getMyProfile = async () => apiCall('GET', '/users/me');
 
-export const updateMyProfile = async (data) => {
-  return apiCall('PUT', '/users/me', data);
-};
+export const updateMyProfile = async (data) => apiCall('PUT', '/users/me', data);
+
+export const createMyProfile = async (data) => apiCall('POST', '/users/me', data);
 
 export const uploadProfileImage = async (file) => {
   const reader = new FileReader();
-
   return new Promise((resolve, reject) => {
     reader.onloadend = async () => {
       try {
@@ -188,19 +109,15 @@ export const uploadProfileImage = async (file) => {
 
 export const uploadResume = async (file) => {
   const reader = new FileReader();
-  
   return new Promise((resolve, reject) => {
     reader.onloadend = async () => {
       try {
         const base64 = reader.result.split(',')[1];
         const response = await apiCall('POST', '/resumes/upload', {
           file: base64,
-          fileName: file.name
+          fileName: file.name,
         });
-        resolve({
-          ...response,
-          previewDataUrl: reader.result,
-        });
+        resolve(response);
       } catch (error) {
         reject(error);
       }
@@ -210,412 +127,215 @@ export const uploadResume = async (file) => {
   });
 };
 
-export const createMyProfile = async (data) => {
-  return apiCall('POST', '/users/me', data);
-};
-
 // ===== SUBSCRIPTIONS =====
-export const getMySubscription = async () => {
-  const userId = await getUserId();
-  return subscriptionApiCall('GET', `/subscriptions/me?userId=${encodeURIComponent(userId)}`);
+export const getSubscription = async () => apiCall('GET', '/subscriptions/me');
+
+export const getSubscriptionPlans = async () => apiCall('GET', '/subscriptions/plans');
+
+export const createCheckoutSession = async (plan) => {
+  return apiCall('POST', '/subscriptions/checkout', { plan });
 };
 
-export const checkoutSubscription = async () => {
-  const userId = await getUserId();
-  return subscriptionApiCall('POST', '/subscriptions/checkout', { userId });
-};
+export const cancelSubscription = async () => apiCall('DELETE', '/subscriptions/me');
 
-export const cancelSubscription = async () => {
-  const userId = await getUserId();
-  return subscriptionApiCall('DELETE', '/subscriptions/me', { userId });
-};
+// Aliases for SubscriptionPage compatibility
+export const getMySubscription = getSubscription;
+export const checkoutSubscription = createCheckoutSession;
 
-export const consumeApplicationQuota = async () => {
-  const userId = await getUserId();
-  return subscriptionApiCall('POST', '/subscriptions/consume', { userId });
-};
-
-// ===== AI TAILORING =====
-export const tailorResume = async ({ jobId, resumeId, resumeText, job }) => {
-  const userId = await getUserId();
-  return aiApiCall('POST', '/ai/tailor', { userId, jobId, resumeId, resumeText, job });
+// ===== AI =====
+export const tailorResume = async (resumeText, jobDescription) => {
+  return apiCall('POST', '/ai/tailor', {
+    resume_text: resumeText,
+    job_description: jobDescription,
+  });
 };
 
 // ===== MOCK =====
-const readMockStorage = (key, fallback) => {
-  if (typeof localStorage === 'undefined') return fallback;
 
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
+// Mock subscription state
+let mockSubscription = {
+  userId: 'mock-user',
+  plan: 'FREE',
+  status: 'FREE',
+  dailyApplicationsUsed: 0,
+  aiUsedThisMonth: 0,
 };
 
-const writeMockStorage = (key, value) => {
-  if (typeof localStorage === 'undefined') return;
-
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (error) {
-    console.warn('Could not persist mock data:', key, error);
-  }
-};
-
-const defaultMockApplications = [
-  { jobId: '1', company: 'Google', title: 'Frontend Developer', date: '15/05/2026', status: 'pending' },
-  { jobId: '2', company: 'Microsoft', title: 'Full Stack Developer', date: '14/05/2026', status: 'accepted' },
-  { jobId: '3', company: 'Monday.com', title: 'React Developer', date: '13/05/2026', status: 'rejected' },
+const mockApplications = [
+  { jobId: '1', company: 'Google', title: 'Frontend Developer', createdAt: new Date().toISOString(), status: 'SUBMITTED' },
+  { jobId: '2', company: 'Microsoft', title: 'Full Stack Developer', createdAt: new Date().toISOString(), status: 'ACCEPTED' },
+  { jobId: '3', company: 'Monday.com', title: 'React Developer', createdAt: new Date().toISOString(), status: 'REJECTED' },
 ];
 
 const mockJobs = [
-  { jobId: '1', company: 'Google', title: 'Frontend Developer', location: 'Tel Aviv', salary: '25,000 ₪', description: 'פיתוח ממשקי משתמש', requirements: ['React', 'TypeScript'] },
-  { jobId: '2', company: 'Microsoft', title: 'Full Stack Developer', location: 'Herzliya', salary: '30,000 ₪', description: 'פיתוח Full Stack', requirements: ['Node.js', 'React'] },
-  { jobId: '3', company: 'Monday.com', title: 'React Developer', location: 'Tel Aviv', salary: '28,000 NIS', description: 'Build product features for a work management platform', requirements: ['React', 'GraphQL'] },
-  { jobId: '4', company: 'Wix', title: 'Software Engineer', location: 'Tel Aviv', salary: '27,000 NIS', description: 'Develop scalable web product infrastructure', requirements: ['JavaScript', 'Node.js'] },
-  { jobId: '5', company: 'Check Point', title: 'Backend Developer', location: 'Tel Aviv', salary: '32,000 NIS', description: 'Build cloud security services and APIs', requirements: ['Python', 'AWS'] },
-  { jobId: '6', company: 'Taboola', title: 'Full Stack Engineer', location: 'Ramat Gan', salary: '29,000 NIS', description: 'Create interfaces and services for recommendation systems', requirements: ['React', 'Java'] },
+  { jobId: '1', company: 'Google', title: 'Frontend Developer', location: 'Tel Aviv', salary: '25,000 âª', description: '×¤××ª×× ×××©×§× ××©×ª××©', requirements: ['React', 'TypeScript'] },
+  { jobId: '2', company: 'Microsoft', title: 'Full Stack Developer', location: 'Herzliya', salary: '30,000 âª', description: '×¤××ª×× Full Stack', requirements: ['Node.js', 'React'] },
 ];
 
-const defaultMockProfile = {
+const PLAN_LIMITS = {
+  FREE: { daily_applications: 5, ai_tailoring: 0 },
+  PREMIUM: { daily_applications: -1, ai_tailoring: 10 },
+  PREMIUM_PLUS: { daily_applications: -1, ai_tailoring: -1 },
+};
+
+let mockSwipes = [];
+let mockProfile = {
   userId: 'mock-user',
   plan: 'FREE',
   autoApply: false,
   preferredLocation: '',
   searchRadius: 20,
-  latitude: null,
-  longitude: null,
   resumeUrl: null,
-  resumes: []
+  resumes: [],
 };
 
-let mockApplications = readMockStorage('joboss:mockApplications', defaultMockApplications);
-let mockSwipes = readMockStorage('joboss:mockSwipes', []);
-let mockProfile = readMockStorage('joboss:mockProfile', defaultMockProfile);
-
-const defaultMockSubscription = {
-  userId: 'mock-user',
-  plan: 'FREE',
-  dailyLimit: 5,
-  used: 0,
-  resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+const getResetTime = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return tomorrow.toISOString();
 };
-
-let mockSubscription = readMockStorage('joboss:mockSubscription', defaultMockSubscription);
 
 const mockResponse = (method, path, body) => {
-  if (path === '/jobs') return { jobs: mockJobs };
-  if (path.startsWith('/jobs/')) return { job: mockJobs[0] };
-  
+  // JOBS
+  if (path.startsWith('/jobs') && method === 'GET') {
+    if (path.includes('/jobs/')) return { job: mockJobs[0] };
+    return { jobs: mockJobs };
+  }
+
   // SWIPES
   if (path === '/swipes' && method === 'POST') {
+    const plan = mockSubscription.plan;
+    const limit = PLAN_LIMITS[plan]?.daily_applications ?? 5;
+
+    if (body.decision === 'LIKE' && limit !== -1) {
+      if (mockSubscription.dailyApplicationsUsed >= limit) {
+        const err = new Error('Daily application limit reached');
+        err.status = 429;
+        err.code = 'LIMIT_REACHED';
+        err.data = {
+          code: 'LIMIT_REACHED',
+          plan,
+          limit,
+          used: mockSubscription.dailyApplicationsUsed,
+          remaining: 0,
+          resetAt: getResetTime(),
+        };
+        throw err;
+      }
+      mockSubscription.dailyApplicationsUsed++;
+    }
+
     mockSwipes.push({ jobId: body.jobId, decision: body.decision, swipedAt: new Date().toISOString() });
-    writeMockStorage('joboss:mockSwipes', mockSwipes);
-    return { success: true, message: 'Swipe saved' };
-  }
-  if (path === '/swipes/me' && method === 'GET') {
-    return { swipes: mockSwipes };
-  }
-  if (path.startsWith('/swipes/') && method === 'DELETE') {
-    const jobId = path.split('/')[2];
-    mockSwipes = mockSwipes.filter(s => s.jobId !== jobId);
-    writeMockStorage('joboss:mockSwipes', mockSwipes);
-    return { success: true, message: 'Swipe deleted' };
-  }
-  
-  // APPLICATIONS
-  if (path === '/applications' && method === 'POST') {
-    const job = mockJobs.find((item) => item.jobId === body?.jobId) || mockJobs[0];
-    const application = {
-      jobId: job.jobId,
-      company: body?.company || job.company,
-      title: body?.title || job.title,
-      date: new Date().toLocaleDateString('he-IL'),
-      status: 'pending',
-      tailoredResumeUrl: body?.tailoredResumeUrl || null,
-      tailoredResume: body?.tailoredResume || null,
+
+    const remaining = limit === -1 ? -1 : Math.max(0, limit - mockSubscription.dailyApplicationsUsed);
+    return {
+      message: 'Swipe recorded',
+      decision: body.decision,
+      quota: { plan, limit, remaining, resetAt: limit !== -1 ? getResetTime() : null },
     };
-    mockApplications.unshift(application);
-    writeMockStorage('joboss:mockApplications', mockApplications);
-    return { message: 'Application created', application };
   }
-  if (path === '/applications' && method === 'PUT') {
-    mockApplications = mockApplications.map((application) => (
-      application.jobId === body?.jobId
-        ? { ...application, status: body.status, lastUpdated: new Date().toISOString() }
-        : application
-    ));
-    writeMockStorage('joboss:mockApplications', mockApplications);
-    return { message: 'Application updated successfully' };
+
+  if (path === '/swipes/me' && method === 'GET') return { swipes: mockSwipes };
+
+  if (path.startsWith('/swipes/') && method === 'DELETE') {
+    const jobId = path.split('/').pop();
+    mockSwipes = mockSwipes.filter(s => s.jobId !== jobId);
+    if (mockSubscription.dailyApplicationsUsed > 0) mockSubscription.dailyApplicationsUsed--;
+    return { message: 'Swipe undone' };
   }
+
+  if (path === '/swipes/quota' && method === 'GET') {
+    const plan = mockSubscription.plan;
+    const limit = PLAN_LIMITS[plan]?.daily_applications ?? 5;
+    const used = mockSubscription.dailyApplicationsUsed;
+    return {
+      plan,
+      limit,
+      used,
+      remaining: limit === -1 ? -1 : Math.max(0, limit - used),
+      unlimited: limit === -1,
+      resetAt: limit !== -1 ? getResetTime() : null,
+    };
+  }
+
+  // APPLICATIONS
   if (path.startsWith('/applications')) return { applications: mockApplications };
-  
+
   // RESUMES
   if (path === '/resumes/upload' && method === 'POST') {
-    const resumeId = `resume_${Date.now()}`;
     return {
-      resumeId,
-      resumeUrl: `s3://joboss-resumes-171109860478/users/mock-user/${resumeId}.pdf`,
+      resumeId: `resume_${Date.now()}`,
+      resumeUrl: `s3://joboss-resumes-171109860478/users/mock-user/resume.pdf`,
       fileName: body?.fileName || 'resume.pdf',
       uploadedAt: new Date().toISOString(),
     };
   }
-  
+
+  // AI
+  if (path === '/ai/tailor' && method === 'POST') {
+    const plan = mockSubscription.plan;
+    const limit = PLAN_LIMITS[plan]?.ai_tailoring ?? 0;
+    if (limit === 0) {
+      const err = new Error('AI not available on Free plan');
+      err.status = 403;
+      err.code = 'AI_NOT_AVAILABLE';
+      err.data = { code: 'AI_NOT_AVAILABLE', plan };
+      throw err;
+    }
+    if (limit !== -1 && mockSubscription.aiUsedThisMonth >= limit) {
+      const err = new Error('Monthly AI limit reached');
+      err.status = 429;
+      err.code = 'AI_LIMIT_REACHED';
+      err.data = { code: 'AI_LIMIT_REACHED', plan, limit, used: mockSubscription.aiUsedThisMonth };
+      throw err;
+    }
+    if (limit !== -1) mockSubscription.aiUsedThisMonth++;
+    return {
+      message: 'Tailored resume generated',
+      tailored_resume: `[Mock AI] Tailored CV for: ${body?.job_description?.substring(0, 50)}...`,
+      quota: { remaining: limit === -1 ? -1 : Math.max(0, limit - mockSubscription.aiUsedThisMonth), limit },
+    };
+  }
+
+  // SUBSCRIPTIONS
+  if (path === '/subscriptions/me' && method === 'GET') {
+    return {
+      subscription: mockSubscription,
+      planKey: mockSubscription.plan,
+      planDetails: PLAN_LIMITS[mockSubscription.plan],
+    };
+  }
+
+  if (path === '/subscriptions/checkout' && method === 'POST') {
+    // Mock: immediately upgrade
+    mockSubscription = { ...mockSubscription, plan: body.plan, status: 'TRIAL', dailyApplicationsUsed: 0 };
+    mockProfile.plan = body.plan;
+    return { checkoutUrl: `${window.location.origin}/profile?subscription=success&plan=${body.plan}`, sessionId: 'mock_session' };
+  }
+
+  if (path === '/subscriptions/me' && method === 'DELETE') {
+    mockSubscription = { ...mockSubscription, status: 'CANCELLED', cancelAtPeriodEnd: true };
+    return { message: 'Subscription will be cancelled at period end' };
+  }
+
+  if (path === '/subscriptions/plans') {
+    return { plans: PLAN_LIMITS };
+  }
+
   // USERS
   if (path === '/users/me' && method === 'GET') return { user: mockProfile };
   if (path === '/users/me' && method === 'PUT') {
     if (body?.resumeData) {
-      const newResume = {
-        resumeId: body.resumeData.resumeId,
-        url: body.resumeData.resumeUrl,
-        fileName: body.resumeData.fileName,
-        uploadedAt: body.resumeData.uploadedAt,
-        isActive: true,
-      };
-
-      mockProfile.resumes = (mockProfile.resumes || []).map((resume) => ({ ...resume, isActive: false }));
+      const newResume = { resumeId: body.resumeData.resumeId, url: body.resumeData.resumeUrl, fileName: body.resumeData.fileName, uploadedAt: body.resumeData.uploadedAt, isActive: true };
+      mockProfile.resumes = (mockProfile.resumes || []).map(r => ({ ...r, isActive: false }));
       mockProfile.resumes = [newResume, ...mockProfile.resumes].slice(0, 3);
       mockProfile.resumeUrl = newResume.url;
-      if (mockProfile.resumes.length > 0) {
-        mockProfile.resumes = mockProfile.resumes.map((resume, index) => ({
-          ...resume,
-          isActive: index === 0,
-        }));
-      }
     }
-
-    if (body?.action === 'setActive' && body?.resumeId) {
-      mockProfile.resumes = (mockProfile.resumes || []).map((resume) => ({
-        ...resume,
-        isActive: resume.resumeId === body.resumeId,
-      }));
-      const activeResume = mockProfile.resumes.find((resume) => resume.isActive);
-      mockProfile.resumeUrl = activeResume?.url || null;
-    }
-
-    if (body?.action === 'delete' && body?.resumeId) {
-      const target = (mockProfile.resumes || []).find((resume) => resume.resumeId === body.resumeId);
-      mockProfile.resumes = (mockProfile.resumes || []).filter((resume) => resume.resumeId !== body.resumeId);
-      if (target?.url === mockProfile.resumeUrl) {
-        const nextActive = mockProfile.resumes[0] || null;
-        mockProfile.resumes = (mockProfile.resumes || []).map((resume, index) => ({
-          ...resume,
-          isActive: index === 0,
-        }));
-        mockProfile.resumeUrl = nextActive?.url || null;
-      }
-    }
-
-    const allowedFields = ['fullName', 'email', 'preferredLocation', 'searchRadius', 'desiredRole', 'experienceLevel', 'plan', 'role', 'autoApply'];
-    allowedFields.forEach((field) => {
-      if (body && Object.prototype.hasOwnProperty.call(body, field)) {
-        mockProfile[field] = body[field];
-      }
-    });
-
-    if (body?.resumeUrl !== undefined) {
-      mockProfile.resumeUrl = body.resumeUrl;
-    }
-
-    writeMockStorage('joboss:mockProfile', mockProfile);
-    return { message: 'User profile updated successfully', user: mockProfile };
+    const allowed = ['fullName', 'email', 'preferredLocation', 'searchRadius', 'desiredRole', 'experienceLevel', 'plan', 'role', 'autoApply'];
+    allowed.forEach(f => { if (body && f in body) mockProfile[f] = body[f]; });
+    return { message: 'Updated', user: mockProfile };
   }
-  
-  if (path === '/subscriptions/me' && method === 'GET') {
-    return mockSubscription;
-  }
-  if (path === '/subscriptions/checkout' && method === 'POST') {
-    mockSubscription = {
-      ...mockSubscription,
-      plan: 'PREMIUM',
-      dailyLimit: 50,
-    };
-    mockProfile.plan = 'PREMIUM';
-    writeMockStorage('joboss:mockSubscription', mockSubscription);
-    writeMockStorage('joboss:mockProfile', mockProfile);
-    return {
-      message: 'Mock checkout completed successfully',
-      plan: 'PREMIUM',
-      dailyLimit: 50,
-    };
-  }
-  if (path === '/subscriptions/me' && method === 'DELETE') {
-    mockSubscription = {
-      ...mockSubscription,
-      plan: 'FREE',
-      dailyLimit: 5,
-    };
-    mockProfile.plan = 'FREE';
-    writeMockStorage('joboss:mockSubscription', mockSubscription);
-    writeMockStorage('joboss:mockProfile', mockProfile);
-    return {
-      message: 'Subscription cancelled',
-      plan: 'FREE',
-      dailyLimit: 5,
-    };
-  }
-  if (path === '/subscriptions/consume' && method === 'POST') {
-    if (mockSubscription.used >= mockSubscription.dailyLimit) {
-      throw new Error('Daily application limit reached');
-    }
 
-    mockSubscription = {
-      ...mockSubscription,
-      used: mockSubscription.used + 1,
-    };
-    writeMockStorage('joboss:mockSubscription', mockSubscription);
-
-    return {
-      message: 'Application quota consumed',
-      ...mockSubscription,
-    };
-  }
-  if (path === '/ai/tailor' && method === 'POST') {
-    const job = mockJobs.find((item) => item.jobId === body?.jobId) || mockJobs[0];
-    const tailoredResume = buildMockTailoredResume(job, body?.resumeText || '');
-    return {
-      message: 'Tailored resume generated',
-      mode: 'mock',
-      job,
-      sourceResume: {
-        resumeId: body?.resumeId || 'mock-resume',
-        fileName: 'resume.pdf',
-      },
-      tailoredResumeId: `tailored_${Date.now()}`,
-      tailoredResumeUrl: `s3://joboss-resumes-171109860478/users/mock-user/tailored/${job.jobId}/mock.pdf`,
-      tailoredResume,
-    };
-  }
   return { success: true };
-};
-
-const cleanResumeLines = (resumeText) => (
-  (resumeText || '')
-    .replace(/\r/g, '\n')
-    .split('\n')
-    .map((line) => line.replace(/\s+/g, ' ').trim())
-    .filter((line) => line.length > 1)
-);
-
-const uniqueItems = (items) => [...new Set(items.filter(Boolean))];
-
-const findMatchingSkills = (resumeText, jobSkills) => {
-  const knownSkills = [
-    'React', 'Node.js', 'JavaScript', 'TypeScript', 'Python', 'Java', 'C#',
-    'AWS', 'Lambda', 'DynamoDB', 'SQL', 'MongoDB', 'Git', 'Docker',
-    'HTML', 'CSS', 'REST', 'API', 'OOP', 'Agile',
-  ];
-  const text = resumeText.toLowerCase();
-  const skills = uniqueItems([...jobSkills, ...knownSkills])
-    .filter((skill) => text.includes(skill.toLowerCase()) || jobSkills.includes(skill));
-
-  return skills.length ? skills : jobSkills;
-};
-
-const pickEvidenceLines = (lines, keywords, limit = 5) => {
-  const lowerKeywords = keywords.map((keyword) => keyword.toLowerCase());
-  const matches = lines.filter((line) => {
-    const lowerLine = line.toLowerCase();
-    return lowerKeywords.some((keyword) => lowerLine.includes(keyword));
-  });
-
-  return uniqueItems(matches).slice(0, limit);
-};
-
-const findName = (lines) => {
-  const firstUseful = lines.find((line) => (
-    /^[A-Za-z][A-Za-z\s'-]{3,40}$/.test(line)
-    && !/resume|curriculum|student|developer|engineer/i.test(line)
-  ));
-  return firstUseful || 'Aviv Oz';
-};
-
-const compactSentence = (line) => line
-  .replace(/^[•\-–]\s*/, '')
-  .replace(/\s+/g, ' ')
-  .trim();
-
-const findContactLines = (lines) => uniqueItems(lines.filter((line) => (
-  /@|\+\d|github\.com|linkedin\.com|kfar sava|israel/i.test(line)
-))).slice(0, 4);
-
-const findEducationLines = (lines) => uniqueItems(lines.filter((line) => (
-  /computer science|ariel university|bachelor|degree|student|coursework|data structures|algorithms|operating systems/i.test(line)
-))).slice(0, 4);
-
-const findExperienceLines = (lines) => uniqueItems(lines.filter((line) => (
-  /teva|shift supervisor|led|supervised|maintained|reported|trusted|leadership|communication/i.test(line)
-)).map(compactSentence)).slice(0, 5);
-
-const findProjectLines = (lines) => uniqueItems(lines.filter((line) => (
-  /tcp chat|fitness studio|library management|developed|implemented|socket|threading|oop|inheritance|polymorphism|github\.com/i.test(line)
-)).map(compactSentence)).slice(0, 8);
-
-const bulletize = (items, fallback) => {
-  const source = items.length ? items : fallback;
-  return source.map((item) => `- ${item}`);
-};
-
-const buildMockTailoredResume = (job, resumeText) => {
-  const lines = cleanResumeLines(resumeText);
-  const jobSkills = job.requirements || job.technologies || [];
-  const matchedSkills = findMatchingSkills(resumeText, jobSkills);
-  const evidenceKeywords = uniqueItems([
-    ...matchedSkills,
-    'project',
-    'developed',
-    'implemented',
-    'built',
-    'managed',
-    'security',
-    'leadership',
-  ]);
-  const evidence = pickEvidenceLines(lines, evidenceKeywords, 6);
-  const name = findName(lines);
-  const contactLines = findContactLines(lines);
-  const educationLines = findEducationLines(lines);
-  const experienceLines = findExperienceLines(lines);
-  const projectLines = findProjectLines(lines);
-  const resumeSkills = matchedSkills.filter((skill) => resumeText.toLowerCase().includes(skill.toLowerCase()));
-  const roleSkills = matchedSkills.filter((skill) => jobSkills.includes(skill));
-  const safeSkills = uniqueItems([...resumeSkills, ...roleSkills]);
-  const requestedSkills = jobSkills.length ? jobSkills.join(', ') : 'full stack development';
-  const projectBullets = bulletize(projectLines, evidence.length ? evidence : [
-    `Built software projects that demonstrate practical engineering foundations relevant to ${job.title}.`,
-    'Applied object-oriented design, problem solving, and implementation skills in academic and personal projects.',
-    'Used Git/GitHub and development tools to manage code and project delivery.',
-  ]);
-  const experienceBullets = bulletize(experienceLines, [
-    'Led day-to-day operational responsibilities in a high-trust environment.',
-    'Developed communication, ownership, documentation, and incident-response skills.',
-  ]);
-
-  return [
-    name,
-    `${job.title} Candidate | Tailored for ${job.company}`,
-    ...contactLines,
-    '',
-    'PROFESSIONAL SUMMARY',
-    `Computer Science student and software developer targeting ${job.title} roles. This version emphasizes the strongest truthful overlap between the existing resume and ${job.company}'s requirements: ${safeSkills.join(', ') || requestedSkills}.`,
-    `Strong foundation in software development, OOP, data structures, practical projects, and continuous learning. Positioned for a junior/student full-stack role with emphasis on clean implementation, ownership, and fast ramp-up.`,
-    '',
-    'TARGETED TECHNICAL SKILLS',
-    `Role keywords: ${requestedSkills}`,
-    `Resume-supported strengths: ${safeSkills.join(' | ') || 'Python | Java | C | C++ | OOP | Git'}`,
-    '',
-    'SELECTED PROJECTS',
-    ...projectBullets.slice(0, 7),
-    '',
-    'RELEVANT EXPERIENCE',
-    ...experienceBullets,
-    '',
-    'EDUCATION',
-    ...bulletize(educationLines, ['Bachelor degree in Computer Science, Ariel University.']),
-    '',
-    'TAILORING NOTES',
-    `- Prioritized ${job.title} wording and ATS terms connected to ${requestedSkills}.`,
-    '- Kept the content grounded in the original resume and avoided inventing experience.',
-    '- For a production version, this text should be injected into a designed resume template or edited with a real PDF/template engine.',
-  ].filter((line) => line !== '').join('\n');
 };

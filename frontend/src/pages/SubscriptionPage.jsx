@@ -1,438 +1,540 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { cancelSubscription, checkoutSubscription, getMySubscription } from '../api';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-function SubscriptionPage() {
+/**
+ * Feature #SUB-UI-001 — Subscription management page
+ * Embedded inside ProfilePage under ?tab=subscription
+ * Shows: current plan, plan comparison, checkout, cancellation, status
+ */
+
+const PLANS = {
+  FREE: {
+    key: 'FREE',
+    name: 'חינמי',
+    nameEn: 'Free',
+    price: 0,
+    color: '#888',
+    gradient: 'linear-gradient(135deg, #888, #555)',
+    features: {
+      daily_applications: '5 הגשות ביום',
+      ai_tailoring: 'ללא התאמת AI',
+      auto_apply: 'ללא Auto Apply',
+      analytics: 'ללא Analytics',
+      priority_matching: 'ללא Priority Matching',
+    },
+    featureFlags: {
+      daily_applications: false,
+      ai_tailoring: false,
+      auto_apply: false,
+      analytics: false,
+      priority_matching: false,
+    },
+  },
+  PREMIUM: {
+    key: 'PREMIUM',
+    name: 'פרימיום',
+    nameEn: 'Premium',
+    price: 9.99,
+    color: '#6C4FD4',
+    gradient: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+    trial: '7 ימי ניסיון חינם',
+    features: {
+      daily_applications: 'הגשות ללא הגבלה',
+      ai_tailoring: '10 התאמות AI בחודש',
+      auto_apply: 'Auto Apply ✓',
+      analytics: 'Analytics בסיסי',
+      priority_matching: 'ללא Priority Matching',
+    },
+    featureFlags: {
+      daily_applications: true,
+      ai_tailoring: true,
+      auto_apply: true,
+      analytics: true,
+      priority_matching: false,
+    },
+  },
+  PREMIUM_PLUS: {
+    key: 'PREMIUM_PLUS',
+    name: 'פרימיום+',
+    nameEn: 'Premium+',
+    price: 19.99,
+    color: '#FF6B6B',
+    gradient: 'linear-gradient(135deg, #FF6B6B, #C2185B)',
+    trial: '7 ימי ניסיון חינם',
+    popular: true,
+    features: {
+      daily_applications: 'הגשות ללא הגבלה',
+      ai_tailoring: 'AI ללא הגבלה',
+      auto_apply: 'Auto Apply ✓',
+      analytics: 'Analytics מתקדם',
+      priority_matching: 'Priority Matching ✓',
+    },
+    featureFlags: {
+      daily_applications: true,
+      ai_tailoring: true,
+      auto_apply: true,
+      analytics: true,
+      priority_matching: true,
+    },
+  },
+};
+
+const STATUS_MAP = {
+  ACTIVE:         { label: 'פעיל',           color: '#4CAF50', bg: '#E8F5E9' },
+  TRIAL:          { label: 'ניסיון חינם',    color: '#FF9800', bg: '#FFF3E0' },
+  EXPIRED:        { label: 'פג תוקף',        color: '#F44336', bg: '#FFEBEE' },
+  CANCELLED:      { label: 'בוטל',           color: '#9E9E9E', bg: '#F5F5F5' },
+  PAYMENT_FAILED: { label: 'תשלום נכשל',     color: '#F44336', bg: '#FFEBEE' },
+  BLOCKED:        { label: 'חסום',           color: '#F44336', bg: '#FFEBEE' },
+  FREE:           { label: 'חינמי',          color: '#888',    bg: '#F5F5F5' },
+};
+
+const FEATURE_ROWS = [
+  { key: 'daily_applications', label: 'הגשות יומיות',    icon: '📨' },
+  { key: 'ai_tailoring',       label: 'התאמת AI',        icon: '🤖' },
+  { key: 'auto_apply',         label: 'Auto Apply',      icon: '⚡' },
+  { key: 'analytics',          label: 'Analytics',       icon: '📊' },
+  { key: 'priority_matching',  label: 'Priority Match',  icon: '🎯' },
+];
+
+export default function SubscriptionPage({ api }) {
   const [subscription, setSubscription] = useState(null);
+  const [planKey, setPlanKey] = useState('FREE');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [view, setView] = useState('overview'); // 'overview' | 'compare'
 
-  const isPremium = subscription?.plan === 'PREMIUM';
-  const used = subscription?.used ?? 0;
-  const dailyLimit = subscription?.dailyLimit ?? 5;
-  const resetAt = subscription?.resetAt;
-  const isLimitReached = !isPremium && dailyLimit > 0 && used >= dailyLimit;
-
-  const usagePercent = Math.min(
-    100,
-    Math.round((used / Math.max(dailyLimit, 1)) * 100)
-  );
-
-  const benefits = useMemo(() => {
-    if (isPremium) {
-      return [
-        'עד 50 הגשות ביום',
-        'גישה להתאמת קורות חיים מבוססת AI',
-        'עדיפות לפיצ׳רים מתקדמים',
-        'מתאים למשתמשים שמגישים להרבה משרות'
-      ];
+  useEffect(() => {
+    loadSubscription();
+    // Handle success/cancelled from Stripe redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('subscription') === 'success') {
+      showToast('🎉 המנוי הופעל בהצלחה!', 'success');
+      loadSubscription();
+    } else if (params.get('subscription') === 'cancelled') {
+      showToast('החיוב בוטל. תמיד תוכל לשדרג שוב.', 'info');
     }
-
-    return [
-      'עד 5 הגשות ביום',
-      'גישה בסיסית למשרות ולמערכת ה־Swipe',
-      'אפשרות לשדרג בכל שלב',
-      'מתאים להתנסות ראשונית במערכת'
-    ];
-  }, [isPremium]);
+  }, []);
 
   const loadSubscription = async () => {
     setLoading(true);
-    setError('');
-
     try {
-      const data = await getMySubscription();
-      setSubscription(data);
-    } catch (err) {
-      console.error('Failed to load subscription:', err);
-      setError('לא הצלחנו לטעון את פרטי המנוי. נסה שוב בעוד רגע.');
+      const data = await api('GET', '/subscriptions/me');
+      setSubscription(data.subscription);
+      setPlanKey(data.planKey || 'FREE');
+    } catch {
+      setSubscription(null);
+      setPlanKey('FREE');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadSubscription();
-  }, []);
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
-  const handleUpgrade = async () => {
-    setSaving(true);
-    setError('');
-
+  const handleCheckout = async (targetPlan) => {
+    setCheckoutLoading(targetPlan);
     try {
-      await checkoutSubscription();
-      await loadSubscription();
-    } catch (err) {
-      console.error('Failed to upgrade subscription:', err);
-      setError('השדרוג נכשל. נסה שוב.');
+      const data = await api('POST', '/subscriptions/checkout', { plan: targetPlan });
+      window.location.href = data.checkoutUrl;
+    } catch (e) {
+      showToast('שגיאה בפתיחת עמוד התשלום. נסה שוב.', 'error');
     } finally {
-      setSaving(false);
+      setCheckoutLoading(null);
     }
   };
 
   const handleCancel = async () => {
-    setSaving(true);
-    setError('');
-
+    setCancelLoading(true);
     try {
-      await cancelSubscription();
-      await loadSubscription();
-    } catch (err) {
-      console.error('Failed to cancel subscription:', err);
-      setError('ביטול המנוי נכשל. נסה שוב.');
+      await api('DELETE', '/subscriptions/me');
+      showToast('המנוי יבוטל בסוף תקופת החיוב הנוכחית.');
+      loadSubscription();
+    } catch {
+      showToast('שגיאה בביטול. פנה לתמיכה.', 'error');
     } finally {
-      setSaving(false);
+      setCancelLoading(false);
+      setConfirmCancel(false);
     }
   };
 
+  const currentPlan = PLANS[planKey] || PLANS.FREE;
+  const status = subscription?.status || 'FREE';
+  const statusInfo = STATUS_MAP[status] || STATUS_MAP.FREE;
+  const isActive = ['ACTIVE', 'TRIAL'].includes(status);
+  const trialEnd = subscription?.trialEndAt
+    ? new Date(Number(subscription.trialEndAt) * 1000).toLocaleDateString('he-IL')
+    : null;
+  const periodEnd = subscription?.currentPeriodEnd
+    ? new Date(Number(subscription.currentPeriodEnd) * 1000).toLocaleDateString('he-IL')
+    : null;
+
   if (loading) {
     return (
-      <main style={styles.page} dir="rtl">
-        <section style={styles.card}>
-          <p style={styles.loadingText}>טוען את פרטי המנוי...</p>
-        </section>
-      </main>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+        <div style={styles.spinner} />
+      </div>
     );
   }
 
   return (
-    <main style={styles.page} dir="rtl">
-      <section style={styles.hero}>
-        <div>
-          <p style={styles.eyebrow}>המנוי שלי</p>
-          <h1 style={styles.title}>
-            {isPremium ? 'מסלול Premium פעיל' : 'מסלול Free פעיל'}
-          </h1>
-          <p style={styles.subtitle}>
-            כאן אפשר לראות את מצב המנוי, מכסת ההגשות היומית, ולשדרג או לבטל מנוי.
+    <div style={styles.root} dir="rtl">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            style={{
+              ...styles.toast,
+              background: toast.type === 'error' ? '#F44336' : toast.type === 'info' ? '#2196F3' : '#4CAF50',
+            }}
+          >
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Current plan header */}
+      <div style={{ ...styles.currentPlanCard, background: currentPlan.gradient }}>
+        <div style={styles.currentPlanTop}>
+          <div>
+            <p style={styles.currentPlanLabel}>המנוי הנוכחי שלך</p>
+            <h2 style={styles.currentPlanName}>{currentPlan.name}</h2>
+          </div>
+          <div style={{ ...styles.statusBadge, color: statusInfo.color, background: statusInfo.bg }}>
+            {statusInfo.label}
+          </div>
+        </div>
+
+        {status === 'TRIAL' && trialEnd && (
+          <p style={styles.trialNote}>🎁 תקופת ניסיון — פג ב-{trialEnd}</p>
+        )}
+        {isActive && periodEnd && status !== 'TRIAL' && (
+          <p style={styles.trialNote}>📅 חידוש אוטומטי ב-{periodEnd}</p>
+        )}
+        {subscription?.cancelAtPeriodEnd && (
+          <p style={{ ...styles.trialNote, color: '#FFD54F' }}>
+            ⚠️ המנוי יסתיים ב-{periodEnd} ולא יחודש
           </p>
-        </div>
+        )}
 
-        <div style={isPremium ? styles.planBadgePremium : styles.planBadgeFree}>
-          {isPremium ? 'PREMIUM' : 'FREE'}
-        </div>
-      </section>
+        {planKey !== 'FREE' && (
+          <p style={styles.currentPrice}>${currentPlan.price} / לחודש</p>
+        )}
+      </div>
 
-      {error && (
-        <section style={styles.errorBox}>
-          {error}
-        </section>
-      )}
+      {/* Tabs */}
+      <div style={styles.tabs}>
+        <button
+          style={{ ...styles.tab, ...(view === 'overview' ? styles.tabActive : {}) }}
+          onClick={() => setView('overview')}
+        >
+          סקירה כללית
+        </button>
+        <button
+          style={{ ...styles.tab, ...(view === 'compare' ? styles.tabActive : {}) }}
+          onClick={() => setView('compare')}
+        >
+          השוואת תוכניות
+        </button>
+      </div>
 
-      <section style={styles.grid}>
-        <article style={isLimitReached ? { ...styles.card, ...styles.limitReachedCard } : styles.card}>
-          <h2 style={styles.cardTitle}>שימוש יומי</h2>
-
-          <div style={styles.usageRow}>
-            <span style={styles.usageLabel}>הגשות שבוצעו היום</span>
-            <strong style={isLimitReached ? { ...styles.usageCounter, ...styles.usageCounterDanger } : styles.usageCounter}>
-              {used} / {dailyLimit}
-            </strong>
+      {/* Overview tab */}
+      {view === 'overview' && (
+        <div style={styles.section}>
+          {/* Feature list for current plan */}
+          <div style={styles.featureCard}>
+            <h3 style={styles.sectionTitle}>מה כלול במנוי שלך</h3>
+            {FEATURE_ROWS.map((row) => {
+              const hasFeature = currentPlan.featureFlags[row.key];
+              return (
+                <div key={row.key} style={styles.featureRow}>
+                  <span style={styles.featureIcon}>{row.icon}</span>
+                  <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#bbb' }}>
+                    {currentPlan.features[row.key]}
+                  </span>
+                  <span style={{ color: hasFeature ? '#4CAF50' : '#ddd', fontSize: '18px' }}>
+                    {hasFeature ? '✓' : '✕'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
-          <div style={styles.progressTrack}>
-            <div
-              style={{
-                ...styles.progressFill,
-                ...(isLimitReached ? styles.progressFillDanger : {}),
-                width: `${usagePercent}%`
-              }}
-            />
-          </div>
-
-          {isLimitReached && (
-            <div style={styles.limitNotice}>
-              <strong style={styles.limitNoticeTitle}>הגעת למכסה היומית במסלול Free</strong>
-              <span>
-                לא ניתן לשלוח הגשות נוספות עד איפוס המכסה. שדרוג ל־Premium פותח 50 הגשות ביום ויכולות AI מתקדמות.
-              </span>
+          {/* Upgrade section for free users */}
+          {planKey === 'FREE' && (
+            <div style={styles.upgradeSection}>
+              <p style={styles.upgradeTitle}>שדרג ותקבל גישה לכל הפיצ׳רים</p>
+              <div style={styles.upgradeCards}>
+                {['PREMIUM', 'PREMIUM_PLUS'].map((pk) => (
+                  <UpgradeCard
+                    key={pk}
+                    plan={PLANS[pk]}
+                    loading={checkoutLoading === pk}
+                    onCheckout={() => handleCheckout(pk)}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
-          <p style={styles.helpText}>
-            {resetAt
-              ? `המכסה מתאפסת ב־${formatResetDate(resetAt)}`
-              : 'המכסה מתאפסת אחת ליום.'}
-          </p>
-        </article>
-
-        <article style={styles.card}>
-          <h2 style={styles.cardTitle}>פעולות מנוי</h2>
-
-          {isPremium ? (
-            <>
-              <p style={styles.helpText}>
-                אתה נמצא כרגע במסלול Premium. ניתן לבטל ולחזור למסלול Free.
+          {/* Payment failed warning */}
+          {status === 'PAYMENT_FAILED' && (
+            <div style={styles.warningCard}>
+              <p style={styles.warningTitle}>⚠️ התשלום האחרון שלך נכשל</p>
+              <p style={styles.warningText}>
+                עדכן את פרטי התשלום שלך כדי לשמור על המנוי הפעיל.
               </p>
-
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                {saving ? 'מבטל...' : 'בטל מנוי'}
+              <button style={styles.primaryBtn} onClick={() => handleCheckout(planKey)}>
+                עדכן פרטי תשלום
               </button>
-            </>
-          ) : (
-            <>
-              <p style={styles.helpText}>
-                שדרוג ל – Premium נותן לך יותר מרווח להגיש למשרות, בלי להיתקע באמצע יום חיפוש פעיל.
-              </p>
-
-              <div style={styles.upgradeReasons}>
-                <span>50 הגשות ביום במקום 5</span>
-                <span>גישה ל־AI tailoring לקורות חיים מותאמים</span>
-                <span>מתאים למי שמגיש לכמה משרות ביום ורוצה לעבוד מהר יותר</span>
-              </div>
-
-              <button
-                type="button"
-                style={styles.primaryButton}
-                onClick={handleUpgrade}
-                disabled={saving}
-              >
-                {saving ? 'משדרג...' : 'שדרג ל – Premium'}
-              </button>
-            </>
+            </div>
           )}
-        </article>
-      </section>
 
-      <section style={styles.card}>
-        <h2 style={styles.cardTitle}>
-          {isPremium ? 'מה כלול ב־Premium?' : 'מה כלול במסלול Free?'}
-        </h2>
+          {/* Cancel section for active users */}
+          {isActive && !subscription?.cancelAtPeriodEnd && (
+            <div style={styles.cancelSection}>
+              {!confirmCancel ? (
+                <button style={styles.cancelBtn} onClick={() => setConfirmCancel(true)}>
+                  ביטול מנוי
+                </button>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={styles.confirmBox}
+                >
+                  <p style={styles.confirmText}>
+                    בטוח שברצונך לבטל? תמשיך ליהנות מהמנוי עד {periodEnd}.
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      style={styles.confirmCancelBtn}
+                      onClick={handleCancel}
+                      disabled={cancelLoading}
+                    >
+                      {cancelLoading ? 'מבטל...' : 'כן, בטל'}
+                    </button>
+                    <button style={styles.confirmKeepBtn} onClick={() => setConfirmCancel(false)}>
+                      שמור מנוי
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-        <ul style={styles.benefitsList}>
-          {benefits.map((benefit) => (
-            <li key={benefit} style={styles.benefitItem}>
-              <span style={styles.checkIcon}>✓</span>
-              <span>{benefit}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </main>
+      {/* Compare tab */}
+      {view === 'compare' && (
+        <div style={styles.compareSection}>
+          <CompareTable
+            plans={PLANS}
+            currentPlanKey={planKey}
+            checkoutLoading={checkoutLoading}
+            onCheckout={handleCheckout}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
-function formatResetDate(value) {
-  try {
-    return new Date(value).toLocaleString('he-IL', {
-      dateStyle: 'short',
-      timeStyle: 'short'
-    });
-  } catch {
-    return value;
-  }
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function UpgradeCard({ plan, loading, onCheckout }) {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -2 }}
+      style={{
+        ...styles.upgradeCard,
+        border: `2px solid ${plan.color}`,
+        position: 'relative',
+      }}
+    >
+      {plan.popular && (
+        <div style={{ ...styles.popularBadge, background: plan.color }}>🔥 הכי פופולרי</div>
+      )}
+      <p style={{ ...styles.upgradePlanName, color: plan.color }}>{plan.name}</p>
+      <p style={styles.upgradePrice}>
+        ${plan.price}
+        <span style={styles.upgradePriceSub}> / חודש</span>
+      </p>
+      {plan.trial && (
+        <p style={styles.trialTag}>✨ {plan.trial}</p>
+      )}
+      <div style={styles.upgradeFeatures}>
+        {FEATURE_ROWS.map((row) => (
+          <p key={row.key} style={{ ...styles.upgradeFeature, color: plan.featureFlags[row.key] ? '#333' : '#ccc' }}>
+            {plan.featureFlags[row.key] ? '✓' : '✕'} {plan.features[row.key]}
+          </p>
+        ))}
+      </div>
+      <motion.button
+        style={{ ...styles.checkoutBtn, background: plan.gradient }}
+        whileHover={{ opacity: 0.9 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={onCheckout}
+        disabled={loading}
+      >
+        {loading ? (
+          <div style={{ ...styles.spinner, width: '18px', height: '18px', borderWidth: '2px', borderTopColor: 'white' }} />
+        ) : (
+          `שדרג ל-${plan.name}`
+        )}
+      </motion.button>
+      <p style={styles.paymentMethods}>
+        💳 Apple Pay · Google Pay · כרטיס אשראי
+      </p>
+    </motion.div>
+  );
 }
 
+function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
+  const planKeys = ['FREE', 'PREMIUM', 'PREMIUM_PLUS'];
+
+  return (
+    <div style={styles.compareTable}>
+      {/* Headers */}
+      <div style={styles.compareHeader}>
+        <div style={styles.compareFeatureCol} />
+        {planKeys.map((pk) => {
+          const plan = plans[pk];
+          const isCurrent = pk === currentPlanKey;
+          return (
+            <div key={pk} style={{ ...styles.comparePlanCol, borderColor: plan.color }}>
+              {plan.popular && (
+                <div style={{ ...styles.popularBadge, background: plan.color, position: 'static', marginBottom: '4px' }}>
+                  🔥 הכי פופולרי
+                </div>
+              )}
+              <p style={{ ...styles.comparePlanName, color: plan.color }}>{plan.name}</p>
+              <p style={styles.comparePlanPrice}>
+                {plan.price === 0 ? 'חינם' : `$${plan.price}/חודש`}
+              </p>
+              {isCurrent ? (
+                <div style={styles.currentBadge}>המנוי שלך</div>
+              ) : pk !== 'FREE' ? (
+                <motion.button
+                  style={{ ...styles.compareCheckoutBtn, background: plan.gradient }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onCheckout(pk)}
+                  disabled={checkoutLoading === pk}
+                >
+                  {checkoutLoading === pk ? '...' : 'שדרג'}
+                </motion.button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Rows */}
+      {FEATURE_ROWS.map((row, i) => (
+        <div key={row.key} style={{ ...styles.compareRow, background: i % 2 === 0 ? '#F8F8FF' : 'white' }}>
+          <div style={styles.compareFeatureCol}>
+            <span style={styles.featureIcon}>{row.icon}</span>
+            <span style={styles.compareFeatLabel}>{row.label}</span>
+          </div>
+          {planKeys.map((pk) => {
+            const plan = plans[pk];
+            const has = plan.featureFlags[row.key];
+            return (
+              <div key={pk} style={styles.comparePlanCol}>
+                <div style={{ color: has ? plan.color : '#ddd', fontWeight: 700, textAlign: 'center' }}>
+                  {has ? '✓' : '✕'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#888', textAlign: 'center', marginTop: '2px' }}>
+                  {plan.features[row.key]}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = {
-  page: {
-    minHeight: '100vh',
-    padding: '40px 24px',
-    background: 'linear-gradient(135deg, #eef2ff 0%, #f8fafc 45%, #ffffff 100%)',
-    color: '#111827',
-    fontFamily: 'Arial, sans-serif'
+  root: { display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', padding: '0 0 24px 0' },
+  toast: {
+    position: 'fixed', top: '72px', left: '50%', transform: 'translateX(-50%)',
+    color: 'white', padding: '12px 24px', borderRadius: '20px',
+    fontSize: '14px', fontWeight: 600, zIndex: 500,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
   },
-  hero: {
-    maxWidth: '1050px',
-    margin: '0 auto 24px',
-    padding: '28px',
-    borderRadius: '28px',
-    background: '#ffffff',
-    boxShadow: '0 20px 50px rgba(15, 23, 42, 0.08)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '24px'
+  currentPlanCard: {
+    borderRadius: '20px', padding: '24px',
+    display: 'flex', flexDirection: 'column', gap: '8px',
   },
-  eyebrow: {
-    margin: '0 0 8px',
-    color: '#4f46e5',
-    fontSize: '14px',
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase'
+  currentPlanTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
+  currentPlanLabel: { fontSize: '12px', color: 'rgba(255,255,255,0.7)', margin: 0 },
+  currentPlanName: { fontSize: '26px', fontWeight: 800, color: 'white', margin: 0 },
+  statusBadge: {
+    padding: '4px 12px', borderRadius: '20px',
+    fontSize: '12px', fontWeight: 700,
   },
-  title: {
-    margin: 0,
-    fontSize: '34px',
-    lineHeight: 1.2
-  },
-  subtitle: {
-    margin: '12px 0 0',
-    maxWidth: '650px',
-    color: '#6b7280',
-    fontSize: '16px',
-    lineHeight: 1.7
-  },
-  planBadgeFree: {
-    padding: '12px 18px',
-    borderRadius: '999px',
-    background: '#e0f2fe',
-    color: '#0369a1',
-    fontWeight: 800,
-    letterSpacing: '0.08em'
-  },
-  planBadgePremium: {
-    padding: '12px 18px',
-    borderRadius: '999px',
-    background: '#ede9fe',
-    color: '#5b21b6',
-    fontWeight: 800,
-    letterSpacing: '0.08em'
-  },
-  grid: {
-    maxWidth: '1050px',
-    margin: '0 auto 24px',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '20px'
-  },
-  card: {
-    maxWidth: '1050px',
-    margin: '0 auto 24px',
-    padding: '26px',
-    borderRadius: '24px',
-    background: '#ffffff',
-    boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)'
-  },
-  cardTitle: {
-    margin: '0 0 18px',
-    fontSize: '22px'
-  },
-  usageRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '16px',
-    marginBottom: '12px'
-  },
-  usageLabel: {
-    color: '#6b7280'
-  },
-  usageCounter: {
-    fontSize: '24px',
-    color: '#111827'
-  },
-  usageCounterDanger: {
-    color: '#dc2626'
-  },
-  progressTrack: {
-    width: '100%',
-    height: '12px',
-    borderRadius: '999px',
-    background: '#e5e7eb',
-    overflow: 'hidden'
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: '999px',
-    background: 'linear-gradient(90deg, #4f46e5, #7c3aed)',
-    transition: 'width 0.25s ease'
-  },
-  progressFillDanger: {
-    background: 'linear-gradient(90deg, #ef4444, #b91c1c)'
-  },
-  limitReachedCard: {
-    border: '1px solid #fecaca',
-    boxShadow: '0 18px 45px rgba(220, 38, 38, 0.12)'
-  },
-  limitNotice: {
-    marginTop: '16px',
-    padding: '14px 16px',
-    borderRadius: '16px',
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    color: '#991b1b',
-    display: 'grid',
-    gap: '6px',
-    lineHeight: 1.6
-  },
-  limitNoticeTitle: {
-    color: '#7f1d1d'
-  },
-  helpText: {
-    margin: '14px 0 0',
-    color: '#6b7280',
-    lineHeight: 1.7
-  },
-  upgradeReasons: {
-    marginTop: '18px',
-    padding: '16px',
-    borderRadius: '16px',
-    background: '#f8fafc',
-    border: '1px solid #e5e7eb',
-    color: '#374151',
-    display: 'grid',
-    gap: '10px',
-    fontSize: '15px',
-    lineHeight: 1.6
-  },
-  primaryButton: {
-    width: '100%',
-    marginTop: '20px',
-    padding: '14px 18px',
-    border: 'none',
-    borderRadius: '16px',
-    background: '#4f46e5',
-    color: '#ffffff',
-    fontSize: '16px',
-    fontWeight: 700,
-    cursor: 'pointer'
-  },
-  secondaryButton: {
-    width: '100%',
-    marginTop: '20px',
-    padding: '14px 18px',
-    border: '1px solid #fecaca',
-    borderRadius: '16px',
-    background: '#fff1f2',
-    color: '#be123c',
-    fontSize: '16px',
-    fontWeight: 700,
-    cursor: 'pointer'
-  },
-  benefitsList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-    display: 'grid',
-    gap: '12px'
-  },
-  benefitItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    color: '#374151',
-    fontSize: '16px'
-  },
-  checkIcon: {
-    width: '24px',
-    height: '24px',
-    borderRadius: '999px',
-    background: '#dcfce7',
-    color: '#15803d',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800
-  },
-  errorBox: {
-    maxWidth: '1050px',
-    margin: '0 auto 24px',
-    padding: '16px 20px',
-    borderRadius: '16px',
-    background: '#fef2f2',
-    color: '#b91c1c',
-    border: '1px solid #fecaca'
-  },
-  loadingText: {
-    margin: 0,
-    color: '#6b7280'
-  }
+  trialNote: { fontSize: '13px', color: 'rgba(255,255,255,0.85)', margin: 0 },
+  currentPrice: { fontSize: '15px', color: 'rgba(255,255,255,0.9)', margin: 0, fontWeight: 600 },
+  tabs: { display: 'flex', gap: '8px', background: 'white', padding: '8px', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  tab: { flex: 1, padding: '10px', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', background: 'transparent', color: '#777' },
+  tabActive: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white' },
+  section: { display: 'flex', flexDirection: 'column', gap: '16px' },
+  featureCard: { background: 'white', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  sectionTitle: { fontSize: '16px', fontWeight: 700, margin: 0, color: '#1E2A4A' },
+  featureRow: { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid #f5f5f5' },
+  featureIcon: { fontSize: '18px', width: '24px', textAlign: 'center' },
+  featureText: { flex: 1, fontSize: '14px', fontWeight: 500 },
+  upgradeSection: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  upgradeTitle: { fontSize: '16px', fontWeight: 700, color: '#1E2A4A', margin: 0, textAlign: 'center' },
+  upgradeCards: { display: 'flex', gap: '12px' },
+  upgradeCard: { flex: 1, background: 'white', borderRadius: '20px', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' },
+  popularBadge: { position: 'absolute', top: '12px', left: '12px', color: 'white', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '20px' },
+  upgradePlanName: { fontSize: '17px', fontWeight: 800, margin: 0 },
+  upgradePrice: { fontSize: '22px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
+  upgradePriceSub: { fontSize: '13px', fontWeight: 500, color: '#888' },
+  trialTag: { fontSize: '12px', color: '#FF9800', fontWeight: 600, margin: 0 },
+  upgradeFeatures: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
+  upgradeFeature: { fontSize: '12px', margin: 0 },
+  checkoutBtn: { width: '100%', padding: '12px', borderRadius: '12px', border: 'none', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' },
+  paymentMethods: { fontSize: '10px', color: '#aaa', margin: 0, textAlign: 'center' },
+  warningCard: { background: '#FFF3E0', border: '2px solid #FF9800', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  warningTitle: { fontSize: '15px', fontWeight: 700, color: '#E65100', margin: 0 },
+  warningText: { fontSize: '13px', color: '#666', margin: 0 },
+  primaryBtn: { background: '#FF9800', color: 'white', border: 'none', borderRadius: '12px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
+  cancelSection: { display: 'flex', justifyContent: 'center', paddingTop: '8px' },
+  cancelBtn: { background: 'transparent', border: 'none', color: '#F44336', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline', padding: '4px' },
+  confirmBox: { background: '#FFEBEE', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' },
+  confirmText: { fontSize: '14px', color: '#B71C1C', margin: 0, lineHeight: 1.5, textAlign: 'center' },
+  confirmCancelBtn: { flex: 1, padding: '10px', background: '#F44336', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
+  confirmKeepBtn: { flex: 1, padding: '10px', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
+  compareSection: { overflow: 'hidden' },
+  compareTable: { display: 'flex', flexDirection: 'column', gap: '0', background: 'white', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  compareHeader: { display: 'flex', padding: '16px', gap: '4px', background: 'white', borderBottom: '2px solid #f0f0f0' },
+  compareFeatureCol: { flex: 1.2, display: 'flex', alignItems: 'center', gap: '8px' },
+  comparePlanCol: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px', borderRadius: '12px' },
+  comparePlanName: { fontSize: '13px', fontWeight: 800, margin: 0, textAlign: 'center' },
+  comparePlanPrice: { fontSize: '11px', color: '#888', margin: 0, textAlign: 'center' },
+  currentBadge: { background: '#E8F5E9', color: '#4CAF50', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '20px' },
+  compareCheckoutBtn: { color: 'white', border: 'none', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '11px' },
+  compareRow: { display: 'flex', padding: '12px 16px', gap: '4px', alignItems: 'center' },
+  compareFeatLabel: { fontSize: '13px', color: '#333', fontWeight: 500 },
+  spinner: { width: '32px', height: '32px', borderRadius: '50%', border: '3px solid #D4CCFF', borderTop: '3px solid #6C4FD4', animation: 'spin 0.8s linear infinite' },
 };
 
-export default SubscriptionPage;
+// Inject spin animation
+const ss = document.createElement('style');
+ss.innerHTML = '@keyframes spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(ss);

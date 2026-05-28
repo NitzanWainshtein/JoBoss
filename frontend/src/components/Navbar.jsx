@@ -27,11 +27,7 @@ function Navbar() {
           <span style={styles.icon}>📋</span>
           <span style={styles.label}>הגשות</span>
         </button>
-        <button style={{ ...styles.navBtn, ...(isActive('/subscription') ? styles.active : {}) }} onClick={() => navigate('/subscription')}>
-          <span style={styles.icon}>★</span>
-          <span style={styles.label}>מנוי</span>
-        </button>
-        <button style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.active : {}) }} onClick={() => navigate('/profile')}>
+<button style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.active : {}) }} onClick={() => navigate('/profile')}>
           <span style={styles.icon}>👤</span>
           <span style={styles.label}>פרופיל</span>
         </button>

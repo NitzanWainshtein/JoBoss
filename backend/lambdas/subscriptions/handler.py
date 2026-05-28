@@ -1,100 +1,56 @@
+"""
+joBoss Subscriptions Lambda — Stripe-integrated
+Routes:
+  GET  /subscriptions/me       → get subscription + quota status
+  POST /subscriptions/checkout → create Stripe Checkout Session
+  POST /subscriptions/consume  → increment daily application counter
+  DELETE /subscriptions/me     → cancel subscription (Stripe + DB)
+  POST /subscriptions/webhook  → Stripe webhook (no auth)
+"""
+
 import base64
 import json
 import os
 from datetime import datetime, timezone, timedelta
 
 import boto3
+import stripe
 from botocore.exceptions import ClientError
-
 
 REGION = os.getenv("AWS_REGION", "us-east-1")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
+SUBSCRIPTIONS_TABLE = os.getenv("SUBSCRIPTIONS_TABLE", "joboss-subscriptions")
 
-dynamodb = boto3.resource("dynamodb", region_name=REGION)
-users_table = dynamodb.Table(USERS_TABLE)
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PREMIUM_PRICE_ID = os.getenv("STRIPE_PREMIUM_PRICE_ID", "")
+STRIPE_PREMIUM_PLUS_PRICE_ID = os.getenv("STRIPE_PREMIUM_PLUS_PRICE_ID", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://d231wno34rvped.cloudfront.net")
 
+stripe.api_key = STRIPE_SECRET_KEY
 
 PLAN_LIMITS = {
     "FREE": 5,
-    "PREMIUM": 50,
+    "PREMIUM": -1,       # unlimited
+    "PREMIUM_PLUS": -1,
 }
 
+dynamodb = boto3.resource("dynamodb", region_name=REGION)
+users_table = dynamodb.Table(USERS_TABLE)
+subs_table = dynamodb.Table(SUBSCRIPTIONS_TABLE)
 
-def response(status_code, body):
+
+def cors():
     return {
-        "statusCode": status_code,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS"
-        },
-        "body": json.dumps(body)
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,Stripe-Signature",
+        "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     }
 
 
-def get_next_reset_at(now):
-    return (now + timedelta(days=1)).replace(
-        hour=0,
-        minute=0,
-        second=0,
-        microsecond=0
-    )
-
-
-def normalize_subscription_user(user_id):
-    now = datetime.now(timezone.utc)
-    result = users_table.get_item(Key={"userId": user_id})
-    user = result.get("Item")
-
-    if not user:
-        user = {
-            "userId": user_id,
-            "plan": "FREE",
-            "dailyApplications": 0,
-            "dailyLimit": PLAN_LIMITS["FREE"],
-            "limitResetAt": get_next_reset_at(now).isoformat(),
-            "createdAt": now.isoformat(),
-            "updatedAt": now.isoformat()
-        }
-        users_table.put_item(Item=user)
-        return user
-
-    plan = user.get("plan", "FREE")
-    daily_limit = int(user.get("dailyLimit", PLAN_LIMITS.get(plan, PLAN_LIMITS["FREE"])))
-    reset_at = user.get("limitResetAt")
-    should_reset = False
-
-    if not reset_at:
-        should_reset = True
-    else:
-        try:
-            should_reset = datetime.fromisoformat(reset_at) <= now
-        except ValueError:
-            should_reset = True
-
-    if should_reset:
-        reset_at = get_next_reset_at(now).isoformat()
-        users_table.update_item(
-            Key={"userId": user_id},
-            UpdateExpression="""
-                SET dailyApplications = :used,
-                    dailyLimit = :dailyLimit,
-                    limitResetAt = :resetAt,
-                    updatedAt = :updatedAt
-            """,
-            ExpressionAttributeValues={
-                ":used": 0,
-                ":dailyLimit": daily_limit,
-                ":resetAt": reset_at,
-                ":updatedAt": now.isoformat()
-            }
-        )
-        user["dailyApplications"] = 0
-        user["dailyLimit"] = daily_limit
-        user["limitResetAt"] = reset_at
-
-    return user
+def resp(status, body):
+    return {"statusCode": status, "headers": cors(), "body": json.dumps(body)}
 
 
 def get_user_id(event):
@@ -103,207 +59,328 @@ def get_user_id(event):
         .get("authorizer", {})
         .get("claims", {})
     )
-    user_id = claims.get("sub")
+    uid = claims.get("sub")
+    if uid:
+        return uid
 
-    if user_id:
-        return user_id
+    # Fallback: decode JWT from Authorization header
+    headers = event.get("headers") or {}
+    token = (headers.get("Authorization") or headers.get("authorization") or "").replace("Bearer ", "").strip()
+    parts = token.split(".")
+    if len(parts) >= 2:
+        try:
+            payload = parts[1] + "=" * (-len(parts[1]) % 4)
+            return json.loads(base64.urlsafe_b64decode(payload)).get("sub")
+        except Exception:
+            pass
 
-    user_id = get_user_id_from_authorization_header(event)
-    if user_id:
-        return user_id
-
-    query = event.get("queryStringParameters") or {}
-    user_id = query.get("userId")
-
-    if user_id:
-        return user_id
+    # Fallback: query param or body
+    qs = event.get("queryStringParameters") or {}
+    if qs.get("userId"):
+        return qs["userId"]
 
     body = event.get("body")
     if body:
         try:
-            parsed_body = json.loads(body)
-            return parsed_body.get("userId")
-        except json.JSONDecodeError:
-            return None
+            return json.loads(body).get("userId")
+        except Exception:
+            pass
 
     return None
 
 
-def get_user_id_from_authorization_header(event):
-    headers = event.get("headers") or {}
-    token = headers.get("Authorization") or headers.get("authorization") or ""
-    token = token.replace("Bearer ", "", 1).strip()
-
-    parts = token.split(".")
-    if len(parts) < 2:
-        return None
-
-    try:
-        payload = parts[1]
-        payload += "=" * (-len(payload) % 4)
-        decoded = base64.urlsafe_b64decode(payload.encode("utf-8"))
-        claims = json.loads(decoded.decode("utf-8"))
-        return claims.get("sub")
-    except Exception:
-        return None
+def get_body(event):
+    raw = event.get("body") or "{}"
+    if isinstance(raw, str):
+        return json.loads(raw)
+    return raw
 
 
-def get_subscription(event):
+def get_next_reset():
+    now = datetime.now(timezone.utc)
+    return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+
+def get_subscription(user_id):
+    result = subs_table.get_item(Key={"userId": user_id})
+    return result.get("Item")
+
+
+def get_or_create_subscription(user_id):
+    sub = get_subscription(user_id)
+    if sub:
+        return sub
+    now = datetime.now(timezone.utc).isoformat()
+    sub = {
+        "userId": user_id,
+        "plan": "FREE",
+        "status": "FREE",
+        "dailyApplications": 0,
+        "limitResetAt": get_next_reset(),
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    subs_table.put_item(Item=sub)
+    return sub
+
+
+def reset_daily_if_needed(user_id, sub):
+    reset_at = sub.get("limitResetAt")
+    now = datetime.now(timezone.utc)
+    should_reset = False
+    if not reset_at:
+        should_reset = True
+    else:
+        try:
+            should_reset = datetime.fromisoformat(reset_at.replace("Z", "+00:00")) <= now
+        except ValueError:
+            should_reset = True
+
+    if should_reset:
+        new_reset = get_next_reset()
+        subs_table.update_item(
+            Key={"userId": user_id},
+            UpdateExpression="SET dailyApplications = :zero, limitResetAt = :reset, updatedAt = :now",
+            ExpressionAttributeValues={
+                ":zero": 0,
+                ":reset": new_reset,
+                ":now": now.isoformat(),
+            },
+        )
+        sub["dailyApplications"] = 0
+        sub["limitResetAt"] = new_reset
+
+    return sub
+
+
+def effective_plan(sub):
+    plan = sub.get("plan", "FREE")
+    status = sub.get("status", "FREE")
+    if status not in ("ACTIVE", "FREE"):
+        return "FREE"
+    return plan
+
+
+# ── Route handlers ────────────────────────────────────────────────────────────
+
+def handle_get_me(event):
     user_id = get_user_id(event)
-
     if not user_id:
-        return response(400, {"error": "userId is required"})
+        return resp(401, {"error": "Unauthorized"})
 
-    user = normalize_subscription_user(user_id)
+    sub = get_or_create_subscription(user_id)
+    sub = reset_daily_if_needed(user_id, sub)
+    plan = effective_plan(sub)
+    limit = PLAN_LIMITS.get(plan, 5)
+    used = int(sub.get("dailyApplications", 0))
 
-    return response(200, {
-        "userId": user["userId"],
-        "plan": user.get("plan", "FREE"),
-        "dailyLimit": int(user.get("dailyLimit", PLAN_LIMITS["FREE"])),
-        "used": int(user.get("dailyApplications", 0)),
-        "resetAt": user.get("limitResetAt")
+    return resp(200, {
+        "userId": user_id,
+        "plan": plan,
+        "status": sub.get("status", "FREE"),
+        "dailyLimit": limit,
+        "used": used,
+        "remaining": max(0, limit - used) if limit != -1 else -1,
+        "unlimited": limit == -1,
+        "resetAt": sub.get("limitResetAt"),
+        "stripeSubscriptionId": sub.get("stripeSubscriptionId"),
+        "currentPeriodEnd": sub.get("currentPeriodEnd"),
     })
 
 
-def consume_application_quota(event):
+def handle_checkout(event):
     user_id = get_user_id(event)
-
     if not user_id:
-        return response(400, {"error": "userId is required"})
+        return resp(401, {"error": "Unauthorized"})
 
-    user = normalize_subscription_user(user_id)
-    used = int(user.get("dailyApplications", 0))
-    daily_limit = int(user.get("dailyLimit", PLAN_LIMITS["FREE"]))
+    body = get_body(event)
+    plan = body.get("plan", "PREMIUM").upper()
 
-    if used >= daily_limit:
-        return response(429, {
+    price_id = STRIPE_PREMIUM_PLUS_PRICE_ID if plan == "PREMIUM_PLUS" else STRIPE_PREMIUM_PRICE_ID
+
+    if not price_id:
+        return resp(500, {"error": "Stripe price ID not configured"})
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{FRONTEND_URL}/profile?tab=subscription&checkout=success",
+            cancel_url=f"{FRONTEND_URL}/profile?tab=subscription&checkout=cancel",
+            client_reference_id=user_id,
+            metadata={"userId": user_id, "plan": plan},
+        )
+        return resp(200, {"checkoutUrl": session.url, "sessionId": session.id})
+    except stripe.error.StripeError as e:
+        return resp(500, {"error": "Stripe error", "details": str(e)})
+
+
+def handle_consume(event):
+    user_id = get_user_id(event)
+    if not user_id:
+        return resp(401, {"error": "Unauthorized"})
+
+    sub = get_or_create_subscription(user_id)
+    sub = reset_daily_if_needed(user_id, sub)
+    plan = effective_plan(sub)
+    limit = PLAN_LIMITS.get(plan, 5)
+    used = int(sub.get("dailyApplications", 0))
+
+    if limit != -1 and used >= limit:
+        return resp(429, {
             "error": "Daily application limit reached",
-            "plan": user.get("plan", "FREE"),
-            "dailyLimit": daily_limit,
+            "plan": plan,
+            "dailyLimit": limit,
             "used": used,
-            "resetAt": user.get("limitResetAt")
+            "resetAt": sub.get("limitResetAt"),
         })
 
     now = datetime.now(timezone.utc).isoformat()
-    updated = users_table.update_item(
+    updated = subs_table.update_item(
         Key={"userId": user_id},
-        UpdateExpression="""
-            SET dailyApplications = if_not_exists(dailyApplications, :zero) + :one,
-                updatedAt = :updatedAt
-        """,
-        ConditionExpression="attribute_not_exists(dailyApplications) OR dailyApplications < :dailyLimit",
-        ExpressionAttributeValues={
-            ":zero": 0,
-            ":one": 1,
-            ":dailyLimit": daily_limit,
-            ":updatedAt": now
-        },
-        ReturnValues="ALL_NEW"
+        UpdateExpression="SET dailyApplications = if_not_exists(dailyApplications, :zero) + :one, updatedAt = :now",
+        ExpressionAttributeValues={":zero": 0, ":one": 1, ":now": now},
+        ReturnValues="ALL_NEW",
     )["Attributes"]
 
-    return response(200, {
-        "message": "Application quota consumed",
-        "plan": updated.get("plan", "FREE"),
-        "dailyLimit": int(updated.get("dailyLimit", daily_limit)),
-        "used": int(updated.get("dailyApplications", used + 1)),
-        "resetAt": updated.get("limitResetAt")
+    new_used = int(updated.get("dailyApplications", used + 1))
+    return resp(200, {
+        "plan": plan,
+        "dailyLimit": limit,
+        "used": new_used,
+        "remaining": max(0, limit - new_used) if limit != -1 else -1,
+        "resetAt": sub.get("limitResetAt"),
     })
 
 
-def checkout_subscription(event):
+def handle_cancel(event):
     user_id = get_user_id(event)
-
     if not user_id:
-        return response(400, {"error": "userId is required"})
+        return resp(401, {"error": "Unauthorized"})
+
+    sub = get_subscription(user_id)
+    stripe_sub_id = sub.get("stripeSubscriptionId") if sub else None
+
+    if stripe_sub_id:
+        try:
+            stripe.Subscription.modify(stripe_sub_id, cancel_at_period_end=True)
+        except stripe.error.StripeError as e:
+            return resp(500, {"error": "Stripe error", "details": str(e)})
+
+    now = datetime.now(timezone.utc).isoformat()
+    subs_table.update_item(
+        Key={"userId": user_id},
+        UpdateExpression="SET #s = :s, updatedAt = :now",
+        ExpressionAttributeNames={"#s": "status"},
+        ExpressionAttributeValues={":s": "CANCELLING", ":now": now},
+    )
+
+    return resp(200, {"message": "Subscription set to cancel at period end"})
+
+
+def handle_webhook(event):
+    payload = event.get("body") or ""
+    headers = event.get("headers") or {}
+    sig = headers.get("Stripe-Signature") or headers.get("stripe-signature") or ""
+
+    try:
+        webhook_event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+    except stripe.error.SignatureVerificationError:
+        return resp(400, {"error": "Invalid webhook signature"})
+    except Exception as e:
+        return resp(400, {"error": str(e)})
+
+    event_type = webhook_event["type"]
+    data = webhook_event["data"]["object"]
 
     now = datetime.now(timezone.utc).isoformat()
 
-    users_table.update_item(
-        Key={"userId": user_id},
-        UpdateExpression="""
-            SET #plan = :plan,
-                dailyLimit = :limit,
-                updatedAt = :updatedAt
-        """,
-        ExpressionAttributeNames={
-            "#plan": "plan"
-        },
-        ExpressionAttributeValues={
-            ":plan": "PREMIUM",
-            ":limit": 50,
-            ":updatedAt": now
-        }
-    )
+    if event_type == "checkout.session.completed":
+        user_id = data.get("client_reference_id") or (data.get("metadata") or {}).get("userId")
+        plan = (data.get("metadata") or {}).get("plan", "PREMIUM")
+        stripe_sub_id = data.get("subscription")
 
-    return response(200, {
-        "message": "Mock checkout completed successfully",
-        "plan": "PREMIUM",
-        "dailyLimit": 50
-    })
+        if user_id:
+            subs_table.update_item(
+                Key={"userId": user_id},
+                UpdateExpression=(
+                    "SET #plan = :plan, #status = :status, "
+                    "stripeSubscriptionId = :subId, updatedAt = :now"
+                ),
+                ExpressionAttributeNames={"#plan": "plan", "#status": "status"},
+                ExpressionAttributeValues={
+                    ":plan": plan,
+                    ":status": "ACTIVE",
+                    ":subId": stripe_sub_id or "",
+                    ":now": now,
+                },
+            )
+            # Mirror plan onto users table so other Lambdas see it
+            users_table.update_item(
+                Key={"userId": user_id},
+                UpdateExpression="SET #plan = :plan, updatedAt = :now",
+                ExpressionAttributeNames={"#plan": "plan"},
+                ExpressionAttributeValues={":plan": plan, ":now": now},
+            )
+
+    elif event_type in ("customer.subscription.deleted", "customer.subscription.updated"):
+        stripe_sub_id = data.get("id")
+        status = data.get("status", "")
+
+        # Find user by stripeSubscriptionId via scan (small table)
+        result = subs_table.scan(
+            FilterExpression=boto3.dynamodb.conditions.Attr("stripeSubscriptionId").eq(stripe_sub_id)
+        )
+        items = result.get("Items", [])
+
+        if items:
+            user_id = items[0]["userId"]
+            new_plan = "FREE" if status in ("canceled", "unpaid", "past_due") else items[0].get("plan", "FREE")
+            new_status = "FREE" if status in ("canceled", "unpaid") else status.upper()
+
+            subs_table.update_item(
+                Key={"userId": user_id},
+                UpdateExpression="SET #plan = :plan, #status = :status, updatedAt = :now",
+                ExpressionAttributeNames={"#plan": "plan", "#status": "status"},
+                ExpressionAttributeValues={
+                    ":plan": new_plan,
+                    ":status": new_status,
+                    ":now": now,
+                },
+            )
+            users_table.update_item(
+                Key={"userId": user_id},
+                UpdateExpression="SET #plan = :plan, updatedAt = :now",
+                ExpressionAttributeNames={"#plan": "plan"},
+                ExpressionAttributeValues={":plan": new_plan, ":now": now},
+            )
+
+    return resp(200, {"received": True})
 
 
-def cancel_subscription(event):
-    user_id = get_user_id(event)
-
-    if not user_id:
-        return response(400, {"error": "userId is required"})
-
-    now = datetime.now(timezone.utc).isoformat()
-
-    users_table.update_item(
-        Key={"userId": user_id},
-        UpdateExpression="""
-            SET #plan = :plan,
-                dailyLimit = :limit,
-                updatedAt = :updatedAt
-        """,
-        ExpressionAttributeNames={
-            "#plan": "plan"
-        },
-        ExpressionAttributeValues={
-            ":plan": "FREE",
-            ":limit": 5,
-            ":updatedAt": now
-        }
-    )
-
-    return response(200, {
-        "message": "Subscription cancelled",
-        "plan": "FREE",
-        "dailyLimit": 5
-    })
-
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 def lambda_handler(event, context):
-    method = event.get("httpMethod", "GET")
+    method = event.get("httpMethod", "GET").upper()
     path = event.get("path", "")
 
     if method == "OPTIONS":
-        return response(200, {"message": "CORS preflight OK"})
+        return resp(200, {})
 
     try:
         if method == "GET":
-            return get_subscription(event)
-
-        if method == "POST" and path.endswith("/consume"):
-            return consume_application_quota(event)
-
+            return handle_get_me(event)
+        if method == "POST" and "webhook" in path:
+            return handle_webhook(event)
+        if method == "POST" and "consume" in path:
+            return handle_consume(event)
         if method == "POST":
-            return checkout_subscription(event)
-
+            return handle_checkout(event)
         if method == "DELETE":
-            return cancel_subscription(event)
-
-        return response(405, {"error": f"Method {method} not allowed"})
+            return handle_cancel(event)
+        return resp(405, {"error": f"Method {method} not allowed"})
 
     except ClientError as e:
-        return response(500, {
-            "error": "AWS service error",
-            "details": str(e)
-        })
-
+        return resp(500, {"error": "AWS error", "details": str(e)})
     except Exception as e:
-        return response(500, {
-            "error": "Internal server error",
-            "details": str(e)
-        })
+        return resp(500, {"error": "Internal error", "details": str(e)})

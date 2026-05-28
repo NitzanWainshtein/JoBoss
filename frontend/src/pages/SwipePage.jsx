@@ -161,7 +161,6 @@ function SwipePage() {
   const [swipedJobs, setSwipedJobs] = useState(new Set());
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
   const [quotaLoading, setQuotaLoading] = useState(true);
-  const [localSwipesUsed, setLocalSwipesUsed] = useState(0);
   const [limitModal, setLimitModal] = useState(false);
   const navigate = useNavigate();
 
@@ -226,17 +225,10 @@ function SwipePage() {
   const currentJob = filteredJobs[filteredJobs.length - 1];
   const nextJob = filteredJobs[filteredJobs.length - 2];
 
-  // Effective remaining accounts for local swipes not yet confirmed by a re-fetch
-  const effectiveRemaining = quota && !quota.unlimited
-    ? Math.max(0, quota.remaining - localSwipesUsed)
-    : null;
   // Only lock when quota is confirmed from backend — never while loading
-  const isLocked = !quotaLoading && quota && !quota.unlimited && effectiveRemaining <= 0;
+  const isLocked = !quotaLoading && quota && !quota.unlimited && quota.remaining <= 0;
   // Blocks all swipe interactions: confirmed locked OR still loading
   const isBlocked = quotaLoading || isLocked;
-  const displayQuota = quota && !quota.unlimited
-    ? { ...quota, remaining: effectiveRemaining, used: (quota.used || 0) + localSwipesUsed }
-    : quota;
 
   const handleSwipe = async (direction) => {
     if (!currentJob) return;
@@ -247,8 +239,14 @@ function SwipePage() {
         setLimitModal(true);
         return;
       }
-      // Increment immediately so a rapid second tap is blocked before API responds
-      setLocalSwipesUsed(prev => prev + 1);
+      // Optimistic update so rapid taps see the new remaining before API responds
+      if (quota && !quota.unlimited) {
+        setQuota(q => ({
+          ...q,
+          remaining: Math.max(0, (q.remaining ?? 0) - 1),
+          used: (q.used || 0) + 1,
+        }));
+      }
     }
 
     setLastSwipe({ direction, job: currentJob });
@@ -262,34 +260,25 @@ function SwipePage() {
         title: currentJob.title,
       });
 
+      // Authoritative quota from server replaces optimistic value
       if (result?.quota) {
         setQuota(q => ({ ...q, ...result.quota, unlimited: result.quota.unlimited ?? q?.unlimited }));
-      }
-
-      // Re-sync with backend after every LIKE so navigate-away-and-back reads accurate quota.
-      // Use Math.min so a stale eventually-consistent read can never increase remaining.
-      if (direction === 'right') {
-        try {
-          const fresh = await getQuotaStatus();
-          setQuota(q => ({
-            ...fresh,
-            remaining: q ? Math.min(fresh.remaining, q.remaining) : fresh.remaining,
-            unlimited: fresh.unlimited ?? q?.unlimited,
-          }));
-          setLocalSwipesUsed(0);
-        } catch {}
       }
     } catch (err) {
       if (err.status === 429 || err.code === 'LIMIT_REACHED') {
         setSwipedJobs(prev => { const s = new Set(prev); s.delete(currentJob.jobId); return s; });
         setJobs(prev => [...prev, currentJob]);
-        if (direction === 'right') {
-          setSwipedRight(p => Math.max(0, p - 1));
-          setLocalSwipesUsed(prev => Math.max(0, prev - 1));
-        }
+        if (direction === 'right') setSwipedRight(p => Math.max(0, p - 1));
         setLastSwipe(null);
         setLimitModal(true);
         if (err.data) setQuota(err.data);
+      } else if (direction === 'right' && quota && !quota.unlimited) {
+        // Roll back optimistic update on non-429 errors
+        setQuota(q => ({
+          ...q,
+          remaining: (q.remaining ?? 0) + 1,
+          used: Math.max(0, (q.used || 0) - 1),
+        }));
       }
     }
   };
@@ -332,7 +321,7 @@ function SwipePage() {
   return (
     <div style={styles.container}>
       {/* Quota bar */}
-      <QuotaBar quota={displayQuota} onUpgradeClick={() => navigate('/profile?tab=subscription')} />
+      <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} />
 
       {locationFilter && (
         <div style={styles.filterBanner}>
@@ -436,7 +425,7 @@ function SwipePage() {
       <LimitModal
         visible={limitModal}
         resetAt={quota?.resetAt}
-        used={displayQuota?.used || quota?.used || 0}
+        used={quota?.used || 0}
         limit={quota?.limit || 5}
         onClose={() => setLimitModal(false)}
       />

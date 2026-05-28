@@ -75,6 +75,11 @@ def normalize_user(user):
     user.setdefault("autoApply", False)
     user.setdefault("resumeUrl", None)
     user.setdefault("resumes", [])
+    user.setdefault("onboardingCompleted", False)
+    user.setdefault("preferredRoles", [])
+    user.setdefault("availability", "")
+    user.setdefault("latitude", None)
+    user.setdefault("longitude", None)
 
     if isinstance(user.get("resumes"), list):
         user["resumes"] = [normalize_resume(resume) for resume in user["resumes"] if isinstance(resume, dict)]
@@ -137,7 +142,12 @@ def build_updated_user_from_body(existing_user, body):
         "experienceLevel",
         "plan",
         "role",
-        "autoApply"
+        "autoApply",
+        "onboardingCompleted",
+        "preferredRoles",
+        "availability",
+        "latitude",
+        "longitude",
     ]
 
     for field in allowed_fields:

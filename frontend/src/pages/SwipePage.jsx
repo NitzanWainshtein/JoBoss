@@ -160,6 +160,8 @@ function SwipePage() {
   const [autoApply, setAutoApply] = useState(false);
   const [swipedJobs, setSwipedJobs] = useState(new Set());
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
+  const [quotaLoading, setQuotaLoading] = useState(true);
+  const [localSwipesUsed, setLocalSwipesUsed] = useState(0);
   const [limitModal, setLimitModal] = useState(false);
   const navigate = useNavigate();
 
@@ -184,12 +186,24 @@ function SwipePage() {
     }
   }, []);
 
+  const getResetTime = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    return tomorrow.toISOString();
+  };
+
   const loadQuota = useCallback(async () => {
+    setQuotaLoading(true);
     try {
       const q = await getQuotaStatus();
       setQuota(q);
-    } catch {
-      // fail silently
+    } catch (e) {
+      console.error('QUOTA LOAD FAILED:', e?.message, e?.status);
+      // On any failure, assume limit is reached — prevents bypass if backend is unreachable
+      setQuota({ plan: 'FREE', limit: 5, used: 5, remaining: 0, unlimited: false, resetAt: getResetTime() });
+    } finally {
+      setQuotaLoading(false);
     }
   }, []);
 
@@ -212,18 +226,29 @@ function SwipePage() {
   const currentJob = filteredJobs[filteredJobs.length - 1];
   const nextJob = filteredJobs[filteredJobs.length - 2];
 
-  // Jobs beyond quota are blurred in preview
-  const isLocked = quota && !quota.unlimited && quota.remaining === 0;
+  // Effective remaining accounts for local swipes not yet confirmed by a re-fetch
+  const effectiveRemaining = quota && !quota.unlimited
+    ? Math.max(0, quota.remaining - localSwipesUsed)
+    : null;
+  // Only lock when quota is confirmed from backend — never while loading
+  const isLocked = !quotaLoading && quota && !quota.unlimited && effectiveRemaining <= 0;
+  // Blocks all swipe interactions: confirmed locked OR still loading
+  const isBlocked = quotaLoading || isLocked;
+  const displayQuota = quota && !quota.unlimited
+    ? { ...quota, remaining: effectiveRemaining, used: (quota.used || 0) + localSwipesUsed }
+    : quota;
 
   const handleSwipe = async (direction) => {
     if (!currentJob) return;
+    if (quotaLoading) return;  // never swipe before quota is confirmed
 
     if (direction === 'right') {
-      // Optimistic: check quota before calling API
       if (isLocked) {
         setLimitModal(true);
         return;
       }
+      // Increment immediately so a rapid second tap is blocked before API responds
+      setLocalSwipesUsed(prev => prev + 1);
     }
 
     setLastSwipe({ direction, job: currentJob });
@@ -237,16 +262,31 @@ function SwipePage() {
         title: currentJob.title,
       });
 
-      // Update quota from response — preserve unlimited flag from initial load
       if (result?.quota) {
-        setQuota(q => ({ ...q, ...result.quota, unlimited: result.quota.unlimited ?? q?.unlimited, used: (q?.used || 0) + (direction === 'right' ? 1 : 0) }));
+        setQuota(q => ({ ...q, ...result.quota, unlimited: result.quota.unlimited ?? q?.unlimited }));
+      }
+
+      // Re-sync with backend after every LIKE so navigate-away-and-back reads accurate quota.
+      // Use Math.min so a stale eventually-consistent read can never increase remaining.
+      if (direction === 'right') {
+        try {
+          const fresh = await getQuotaStatus();
+          setQuota(q => ({
+            ...fresh,
+            remaining: q ? Math.min(fresh.remaining, q.remaining) : fresh.remaining,
+            unlimited: fresh.unlimited ?? q?.unlimited,
+          }));
+          setLocalSwipesUsed(0);
+        } catch {}
       }
     } catch (err) {
       if (err.status === 429 || err.code === 'LIMIT_REACHED') {
-        // Revert
         setSwipedJobs(prev => { const s = new Set(prev); s.delete(currentJob.jobId); return s; });
         setJobs(prev => [...prev, currentJob]);
-        if (direction === 'right') setSwipedRight(p => Math.max(0, p - 1));
+        if (direction === 'right') {
+          setSwipedRight(p => Math.max(0, p - 1));
+          setLocalSwipesUsed(prev => Math.max(0, prev - 1));
+        }
         setLastSwipe(null);
         setLimitModal(true);
         if (err.data) setQuota(err.data);
@@ -292,7 +332,7 @@ function SwipePage() {
   return (
     <div style={styles.container}>
       {/* Quota bar */}
-      <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} />
+      <QuotaBar quota={displayQuota} onUpgradeClick={() => navigate('/profile?tab=subscription')} />
 
       {locationFilter && (
         <div style={styles.filterBanner}>
@@ -332,8 +372,8 @@ function SwipePage() {
                 key={currentJob.jobId}
                 job={currentJob}
                 onSwipe={handleSwipe}
-                onOpenDetail={() => !isLocked && setSelectedJob(currentJob)}
-                locked={isLocked}
+                onOpenDetail={() => !isBlocked && setSelectedJob(currentJob)}
+                locked={isBlocked}
               />
             </AnimatePresence>
 
@@ -357,8 +397,8 @@ function SwipePage() {
         )}
       </div>
 
-      {/* Action buttons */}
-      {filteredJobs.length > 0 && !isLocked && (
+      {/* Action buttons — hidden while loading quota or confirmed locked */}
+      {filteredJobs.length > 0 && !isBlocked && (
         <div style={styles.buttons}>
           <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')}>✕</motion.button>
           <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')}>♥</motion.button>
@@ -379,7 +419,7 @@ function SwipePage() {
         </motion.button>
       )}
 
-      {lastSwipe && filteredJobs.length > 0 && !isLocked && (
+      {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
         <>
           <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
             {lastSwipe.direction === 'right'
@@ -396,7 +436,7 @@ function SwipePage() {
       <LimitModal
         visible={limitModal}
         resetAt={quota?.resetAt}
-        used={quota?.used || 0}
+        used={displayQuota?.used || quota?.used || 0}
         limit={quota?.limit || 5}
         onClose={() => setLimitModal(false)}
       />
@@ -418,7 +458,7 @@ const styles = {
   quotaBarFill: { height: '100%', borderRadius: '3px', transition: 'width 0.5s ease' },
   filterBanner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#E8F5E9', color: '#2E7D32', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, width: 'min(360px, 95vw)', marginBottom: '8px', gap: '8px' },
   refreshBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' },
-  cardContainer: { position: 'relative', width: 'min(360px, 95vw)', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
   card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
   stamp: { position: 'absolute', top: '24px', padding: '8px 16px', borderRadius: '12px', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', border: '4px solid', zIndex: 10 },
   likeStamp: { right: '24px', color: '#4CAF50', borderColor: '#4CAF50', transform: 'rotate(15deg)' },
@@ -435,7 +475,7 @@ const styles = {
   techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   techBadge: { background: 'var(--background)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid var(--primary)' },
   tapHint: { fontSize: '11px', color: '#bbb', textAlign: 'center', margin: 0 },
-  lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(2px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
+  lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
   lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '24px' },
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
   lockedSub: { fontSize: '13px', color: '#666', margin: 0 },

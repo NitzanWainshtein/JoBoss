@@ -71,12 +71,18 @@ def count_today_applications(user_id):
     today_iso = today.isoformat()
     tomorrow_iso = (today + timedelta(days=1)).isoformat()
 
+    # Fetch items (not just COUNT) so we can log the matched dates
     result = applications_table.scan(
         FilterExpression=boto3.dynamodb.conditions.Attr("userId").eq(user_id)
         & boto3.dynamodb.conditions.Attr("createdAt").between(today_iso, tomorrow_iso),
-        Select="COUNT",
+        ConsistentRead=True,
+        ProjectionExpression="createdAt",
     )
-    return result.get("Count", 0)
+    items = result.get("Items", [])
+    count = len(items)
+    matched = sorted([item.get("createdAt", "?") for item in items])
+    print(f"SCAN RESULT: today={today_iso}, tomorrow={tomorrow_iso}, count={count}, matched={matched}")
+    return count
 
 
 def get_reset_time():
@@ -203,6 +209,7 @@ def get_quota_status(event):
         })
 
     used = count_today_applications(user_id)
+    print(f"QUOTA CHECK: userId={user_id}, count={used}, plan={plan}, limit={daily_limit}")
     remaining = max(0, daily_limit - used)
 
     return resp(200, {

@@ -17,7 +17,6 @@ function JobDetailModal({ job, onClose }) {
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         style={modal.sheet} onClick={(e) => e.stopPropagation()}
       >
-        <div style={modal.handle} />
         <div style={modal.header}>
           {!logoError
             ? <img src={logoUrl} alt={job.company} style={modal.logo} onError={() => setLogoError(true)} />
@@ -459,9 +458,8 @@ const styles = {
 };
 
 const modal = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end' },
-  sheet: { background: 'white', borderRadius: '24px 24px 0 0', padding: '16px 24px 40px', width: '100%', maxHeight: '85vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' },
-  handle: { width: '40px', height: '4px', background: '#eee', borderRadius: '2px', margin: '0 auto 8px' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' },
+  sheet: { background: 'white', borderRadius: '20px', padding: '20px 24px 32px', width: 'min(360px, 95vw)', maxHeight: '80vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' },
   header: { display: 'flex', alignItems: 'center', gap: '12px' },
   logo: { width: '56px', height: '56px', borderRadius: '14px', objectFit: 'contain', border: '1px solid #eee', flexShrink: 0 },
   logo_placeholder: { width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #6C4FD4, #4A90E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 700, color: 'white', flexShrink: 0 },

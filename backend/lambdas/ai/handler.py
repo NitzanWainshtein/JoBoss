@@ -450,9 +450,65 @@ def tailor_from_direct_text(event):
     })
 
 
+def build_analyze_cv_prompt(resume_text):
+    return f"""Analyze this resume and return ONLY a valid JSON object with no explanation or markdown.
+
+Resume:
+{resume_text[:5000]}
+
+Return exactly this JSON structure:
+{{
+  "suggestedRoles": ["3 to 8 specific job titles that match this candidate"],
+  "experienceLevel": "one of: Student, Junior, Mid, Senior, Lead, Manager",
+  "technologies": ["5 to 15 technologies or frameworks found in the resume"]
+}}"""
+
+
+def analyze_cv(event):
+    import re
+    body = get_body(event)
+    resume_url = body.get("resumeUrl", "")
+    resume_text = body.get("resumeText", "").strip()
+
+    if resume_url and not resume_text:
+        bucket, key = parse_s3_url(resume_url)
+        if bucket and key:
+            try:
+                obj = s3.get_object(Bucket=bucket, Key=key)
+                content = obj["Body"].read()
+                text = content.decode("utf-8", errors="ignore").strip()
+                if text and "%PDF" not in text[:20]:
+                    resume_text = text[:5000]
+            except Exception:
+                pass
+
+    if not resume_text:
+        return response(200, {"suggestedRoles": [], "experienceLevel": "", "technologies": []})
+
+    try:
+        raw = invoke_bedrock_nova(build_analyze_cv_prompt(resume_text))
+        match = re.search(r'\{[\s\S]*\}', raw)
+        if match:
+            parsed = json.loads(match.group())
+            return response(200, {
+                "suggestedRoles": parsed.get("suggestedRoles", [])[:8],
+                "experienceLevel": parsed.get("experienceLevel", ""),
+                "technologies": parsed.get("technologies", [])[:15],
+            })
+    except Exception:
+        pass
+
+    return response(200, {"suggestedRoles": [], "experienceLevel": "", "technologies": []})
+
+
 def lambda_handler(event, context):
+    path = event.get("path") or event.get("rawPath") or ""
+
     if event.get("httpMethod") == "OPTIONS":
         return response(200, {"message": "CORS preflight OK"})
+
+    if "analyze-cv" in path:
+        return analyze_cv(event)
 
     direct_text_response = tailor_from_direct_text(event)
     if direct_text_response:

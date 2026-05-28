@@ -150,6 +150,10 @@ export const tailorResume = async (resumeText, jobDescription) => {
   });
 };
 
+export const analyzeCV = async (resumeUrl) => {
+  return apiCall('POST', '/ai/analyze-cv', { resumeUrl });
+};
+
 // ===== MOCK =====
 
 // Mock subscription state
@@ -273,6 +277,14 @@ const mockResponse = (method, path, body) => {
   }
 
   // AI
+  if (path === '/ai/analyze-cv' && method === 'POST') {
+    return {
+      suggestedRoles: ['Full Stack Developer', 'React Developer', 'Frontend Developer'],
+      experienceLevel: 'Mid',
+      technologies: ['React', 'JavaScript', 'Node.js'],
+    };
+  }
+
   if (path === '/ai/tailor' && method === 'POST') {
     const plan = mockSubscription.plan;
     const limit = PLAN_LIMITS[plan]?.ai_tailoring ?? 0;

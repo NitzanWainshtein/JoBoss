@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import ApplicationsPage from './pages/ApplicationsPage.jsx';
+import OnboardingPage from './pages/OnboardingPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile } from './api';
@@ -54,16 +55,25 @@ function SplashScreen({ onDone }) {
   );
 }
 
-function AnimatedRoutes({ isLoggedIn }) {
+function AnimatedRoutes({ isLoggedIn, onboardingCompleted, onOnboardingComplete }) {
   const location = useLocation();
+
+  const home = isLoggedIn ? (onboardingCompleted ? '/swipe' : '/onboarding') : '/login';
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={
           <PageTransition>
-            {!isLoggedIn ? <LoginPage /> : <Navigate to="/swipe" />}
+            {!isLoggedIn ? <LoginPage /> : <Navigate to={home} />}
           </PageTransition>
+        } />
+        <Route path="/onboarding" element={
+          isLoggedIn
+            ? (onboardingCompleted
+                ? <Navigate to="/swipe" />
+                : <OnboardingPage onComplete={onOnboardingComplete} />)
+            : <Navigate to="/login" />
         } />
         <Route path="/swipe" element={
           <PageTransition>
@@ -90,7 +100,7 @@ function AnimatedRoutes({ isLoggedIn }) {
             {isLoggedIn ? <AdminPage /> : <Navigate to="/login" />}
           </PageTransition>
         } />
-        <Route path="/" element={<Navigate to={isLoggedIn ? "/swipe" : "/login"} />} />
+        <Route path="/" element={<Navigate to={home} />} />
       </Routes>
     </AnimatePresence>
   );
@@ -100,14 +110,24 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
   const checkAuth = async () => {
     try {
-      const user = await getCurrentUser();
-      const session = await fetchAuthSession();
+      await getCurrentUser();
+      await fetchAuthSession();
       setIsLoggedIn(true);
+      // Check onboarding status — keep loading=true until we know
+      try {
+        const { getMyProfile } = await import('./api');
+        const data = await getMyProfile();
+        setOnboardingCompleted(data?.user?.onboardingCompleted === true);
+      } catch {
+        setOnboardingCompleted(true); // If profile fetch fails, don't block
+      }
     } catch {
       setIsLoggedIn(false);
+      setOnboardingCompleted(true);
     } finally {
       setLoading(false);
     }
@@ -151,9 +171,13 @@ function App() {
           </div>
         ) : (
           <Router>
-            {isLoggedIn && <Navbar />}
-            <div style={{ paddingBottom: isLoggedIn ? '64px' : '0', paddingTop: isLoggedIn ? '56px' : '0' }}>
-              <AnimatedRoutes isLoggedIn={isLoggedIn} />
+            {isLoggedIn && onboardingCompleted && <Navbar />}
+            <div style={{ paddingBottom: isLoggedIn && onboardingCompleted ? '64px' : '0', paddingTop: isLoggedIn && onboardingCompleted ? '56px' : '0' }}>
+              <AnimatedRoutes
+                isLoggedIn={isLoggedIn}
+                onboardingCompleted={onboardingCompleted}
+                onOnboardingComplete={() => setOnboardingCompleted(true)}
+              />
             </div>
           </Router>
         )

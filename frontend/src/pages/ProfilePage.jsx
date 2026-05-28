@@ -2,59 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { getMyProfile, updateMyProfile, uploadResume, uploadProfileImage, getSubscription, createCheckoutSession, cancelSubscription } from '../api';
 import SubscriptionPage from './SubscriptionPage';
-
-// ── Location autocomplete ─────────────────────────────────────────────────────
-function LocationInput({ value, onChange }) {
-  const [inputVal, setInputVal] = useState(value || '');
-  const [suggestions, setSuggestions] = useState([]);
-  const [timer, setTimer] = useState(null);
-
-  useEffect(() => { setInputVal(value || ''); }, [value]);
-
-  const fetchSuggestions = async (input) => {
-    if (!input || input.length < 2) { setSuggestions([]); return; }
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=5&countrycodes=il`,
-        { headers: { 'Accept-Language': 'he', 'User-Agent': 'joBoss-app' } }
-      );
-      const data = await res.json();
-      setSuggestions(data.map(i => ({ place_id: i.place_id, description: i.display_name, latitude: i.lat, longitude: i.lon })));
-    } catch { setSuggestions([]); }
-  };
-
-  const handleChange = (e) => {
-    setInputVal(e.target.value);
-    if (timer) clearTimeout(timer);
-    setTimer(setTimeout(() => fetchSuggestions(e.target.value), 500));
-  };
-
-  const handleSelect = (s) => {
-    setInputVal(s.description);
-    onChange(s.description);
-    localStorage.setItem('jobLatitude', s.latitude);
-    localStorage.setItem('jobLongitude', s.longitude);
-    setSuggestions([]);
-  };
-
-  return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <input style={styles.input} value={inputVal} onChange={handleChange} placeholder="הקלד עיר..." />
-      {suggestions.length > 0 && (
-        <div style={styles.suggestionsBox}>
-          {suggestions.map(s => (
-            <div key={s.place_id} style={styles.suggestionItem} onClick={() => handleSelect(s)}
-              onMouseEnter={e => e.currentTarget.style.background = '#F0F2FF'}
-              onMouseLeave={e => e.currentTarget.style.background = 'white'}
-            >
-              📍 {s.description}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import LocationInput from '../components/LocationInput';
+import { JOB_CATEGORIES } from '../data/jobCategories';
 
 // ── Subscription badge for profile header ────────────────────────────────────
 function PlanBadge({ planKey }) {
@@ -84,6 +33,8 @@ function ProfilePage() {
   const [radius, setRadius] = useState(20);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [planKey, setPlanKey] = useState('FREE');
+  const [preferredRoles, setPreferredRoles] = useState([]);
+  const [showRoleEditor, setShowRoleEditor] = useState(false);
 
   // Handle ?tab=subscription from LimitModal redirect
   useEffect(() => {
@@ -110,6 +61,7 @@ function ProfilePage() {
       if (user?.profileImageUrl) setProfileImage(user.profileImageUrl);
       if (user?.latitude) localStorage.setItem('jobLatitude', user.latitude);
       if (user?.longitude) localStorage.setItem('jobLongitude', user.longitude);
+      if (user?.preferredRoles?.length) setPreferredRoles(user.preferredRoles);
       setPlanKey(subData?.planKey || 'FREE');
       setLoadingProfile(false);
     }).catch(() => setLoadingProfile(false));
@@ -125,11 +77,11 @@ function ProfilePage() {
       localStorage.setItem('jobLocation', location);
       localStorage.setItem('jobRadius', radius);
       try {
-        await updateMyProfile({ autoApply, preferredLocation: location, searchRadius: radius, latitude: parseFloat(lat), longitude: parseFloat(lng) });
+        await updateMyProfile({ autoApply, preferredLocation: location, searchRadius: radius, preferredRoles, latitude: parseFloat(lat), longitude: parseFloat(lng) });
       } catch {}
     }, 1000);
     return () => clearTimeout(t);
-  }, [location, radius, autoApply, loadingProfile]);
+  }, [location, radius, autoApply, preferredRoles, loadingProfile]);
 
   const handleCvUpload = async (e) => {
     const file = e.target.files[0];
@@ -231,7 +183,14 @@ function ProfilePage() {
               <h3 style={styles.cardTitle}>📍 העדפות מיקום</h3>
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={styles.settingLabel}>מיקום מועדף</p>
-                <LocationInput value={location} onChange={setLocation} />
+                <LocationInput
+                  value={location}
+                  onChange={setLocation}
+                  onCoordinates={(lat, lng) => {
+                    localStorage.setItem('jobLatitude', lat);
+                    localStorage.setItem('jobLongitude', lng);
+                  }}
+                />
               </div>
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -306,6 +265,57 @@ function ProfilePage() {
                   <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCvUpload} />
                 </label>
               )}
+            </div>
+
+            {/* Preferred roles */}
+            <div style={styles.card}>
+              <h3 style={styles.cardTitle}>🎯 העדפות חיפוש</h3>
+              {preferredRoles.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%' }}>
+                  {preferredRoles.map(role => (
+                    <span
+                      key={role}
+                      onClick={() => setPreferredRoles(prev => prev.filter(r => r !== role))}
+                      style={{ padding: '6px 14px', background: '#6C4FD4', color: 'white', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      {role} ×
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p style={styles.settingDesc}>לא נבחרו תפקידים עדיין</p>
+              )}
+              {showRoleEditor && (
+                <div style={{ width: '100%', maxHeight: 280, overflowY: 'auto', marginTop: 8 }}>
+                  {JOB_CATEGORIES.map(cat => (
+                    <div key={cat.group} style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#777', marginBottom: 6 }}>{cat.icon} {cat.group}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {cat.roles.map(r => (
+                          <button
+                            key={r}
+                            onClick={() => setPreferredRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
+                            style={{
+                              padding: '4px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                              border: `1px solid ${preferredRoles.includes(r) ? '#6C4FD4' : '#ddd'}`,
+                              background: preferredRoles.includes(r) ? '#6C4FD4' : 'white',
+                              color: preferredRoles.includes(r) ? 'white' : '#555',
+                            }}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setShowRoleEditor(!showRoleEditor)}
+                style={{ padding: '8px 16px', background: '#F0EEFF', color: '#6C4FD4', border: 'none', borderRadius: 12, cursor: 'pointer', fontWeight: 600, fontSize: 13, alignSelf: 'flex-start' }}
+              >
+                {showRoleEditor ? '✓ סגור' : '✏️ ערוך תפקידים'}
+              </button>
             </div>
 
             <button style={styles.logoutBtn} onClick={handleLogout}>🚪 התנתק</button>

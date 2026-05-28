@@ -12,6 +12,7 @@ import base64
 import json
 import os
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 
 import boto3
 import stripe
@@ -31,8 +32,43 @@ stripe.api_key = STRIPE_SECRET_KEY
 
 PLAN_LIMITS = {
     "FREE": 5,
-    "PREMIUM": -1,       # unlimited
+    "PREMIUM": -1,
     "PREMIUM_PLUS": -1,
+}
+
+PLANS = {
+    "FREE": {
+        "name": "חינמי",
+        "price_monthly": 0,
+        "daily_applications": 5,
+        "ai_tailoring_monthly": 0,
+        "auto_apply": False,
+        "analytics": False,
+        "priority_matching": False,
+        "stripe_price_id": None,
+    },
+    "PREMIUM": {
+        "name": "פרימיום",
+        "price_monthly": 36,
+        "daily_applications": -1,
+        "ai_tailoring_monthly": 10,
+        "auto_apply": True,
+        "analytics": "basic",
+        "priority_matching": False,
+        "stripe_price_id": STRIPE_PREMIUM_PRICE_ID,
+        "trial_days": 7,
+    },
+    "PREMIUM_PLUS": {
+        "name": "פרימיום+",
+        "price_monthly": 72,
+        "daily_applications": -1,
+        "ai_tailoring_monthly": -1,
+        "auto_apply": True,
+        "analytics": "advanced",
+        "priority_matching": True,
+        "stripe_price_id": STRIPE_PREMIUM_PLUS_PRICE_ID,
+        "trial_days": 7,
+    },
 }
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
@@ -49,8 +85,14 @@ def cors():
     }
 
 
+def _serialize(obj):
+    if isinstance(obj, Decimal):
+        return int(obj) if obj == obj.to_integral_value() else float(obj)
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
 def resp(status, body):
-    return {"statusCode": status, "headers": cors(), "body": json.dumps(body)}
+    return {"statusCode": status, "headers": cors(), "body": json.dumps(body, default=_serialize)}
 
 
 def get_user_id(event):
@@ -177,6 +219,10 @@ def handle_get_me(event):
     return resp(200, {
         "userId": user_id,
         "plan": plan,
+        "planKey": plan,
+        "planDetails": PLANS.get(plan, PLANS["FREE"]),
+        "plans": PLANS,
+        "subscription": sub,
         "status": sub.get("status", "FREE"),
         "dailyLimit": limit,
         "used": used,

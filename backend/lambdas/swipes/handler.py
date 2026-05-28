@@ -149,6 +149,7 @@ def create_swipe(event):
             "plan": plan,
             "limit": daily_limit,
             "remaining": remaining,
+            "unlimited": daily_limit == -1,
             "resetAt": get_reset_time() if daily_limit != -1 else None,
         },
     })

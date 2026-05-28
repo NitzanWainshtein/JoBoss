@@ -39,7 +39,10 @@
       "Read(//c/Users/NITZAN/.claude/projects/c--Users-NITZAN-JoBoss/**)",
       "Bash(python .tmp_lambda/extract_files.py)",
       "Bash(python .tmp_lambda/fix_encoding.py)",
-      "Bash(python .tmp_lambda/extract_subscription.py)"
+      "Bash(python .tmp_lambda/extract_subscription.py)",
+      "Bash(python .tmp_lambda/create_test_users.py)",
+      "PowerShell(aws lambda invoke --function-name joboss-subscriptions --payload file://C:\\\\Users\\\\NITZAN\\\\JoBoss\\\\.tmp_lambda\\\\test_event.json C:\\\\Users\\\\NITZAN\\\\JoBoss\\\\.tmp_lambda\\\\sub_resp.json)",
+      "PowerShell(aws s3 sync C:\\\\Users\\\\NITZAN\\\\JoBoss\\\\frontend\\\\dist s3://joboss-frontend-171109860478 --delete --quiet)"
     ]
   }
 }

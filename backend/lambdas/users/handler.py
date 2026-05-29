@@ -2,7 +2,7 @@ import json
 import boto3
 import os
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 dynamodb = boto3.resource("dynamodb")
 s3 = boto3.client("s3")
@@ -148,13 +148,16 @@ def build_updated_user_from_body(existing_user, body):
         "onboardingCompleted",
         "preferredRoles",
         "availability",
-        "latitude",
-        "longitude",
     ]
 
     for field in allowed_fields:
         if field in body:
             user[field] = body[field]
+
+    if "latitude" in body and body["latitude"] is not None:
+        user["latitude"] = Decimal(str(body["latitude"]))
+    if "longitude" in body and body["longitude"] is not None:
+        user["longitude"] = Decimal(str(body["longitude"]))
 
     if "resumeUrl" in body:
         user["resumeUrl"] = body["resumeUrl"]
@@ -313,6 +316,8 @@ def create_user_profile(event):
 def update_user_profile(event):
     body = json.loads(event.get("body") or "{}")
     user_id = get_user_id_from_event(event)
+
+    print(f"PUT /users/me userId={user_id} body_keys={list(body.keys())} preferredRoles={body.get('preferredRoles')}")
 
     if not user_id:
         return build_response(401, {

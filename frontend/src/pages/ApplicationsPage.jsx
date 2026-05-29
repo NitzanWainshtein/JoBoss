@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getMyApplications, updateApplication } from '../api';
+import { getMyApplications, updateApplication, tailorCVForJob } from '../api';
 import Spinner from '../components/Spinner';
 
 const STATUS_CONFIG = {
@@ -31,9 +31,34 @@ function ApplicationsPage() {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
   const [previewApplication, setPreviewApplication] = useState(null);
+  const [tailoringJobId, setTailoringJobId] = useState(null);
+  const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
+  const [tailoringJobs, setTailoringJobs] = useState(() => {
+    const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
+    return new Set(Object.keys(pending));
+  });
 
   useEffect(() => {
     loadApplications();
+  }, []);
+
+  useEffect(() => {
+    const handleComplete = (e) => {
+      const { jobId, tailoredResume, tailoredResumeUrl } = e.detail;
+      setApplications(prev => prev.map(a =>
+        a.jobId === jobId ? { ...a, tailoredResume, tailoredResumeUrl } : a
+      ));
+      setTailoringJobs(prev => { const s = new Set(prev); s.delete(jobId); return s; });
+    };
+    const handleError = (e) => {
+      setTailoringJobs(prev => { const s = new Set(prev); s.delete(e.detail.jobId); return s; });
+    };
+    window.addEventListener('tailorComplete', handleComplete);
+    window.addEventListener('tailorError', handleError);
+    return () => {
+      window.removeEventListener('tailorComplete', handleComplete);
+      window.removeEventListener('tailorError', handleError);
+    };
   }, []);
 
   const loadApplications = async () => {
@@ -41,7 +66,22 @@ function ApplicationsPage() {
     setError(null);
     try {
       const data = await getMyApplications();
-      setApplications(data.applications || []);
+      const apps = data.applications || [];
+
+      setTailoringJobs(prev => {
+        const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
+        const updated = new Set(prev);
+        apps.forEach(app => {
+          if (app.tailoredResumeUrl && updated.has(app.jobId)) {
+            updated.delete(app.jobId);
+            delete pending[app.jobId];
+          }
+        });
+        localStorage.setItem('tailoringPending', JSON.stringify(pending));
+        return updated;
+      });
+
+      setApplications(apps);
     } catch {
       setError('אין חיבור לשרת. אנא נסה שוב.');
     } finally {
@@ -69,6 +109,22 @@ function ApplicationsPage() {
   const filtered = filter === 'all'
     ? applications
     : applications.filter(a => (a.status || '').toUpperCase() === filter.toUpperCase());
+
+  const handleTailorCV = async (app) => {
+    setTailoringJobId(app.jobId);
+    try {
+      const result = await tailorCVForJob(app.jobId);
+      setApplications(prev => prev.map(a =>
+        a.jobId === app.jobId
+          ? { ...a, tailoredResumeUrl: result.tailoredResumeUrl, tailoredResume: result.tailoredResume }
+          : a
+      ));
+    } catch {
+      alert('שגיאה בהתאמת קורות החיים. ודא שיש קורות חיים פעילים בפרופיל.');
+    } finally {
+      setTailoringJobId(null);
+    }
+  };
 
   const downloadTailoredResume = (app) => {
     if (!app.tailoredResume) return;
@@ -103,6 +159,10 @@ function ApplicationsPage() {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-8px' }}>
+          <button style={styles.refreshBtn} onClick={loadApplications}>🔄 רענן</button>
+        </div>
 
         <div style={styles.statsRow}>
           <div style={styles.stat}>
@@ -162,6 +222,27 @@ function ApplicationsPage() {
                       {cfg.label}
                     </div>
                   </div>
+
+                  {tailoringJobs.has(app.jobId) && !app.tailoredResumeUrl && (
+                    <div style={styles.tailoringBox}>
+                      <span style={styles.tailoringSpinner}>⏳</span>
+                      <div>
+                        <p style={styles.tailoringTitle}>מתאים קורות חיים...</p>
+                        <p style={styles.tailoringSub}>ה-AI עובד על זה, יעודכן אוטומטית</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!autoTailorCV && !app.tailoredResumeUrl && !tailoringJobs.has(app.jobId) && (
+                    <button
+                      type="button"
+                      style={styles.manualTailorBtn}
+                      disabled={tailoringJobId === app.jobId}
+                      onClick={() => handleTailorCV(app)}
+                    >
+                      {tailoringJobId === app.jobId ? '⏳ מתאים...' : '🤖 התאמת קורות חיים למשרה'}
+                    </button>
+                  )}
 
                   {app.tailoredResumeUrl && (
                     <div style={styles.tailoredBox}>
@@ -343,6 +424,11 @@ const styles = {
   tailoredSub: { margin: '4px 0 0', fontSize: '11px', color: '#15803D' },
   tailoredActions: { display: 'flex', gap: '8px', flexShrink: 0 },
   tailoredButton: { border: '1px solid #86EFAC', borderRadius: '999px', background: 'white', color: '#166534', padding: '7px 12px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
+  tailoringBox: { background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' },
+  tailoringSpinner: { fontSize: '20px', animation: 'spin 1.5s linear infinite' },
+  tailoringTitle: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#F57F17' },
+  tailoringSub: { margin: '2px 0 0', fontSize: '11px', color: '#F9A825' },
+  manualTailorBtn: { width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px dashed #6C4FD4', background: '#F8F6FF', color: '#6C4FD4', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
   actions: { display: 'flex', gap: '6px', flexWrap: 'wrap' },
   actionBtn: { padding: '5px 10px', borderRadius: '20px', border: '1.5px solid', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' },
   actionActive: {},
@@ -350,6 +436,7 @@ const styles = {
   emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
   emptySub: { fontSize: '14px', color: '#777', margin: 0 },
   retryBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 },
+  refreshBtn: { background: 'white', border: '1.5px solid #ddd', borderRadius: '20px', padding: '6px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#555' },
   previewOverlay: { position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 },
   previewModal: { width: 'min(760px, 96vw)', maxHeight: '86vh', background: 'white', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 24px 80px rgba(15, 23, 42, 0.25)', direction: 'rtl' },
   previewHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },

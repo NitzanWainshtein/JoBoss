@@ -5,6 +5,11 @@
   font-family: 'Segoe UI', sans-serif;
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 :root {
   --primary: #6C4FD4;
   --secondary: #4CC9F0;

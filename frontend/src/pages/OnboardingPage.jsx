@@ -66,7 +66,24 @@ export default function OnboardingPage({ onComplete }) {
     }).catch(() => {});
   }, []);
 
-  const go = d => { setDir(d); setStep(s => s + d); };
+  const saveStep = (currentStep) => {
+    if (currentStep === 3 && selectedRoles.length > 0) {
+      updateMyProfile({ preferredRoles: selectedRoles }).catch(() => {});
+    } else if (currentStep === 4) {
+      updateMyProfile({
+        experienceLevel: expLevel,
+        availability,
+        ...(location && { preferredLocation: location, searchRadius: radius }),
+        ...(lat && lng && { latitude: parseFloat(lat), longitude: parseFloat(lng) }),
+      }).catch(() => {});
+    }
+  };
+
+  const go = d => {
+    if (d > 0) saveStep(step);
+    setDir(d);
+    setStep(s => s + d);
+  };
 
   const finish = async (forceFree = false) => {
     setSaving(true);

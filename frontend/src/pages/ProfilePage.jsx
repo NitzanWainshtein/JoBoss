@@ -27,6 +27,7 @@ function ProfilePage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [userName, setUserName] = useState('');
   const [autoApply, setAutoApply] = useState(false);
+  const [autoTailorCV, setAutoTailorCV] = useState(false);
   const [cvFile, setCvFile] = useState(null);
   const [profile, setProfile] = useState(null);
   const [location, setLocation] = useState('');
@@ -58,6 +59,7 @@ function ProfilePage() {
       if (user?.preferredLocation) setLocation(user.preferredLocation);
       if (user?.searchRadius) setRadius(Number(user.searchRadius));
       if (user?.autoApply !== undefined) setAutoApply(user.autoApply);
+      if (user?.autoTailorCV !== undefined) setAutoTailorCV(user.autoTailorCV);
       if (user?.profileImageUrl) setProfileImage(user.profileImageUrl);
       if (user?.latitude) localStorage.setItem('jobLatitude', user.latitude);
       if (user?.longitude) localStorage.setItem('jobLongitude', user.longitude);
@@ -70,18 +72,22 @@ function ProfilePage() {
   useEffect(() => {
     if (loadingProfile) return;
     const t = setTimeout(async () => {
+      localStorage.setItem('autoApply', autoApply);
+      localStorage.setItem('autoTailorCV', autoTailorCV);
       const lat = localStorage.getItem('jobLatitude');
       const lng = localStorage.getItem('jobLongitude');
-      if (!lat || !lng || !location) return;
-      localStorage.setItem('autoApply', autoApply);
-      localStorage.setItem('jobLocation', location);
-      localStorage.setItem('jobRadius', radius);
+      const profileUpdate = { autoApply, autoTailorCV };
+      if (lat && lng && location) {
+        localStorage.setItem('jobLocation', location);
+        localStorage.setItem('jobRadius', radius);
+        Object.assign(profileUpdate, { preferredLocation: location, searchRadius: radius, preferredRoles, latitude: parseFloat(lat), longitude: parseFloat(lng) });
+      }
       try {
-        await updateMyProfile({ autoApply, preferredLocation: location, searchRadius: radius, preferredRoles, latitude: parseFloat(lat), longitude: parseFloat(lng) });
+        await updateMyProfile(profileUpdate);
       } catch {}
     }, 1000);
     return () => clearTimeout(t);
-  }, [location, radius, autoApply, preferredRoles, loadingProfile]);
+  }, [location, radius, autoApply, autoTailorCV, preferredRoles, loadingProfile]);
 
   const handleCvUpload = async (e) => {
     const file = e.target.files[0];
@@ -222,9 +228,42 @@ function ProfilePage() {
                 </div>
                 <div
                   style={{ ...styles.toggle, background: autoApply && planKey !== 'FREE' ? '#4CAF50' : '#ccc', opacity: planKey === 'FREE' ? 0.5 : 1 }}
-                  onClick={() => { if (planKey !== 'FREE') setAutoApply(!autoApply); else setTab('subscription'); }}
+                  onClick={() => {
+                    if (planKey !== 'FREE') {
+                      const next = !autoApply;
+                      setAutoApply(next);
+                      localStorage.setItem('autoApply', next);
+                      updateMyProfile({ autoApply: next }).catch(() => {});
+                    } else setTab('subscription');
+                  }}
                 >
                   <div style={{ ...styles.toggleCircle, transform: autoApply && planKey !== 'FREE' ? 'translateX(24px)' : 'translateX(0)' }} />
+                </div>
+              </div>
+              <div style={{ ...styles.settingRow, marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #F0F0F0' }}>
+                <div>
+                  <p style={styles.settingLabel}>התאמת קורות חיים אוטומטית</p>
+                  <p style={styles.settingDesc}>
+                    {autoTailorCV ? 'ה-AI יתאים את קורות החיים לכל משרה שתאשר' : 'התאמה ידנית מעמוד ההגשות'}
+                  </p>
+                  {planKey === 'FREE' && (
+                    <p style={{ fontSize: '11px', color: '#FF9800', margin: '4px 0 0 0' }}>
+                      ⚠️ דורש מנוי פרימיום
+                    </p>
+                  )}
+                </div>
+                <div
+                  style={{ ...styles.toggle, background: autoTailorCV && planKey !== 'FREE' ? '#6C4FD4' : '#ccc', opacity: planKey === 'FREE' ? 0.5 : 1 }}
+                  onClick={() => {
+                    if (planKey !== 'FREE') {
+                      const next = !autoTailorCV;
+                      setAutoTailorCV(next);
+                      localStorage.setItem('autoTailorCV', next);
+                      updateMyProfile({ autoTailorCV: next }).catch(() => {});
+                    } else setTab('subscription');
+                  }}
+                >
+                  <div style={{ ...styles.toggleCircle, transform: autoTailorCV && planKey !== 'FREE' ? 'translateX(24px)' : 'translateX(0)' }} />
                 </div>
               </div>
             </div>

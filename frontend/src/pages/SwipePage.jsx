@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-mo
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
 import LimitModal from '../components/LimitModal';
-import { getJobs, createSwipe, createApplication, updateMyProfile, getMySwipes, undoSwipe, getQuotaStatus } from '../api';
+import { getJobs, createSwipe, createApplication, updateMyProfile, getMySwipes, undoSwipe, getQuotaStatus, tailorCVForJob } from '../api';
 
 // ── Job detail modal (unchanged) ────────────────────────────────────────────
 function JobDetailModal({ job, onClose }) {
@@ -162,6 +162,7 @@ function SwipePage() {
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
   const [quotaLoading, setQuotaLoading] = useState(true);
   const [limitModal, setLimitModal] = useState(false);
+  const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
   const navigate = useNavigate();
 
   const loadJobs = useCallback(async () => {
@@ -254,6 +255,12 @@ function SwipePage() {
     if (direction === 'right') setSwipedRight(p => p + 1);
     setJobs(prev => prev.slice(0, -1));
 
+    if (direction === 'right' && autoTailorCV) {
+      const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
+      pending[currentJob.jobId] = { company: currentJob.company, title: currentJob.title };
+      localStorage.setItem('tailoringPending', JSON.stringify(pending));
+    }
+
     try {
       const result = await createSwipe(currentJob.jobId, direction === 'right' ? 'LIKE' : 'PASS', {
         company: currentJob.company,
@@ -264,7 +271,30 @@ function SwipePage() {
       if (result?.quota) {
         setQuota(q => ({ ...q, ...result.quota, unlimited: result.quota.unlimited ?? q?.unlimited }));
       }
+
+      if (direction === 'right' && autoTailorCV) {
+
+        tailorCVForJob(currentJob.jobId)
+          .then(result => {
+            const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
+            delete p[currentJob.jobId];
+            localStorage.setItem('tailoringPending', JSON.stringify(p));
+            window.dispatchEvent(new CustomEvent('tailorComplete', {
+              detail: { jobId: currentJob.jobId, tailoredResume: result.tailoredResume, tailoredResumeUrl: result.tailoredResumeUrl }
+            }));
+          })
+          .catch(() => {
+            const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
+            delete p[currentJob.jobId];
+            localStorage.setItem('tailoringPending', JSON.stringify(p));
+            window.dispatchEvent(new CustomEvent('tailorError', { detail: { jobId: currentJob.jobId } }));
+          });
+      }
     } catch (err) {
+      const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
+      delete p[currentJob.jobId];
+      localStorage.setItem('tailoringPending', JSON.stringify(p));
+
       if (err.status === 429 || err.code === 'LIMIT_REACHED') {
         setSwipedJobs(prev => { const s = new Set(prev); s.delete(currentJob.jobId); return s; });
         setJobs(prev => [...prev, currentJob]);

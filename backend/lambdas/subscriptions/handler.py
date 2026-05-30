@@ -30,16 +30,23 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://d231wno34rvped.cloudfront.net"
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-PLAN_LIMITS = {
-    "FREE": 5,
-    "PREMIUM": -1,
-    "PREMIUM_PLUS": -1,
+# ── Single source of truth for per-tier daily limits ─────────────────────────
+# Mirrors TIER_LIMITS in the swipes Lambda. daily_swipes is the binding daily
+# gate (counts LIKE swipes); -1 = unlimited.
+TIER_LIMITS = {
+    "FREE":         {"daily_swipes": 5,   "daily_applies": 5,  "ai_tailoring": False},
+    "PREMIUM":      {"daily_swipes": 30,  "daily_applies": -1, "ai_tailoring": True},
+    "PREMIUM_PLUS": {"daily_swipes": -1,  "daily_applies": -1, "ai_tailoring": True},
 }
+
+# Daily limit reported/enforced per plan = the binding swipe gate.
+PLAN_LIMITS = {plan: limits["daily_swipes"] for plan, limits in TIER_LIMITS.items()}
 
 PLANS = {
     "FREE": {
         "name": "חינמי",
         "price_monthly": 0,
+        "daily_swipes": TIER_LIMITS["FREE"]["daily_swipes"],
         "daily_applications": 5,
         "ai_tailoring_monthly": 0,
         "auto_apply": False,
@@ -50,6 +57,7 @@ PLANS = {
     "PREMIUM": {
         "name": "פרימיום",
         "price_monthly": 36,
+        "daily_swipes": TIER_LIMITS["PREMIUM"]["daily_swipes"],
         "daily_applications": -1,
         "ai_tailoring_monthly": 10,
         "auto_apply": True,
@@ -61,6 +69,7 @@ PLANS = {
     "PREMIUM_PLUS": {
         "name": "פרימיום+",
         "price_monthly": 72,
+        "daily_swipes": TIER_LIMITS["PREMIUM_PLUS"]["daily_swipes"],
         "daily_applications": -1,
         "ai_tailoring_monthly": -1,
         "auto_apply": True,

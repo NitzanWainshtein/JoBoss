@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
 import {
   getMyProfile,
@@ -58,6 +58,8 @@ function ProfilePage() {
   const [showRoleEditor, setShowRoleEditor] = useState(false);
   const [experienceLevel, setExperienceLevel] = useState('');
   const [availability, setAvailability] = useState('');
+  const profileLoaded = useRef(false); // true after first successful load
+  const pendingSaveRef = useRef(null); // latest unsaved payload (for unmount flush)
 
   // Handle ?tab=subscription from LimitModal redirect
   useEffect(() => {
@@ -83,6 +85,8 @@ function ProfilePage() {
       .then(([profileData, subData]) => {
         const user = profileData.user;
 
+        console.log('LOADED:', user);
+
         setProfile(user);
 
         if (user?.preferredLocation) setLocation(user.preferredLocation);
@@ -93,53 +97,93 @@ function ProfilePage() {
         if (user?.latitude) localStorage.setItem('jobLatitude', user.latitude);
         if (user?.longitude) localStorage.setItem('jobLongitude', user.longitude);
         if (user?.preferredRoles?.length) setPreferredRoles(user.preferredRoles);
-        if (user?.experienceLevel) setExperienceLevel(user.experienceLevel);
-        if (user?.availability) setAvailability(user.availability);
+
+        // Normalize stored values to the exact option strings used by the selects.
+        // Any unrecognised value (including garbled bytes from old onboarding) is
+        // treated as empty so the select shows the placeholder instead of sending
+        // garbage back to the API on the next unrelated save.
+        const VALID_EXP   = new Set(['סטודנט', 'Junior', 'Mid', 'Senior', 'Lead']);
+        const VALID_AVAIL = new Set(['מיידי', 'תוך חודש', 'סתם מסתכל']);
+
+        const EXP_NORMALIZE = {
+          student: 'סטודנט', junior: 'Junior', mid: 'Mid',
+          senior: 'Senior', lead: 'Lead', manager: 'Lead',
+        };
+        const AVAIL_NORMALIZE = {
+          'immediately': 'מיידי', 'מיידית': 'מיידי',
+          '2 weeks': 'תוך חודש', '1 month': 'תוך חודש', '3 months': 'תוך חודש',
+          'freelance': 'סתם מסתכל', 'student': 'סתם מסתכל',
+        };
+
+        const rawExp = user?.experienceLevel || '';
+        const normExp = EXP_NORMALIZE[rawExp.toLowerCase()] ?? rawExp;
+        setExperienceLevel(VALID_EXP.has(normExp) ? normExp : '');
+
+        const rawAvail = user?.availability || '';
+        const normAvail = AVAIL_NORMALIZE[rawAvail.toLowerCase()] ?? rawAvail;
+        setAvailability(VALID_AVAIL.has(normAvail) ? normAvail : '');
 
         setPlanKey(subData?.planKey || 'FREE');
         setLoadingProfile(false);
+        // Mark as loaded after the state-setter batch has re-rendered, so the
+        // save effect skips the initial population render and only fires on
+        // genuine user changes.
+        setTimeout(() => { profileLoaded.current = true; }, 0);
       })
       .catch(() => setLoadingProfile(false));
   }, []);
 
   useEffect(() => {
-    if (loadingProfile) return;
+    // Don't save until the profile has been loaded from the API at least once,
+    // and skip the very first render after load (profileLoaded just flipped).
+    if (!profileLoaded.current) return;
+
+    // Build the payload synchronously and stash it, so a debounced save that is
+    // still pending when the user navigates away can be flushed on unmount.
+    const lat = localStorage.getItem('jobLatitude');
+    const lng = localStorage.getItem('jobLongitude');
+
+    const profileUpdate = {
+      autoApply,
+      autoTailorCV,
+      preferredRoles,
+      experienceLevel,
+      availability,
+    };
+
+    if (location) {
+      Object.assign(profileUpdate, {
+        preferredLocation: location,
+        searchRadius: radius,
+      });
+    }
+
+    if (lat && lng) {
+      Object.assign(profileUpdate, {
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+      });
+    }
+
+    pendingSaveRef.current = profileUpdate;
 
     const t = setTimeout(async () => {
       localStorage.setItem('autoApply', autoApply);
       localStorage.setItem('autoTailorCV', autoTailorCV);
-
-      const lat = localStorage.getItem('jobLatitude');
-      const lng = localStorage.getItem('jobLongitude');
-
-      const profileUpdate = {
-        autoApply,
-        autoTailorCV,
-        preferredRoles,
-        experienceLevel,
-        availability,
-      };
-
       if (location) {
         localStorage.setItem('jobLocation', location);
         localStorage.setItem('jobRadius', radius);
-
-        Object.assign(profileUpdate, {
-          preferredLocation: location,
-          searchRadius: radius,
-        });
       }
 
-      if (lat && lng) {
-        Object.assign(profileUpdate, {
-          latitude: parseFloat(lat),
-          longitude: parseFloat(lng),
-        });
-      }
+      const payload = pendingSaveRef.current;
+      pendingSaveRef.current = null; // consumed by this debounced save
 
+      console.log('SAVING:', { experienceLevel, availability });
       try {
-        await updateMyProfile(profileUpdate);
-      } catch {}
+        await updateMyProfile(payload);
+      } catch {
+        pendingSaveRef.current = payload; // restore so unmount flush can retry
+      }
     }, 1000);
 
     return () => clearTimeout(t);
@@ -151,8 +195,18 @@ function ProfilePage() {
     preferredRoles,
     experienceLevel,
     availability,
-    loadingProfile,
   ]);
+
+  // Flush a pending (still-debounced) save when the component unmounts, so
+  // leaving the page within the 1s debounce window does not silently drop the
+  // user's change. Fire-and-forget — the fetch goes out even as we unmount.
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current) {
+        updateMyProfile(pendingSaveRef.current).catch(() => {});
+      }
+    };
+  }, []);
 
   const handleCvUpload = async (e) => {
     const file = e.target.files[0];
@@ -566,7 +620,7 @@ function ProfilePage() {
                   style={{ ...styles.input, appearance: 'none', cursor: 'pointer' }}
                 >
                   <option value="">בחר רמה...</option>
-                  <option value="Student">סטודנט</option>
+                  <option value="סטודנט">סטודנט</option>
                   <option value="Junior">ג'וניור (0-2 שנים)</option>
                   <option value="Mid">מיד (2-5 שנים)</option>
                   <option value="Senior">סניור (5+ שנים)</option>
@@ -582,10 +636,9 @@ function ProfilePage() {
                   style={{ ...styles.input, appearance: 'none', cursor: 'pointer' }}
                 >
                   <option value="">בחר זמינות...</option>
-                  <option value="Immediately">מיידית</option>
-                  <option value="2 weeks">תוך שבועיים</option>
-                  <option value="1 month">תוך חודש</option>
-                  <option value="3 months">תוך 3 חודשים</option>
+                  <option value="מיידי">מיידי</option>
+                  <option value="תוך חודש">תוך חודש</option>
+                  <option value="סתם מסתכל">סתם מסתכל</option>
                 </select>
               </div>
             </div>

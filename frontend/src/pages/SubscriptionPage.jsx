@@ -16,6 +16,7 @@ const PLANS = {
     color: '#888',
     gradient: 'linear-gradient(135deg, #888, #555)',
     features: {
+      daily_swipes: '5 החלקות ביום',
       daily_applications: '5 הגשות ביום',
       ai_tailoring: 'ללא התאמת AI',
       auto_apply: 'ללא Auto Apply',
@@ -23,6 +24,7 @@ const PLANS = {
       priority_matching: 'ללא Priority Matching',
     },
     featureFlags: {
+      daily_swipes: false,
       daily_applications: false,
       ai_tailoring: false,
       auto_apply: false,
@@ -39,6 +41,7 @@ const PLANS = {
     gradient: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
     trial: '7 ימי ניסיון חינם',
     features: {
+      daily_swipes: '30 החלקות ביום',
       daily_applications: 'הגשות ללא הגבלה',
       ai_tailoring: '10 התאמות AI בחודש',
       auto_apply: 'Auto Apply ✓',
@@ -46,6 +49,7 @@ const PLANS = {
       priority_matching: 'ללא Priority Matching',
     },
     featureFlags: {
+      daily_swipes: true,
       daily_applications: true,
       ai_tailoring: true,
       auto_apply: true,
@@ -63,6 +67,7 @@ const PLANS = {
     trial: '7 ימי ניסיון חינם',
     popular: true,
     features: {
+      daily_swipes: 'החלקות ללא הגבלה',
       daily_applications: 'הגשות ללא הגבלה',
       ai_tailoring: 'AI ללא הגבלה',
       auto_apply: 'Auto Apply ✓',
@@ -70,6 +75,7 @@ const PLANS = {
       priority_matching: 'Priority Matching ✓',
     },
     featureFlags: {
+      daily_swipes: true,
       daily_applications: true,
       ai_tailoring: true,
       auto_apply: true,
@@ -90,6 +96,7 @@ const STATUS_MAP = {
 };
 
 const FEATURE_ROWS = [
+  { key: 'daily_swipes',       label: 'החלקות יומיות',   icon: '🔥' },
   { key: 'daily_applications', label: 'הגשות יומיות',    icon: '📨' },
   { key: 'ai_tailoring',       label: 'התאמת AI',        icon: '🤖' },
   { key: 'auto_apply',         label: 'Auto Apply',      icon: '⚡' },

@@ -180,10 +180,12 @@ const mockJobs = [
   { jobId: '2', company: 'Microsoft', title: 'Full Stack Developer', location: 'Herzliya', salary: '30,000 âª', description: '×¤××ª×× Full Stack', requirements: ['Node.js', 'React'] },
 ];
 
+// Mirrors backend TIER_LIMITS. daily_swipes is the binding daily gate (counts
+// LIKEs only); -1 = unlimited.
 const PLAN_LIMITS = {
-  FREE: { daily_applications: 5, ai_tailoring: 0 },
-  PREMIUM: { daily_applications: -1, ai_tailoring: 10 },
-  PREMIUM_PLUS: { daily_applications: -1, ai_tailoring: -1 },
+  FREE: { daily_swipes: 5, daily_applications: 5, ai_tailoring: 0 },
+  PREMIUM: { daily_swipes: 30, daily_applications: -1, ai_tailoring: 10 },
+  PREMIUM_PLUS: { daily_swipes: -1, daily_applications: -1, ai_tailoring: -1 },
 };
 
 let mockSwipes = [];
@@ -214,7 +216,7 @@ const mockResponse = (method, path, body) => {
   // SWIPES
   if (path === '/swipes' && method === 'POST') {
     const plan = mockSubscription.plan;
-    const limit = PLAN_LIMITS[plan]?.daily_applications ?? 5;
+    const limit = PLAN_LIMITS[plan]?.daily_swipes ?? 5;
 
     if (body.decision === 'LIKE' && limit !== -1) {
       if (mockSubscription.dailyApplicationsUsed >= limit) {
@@ -255,7 +257,7 @@ const mockResponse = (method, path, body) => {
 
   if (path === '/swipes/quota' && method === 'GET') {
     const plan = mockSubscription.plan;
-    const limit = PLAN_LIMITS[plan]?.daily_applications ?? 5;
+    const limit = PLAN_LIMITS[plan]?.daily_swipes ?? 5;
     const used = mockSubscription.dailyApplicationsUsed;
     return {
       plan,

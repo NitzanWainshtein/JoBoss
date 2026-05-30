@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 
 
 REGION = os.getenv("AWS_REGION", "us-east-1")
-MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0")
+MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-20250514-v1:0")
 AI_MODE = os.getenv("AI_MODE", "auto")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
 JOBS_TABLE = os.getenv("JOBS_TABLE", "joboss-jobs")
@@ -207,19 +207,12 @@ EXPERIENCE
 """.strip()
 
 
-def invoke_bedrock_nova(prompt):
+def invoke_bedrock_claude(messages, max_tokens=2000):
     body = {
-        "messages": [
-            {
-                "role": "user",
-                "content": [{"text": prompt}],
-            }
-        ],
-        "inferenceConfig": {
-            "maxTokens": 900,
-            "temperature": 0.4,
-            "topP": 0.9,
-        },
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": 0.4,
+        "messages": messages,
     }
 
     result = bedrock.invoke_model(
@@ -230,7 +223,24 @@ def invoke_bedrock_nova(prompt):
     )
 
     result_body = json.loads(result["body"].read())
-    return result_body["output"]["message"]["content"][0]["text"]
+    return result_body["content"][0]["text"]
+
+
+def invoke_bedrock_nova(prompt):
+    return invoke_bedrock_claude([
+        {"role": "user", "content": [{"type": "text", "text": prompt}]}
+    ])
+
+
+def read_resume_bytes(resume):
+    bucket, key = parse_s3_url(resume.get("url") or resume.get("resumeUrl"))
+    if not bucket or not key:
+        return None
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        return obj["Body"].read()
+    except Exception:
+        return None
 
 
 def build_mock_tailored_resume(user, job, resume_text):
@@ -324,16 +334,46 @@ def format_resume_bullets(lines, fallback):
     return "\n".join(f"- {line[:190]}" for line in selected)
 
 
-def generate_tailored_resume(user, job, resume_text):
+def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
     job_description = build_job_description(job)
-    prompt = build_prompt(resume_text, job_description)
 
     if AI_MODE.lower() == "mock":
         return build_mock_tailored_resume(user, job, resume_text), "mock"
 
     try:
-        return invoke_bedrock_nova(prompt), "bedrock"
-    except Exception:
+        if pdf_bytes and len(pdf_bytes) > 100:
+            pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "application/pdf",
+                                "data": pdf_b64,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                f"Tailor this resume for the following job. "
+                                f"Preserve the original structure and all factual information. "
+                                f"Emphasize relevant skills and experience. "
+                                f"Return clean resume-ready text only.\n\n"
+                                f"Job:\n{job_description}"
+                            ),
+                        },
+                    ],
+                }
+            ]
+            return invoke_bedrock_claude(messages, max_tokens=2000), "bedrock-pdf"
+        else:
+            prompt = build_prompt(resume_text, job_description)
+            return invoke_bedrock_nova(prompt), "bedrock"
+    except Exception as e:
+        print(f"[AI_ERROR] {type(e).__name__}: {e}")
         return build_mock_tailored_resume(user, job, resume_text), "mock"
 
 
@@ -538,8 +578,9 @@ def lambda_handler(event, context):
         if not resume:
             return response(404, {"error": "Resume was not found"})
 
+        pdf_bytes = None if provided_resume_text else read_resume_bytes(resume)
         resume_text = provided_resume_text or read_resume_text(resume)
-        tailored_text, mode = generate_tailored_resume(user, job, resume_text)
+        tailored_text, mode = generate_tailored_resume(user, job, resume_text, pdf_bytes=pdf_bytes)
         saved_resume = save_tailored_resume(user_id, job_id, tailored_text)
 
         try:

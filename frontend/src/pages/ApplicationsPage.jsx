@@ -128,128 +128,173 @@ function CVRenderer({ text }) {
   return <div style={{ fontFamily: 'Arial, sans-serif', direction: 'ltr', textAlign: 'left' }}>{elements}</div>;
 }
 
-async function printCV(text, company, jobTitle) {
-  const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margin = 40;
-  const maxW = pageW - margin * 2;
-  const lh = 14;
-  let y = margin;
-
-  const addPage = () => { doc.addPage(); y = margin; };
-  const checkY = (needed = lh) => { if (y + needed > pageH - margin) addPage(); };
-
-  const writeLine = (txt, opts = {}) => {
-    const { size = 10, bold = false, color = [55, 65, 81], indent = 0 } = opts;
-    doc.setFontSize(size);
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.setTextColor(...color);
-    const wrapped = doc.splitTextToSize(txt, maxW - indent);
-    wrapped.forEach(wl => { checkY(); doc.text(wl, margin + indent, y); y += lh; });
-  };
-
-  const SECTION_KW = /^(SUMMARY|EDUCATION|EXPERIENCE|PROJECTS|SKILLS|TECHNICAL|PROFESSIONAL|CONTACT|OBJECTIVE)/i;
-  const isContact = (t) => /^\+?\d[\d\s\-()]{5,}/.test(t) || /@\w+\.\w+/.test(t) || (/^[A-Za-z][^,]{1,20},\s*[A-Za-z]/.test(t) && t.length < 50);
-  const contactPrefix = (t) => /@/.test(t) ? '' : /^\+?\d/.test(t) ? '' : '';
-
+function buildCVHtml(text) {
   const lines = (text || '').split('\n');
+  let html = '';
+  let inList = false;
   let contactBuf = [];
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const SECTION_KW = /^(SUMMARY|EDUCATION|EXPERIENCE|PROJECTS|SKILLS|TECHNICAL|PROFESSIONAL|CONTACT|OBJECTIVE)/i;
+  const isContact = t => /^\+?\d[\d\s\-()]{5,}/.test(t) || /@\w+\.\w+/.test(t) || (/^[A-Za-z][^,]{1,20},\s*[A-Za-z]/.test(t) && t.length < 50);
+  const contactEmoji = t => /@/.test(t) ? '✉️' : /^\+?\d/.test(t) ? '📞' : '📍';
 
   const flushContact = () => {
     if (!contactBuf.length) return;
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
-    const parts = contactBuf.flatMap(c => {
-      if (/\|/.test(c)) return c.split('|').map(p => p.trim()).filter(Boolean);
-      return [c];
-    });
-    const joined = parts.join('   |   ');
-    const wrapped = doc.splitTextToSize(joined, maxW);
-    wrapped.forEach(wl => { checkY(); doc.text(wl, margin, y); y += 12; });
-    y += 3;
+    const parts = contactBuf.flatMap(c => /\|/.test(c) ? c.split('|').map(p => p.trim()).filter(Boolean) : [c]);
+    html += `<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:#555;margin:3px 0 8px;">${parts.map(c => `<span>${contactEmoji(c)} ${esc(c)}</span>`).join('')}</div>`;
     contactBuf = [];
   };
 
   lines.forEach(line => {
-    if (line.trim() === '---') { flushContact(); return; }
-
+    if (line.trim() === '---') { if (inList) { html += '</ul>'; inList = false; } flushContact(); return; }
     if (line.startsWith('# ')) {
-      flushContact();
-      checkY(30);
-      doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-      doc.text(line.slice(2), margin, y); y += 22;
-
+      if (inList) { html += '</ul>'; inList = false; } flushContact();
+      html += `<h1 style="font-size:22px;font-weight:900;color:#1E2A4A;margin:0 0 2px;letter-spacing:0.5px;">${esc(line.slice(2))}</h1>`;
     } else if (line.startsWith('## ')) {
-      flushContact();
+      if (inList) { html += '</ul>'; inList = false; } flushContact();
       const title = line.slice(3).trim();
       if (SECTION_KW.test(title)) {
-        checkY(18); y += 6;
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-        doc.text(title.toUpperCase(), margin, y);
-        doc.setDrawColor(108, 79, 212); doc.setLineWidth(1.2);
-        doc.line(margin, y + 2, pageW - margin, y + 2);
-        y += 13;
+        html += `<div style="margin-top:12px;margin-bottom:4px;border-bottom:1.5px solid #6C4FD4;padding-bottom:2px;"><h2 style="font-size:9.5px;font-weight:800;color:#1E2A4A;margin:0;letter-spacing:1.5px;text-transform:uppercase;">${esc(title)}</h2></div>`;
       } else {
-        writeLine(title, { size: 11, bold: false, color: [100, 100, 100] });
+        html += `<p style="font-size:12px;font-style:italic;color:#555;margin:2px 0 3px;">${esc(title)}</p>`;
       }
-
     } else if (line.startsWith('- ')) {
-      flushContact();
+      if (!inList) { html += '<ul style="margin:3px 0 5px 14px;padding:0;">'; inList = true; }
       const content = line.slice(2);
-      const boldMatch = content.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
-      if (boldMatch) {
-        const label = boldMatch[1].replace(/:$/, '') + ': ';
-        checkY();
-        doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-        doc.text('•', margin + 4, y);
-        doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-        const lw = doc.getTextWidth(label);
-        doc.text(label, margin + 12, y);
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-        const rest = doc.splitTextToSize(boldMatch[2], maxW - 12 - lw);
-        doc.text(rest[0] || '', margin + 12 + lw, y); y += lh;
-        rest.slice(1).forEach(r => { checkY(); doc.text(r, margin + 12 + lw, y); y += lh; });
-      } else {
-        writeLine('• ' + content, { indent: 8 });
-      }
-
-    } else if (line.trim() === '') {
-      flushContact(); y += 2;
-
-    } else if (isContact(line.trim())) {
-      contactBuf.push(line.trim());
-
-    } else if (/^\*\*[^*]+:?\*\*:?\s+\S/.test(line)) {
-      flushContact();
-      const m = line.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
+      const m = content.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
       if (m) {
-        const label = m[1].replace(/:$/, '') + ': ';
-        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-        const lw = doc.getTextWidth(label);
-        checkY();
-        doc.text(label, margin, y);
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-        const rest = doc.splitTextToSize(m[2], maxW - lw);
-        doc.text(rest[0] || '', margin + lw, y); y += lh;
-        rest.slice(1).forEach(r => { checkY(); doc.text(r, margin + lw, y); y += lh; });
+        const label = m[1].replace(/:$/, '');
+        html += `<li style="font-size:11px;color:#374151;line-height:1.45;margin-bottom:1px;"><strong style="color:#1E2A4A;">${esc(label)}:</strong> ${esc(m[2])}</li>`;
+      } else if (/github\.com/.test(content)) {
+        html += `<li style="font-size:11px;color:#374151;line-height:1.45;">🔗 <a href="${esc(content.trim())}" style="color:#6C4FD4;">${esc(content.trim())}</a></li>`;
+      } else {
+        html += `<li style="font-size:11px;color:#374151;line-height:1.45;margin-bottom:1px;">${esc(content)}</li>`;
       }
-
+    } else if (line.trim() === '') {
+      if (inList) { html += '</ul>'; inList = false; } flushContact();
+    } else if (isContact(line.trim())) {
+      if (inList) { html += '</ul>'; inList = false; }
+      contactBuf.push(line.trim());
+    } else if (/^\*\*[^*]+:?\*\*:?\s+\S/.test(line)) {
+      if (inList) { html += '</ul>'; inList = false; } flushContact();
+      const m = line.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
+      if (m) html += `<p style="font-size:11px;margin:2px 0;color:#374151;"><strong style="color:#1E2A4A;">${esc(m[1].replace(/:$/,''))}:</strong> ${esc(m[2])}</p>`;
     } else if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
-      flushContact();
-      writeLine(line.replace(/\*\*/g, ''), { size: 11, bold: true, color: [30, 42, 74] });
-      y -= 2;
-
+      if (inList) { html += '</ul>'; inList = false; } flushContact();
+      html += `<p style="font-weight:700;font-size:12.5px;color:#1E2A4A;margin:6px 0 1px;">${esc(line.replace(/\*\*/g,''))}</p>`;
     } else if (line.trim()) {
-      flushContact();
-      writeLine(line);
+      if (inList) { html += '</ul>'; inList = false; } flushContact();
+      html += `<p style="font-size:11px;color:#374151;margin:2px 0;line-height:1.45;">${esc(line)}</p>`;
     }
   });
-  flushContact();
+  if (inList) html += '</ul>'; flushContact();
+  return html;
+}
 
-  const filename = `CV-${company}-${jobTitle}.pdf`.replace(/[\\/:*?"<>|]/g, '-');
-  doc.save(filename);
+async function downloadCVAsPdf(text, company, jobTitle) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const m = 38;
+  const maxW = W - m * 2;
+  const lh = 12.5;
+  let y = m;
+
+  const newPage = () => { doc.addPage(); y = m; };
+  const chk = (n = lh) => { if (y + n > H - m) newPage(); };
+  const txt = (s, x, size, bold, r, g, b) => {
+    doc.setFontSize(size); doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setTextColor(r, g, b);
+    const lines = doc.splitTextToSize(String(s), maxW - (x - m));
+    lines.forEach(l => { chk(); doc.text(l, x, y); y += lh; });
+  };
+
+  const SECTION = /^(SUMMARY|EDUCATION|EXPERIENCE|PROJECTS|SKILLS|TECHNICAL|PROFESSIONAL|CONTACT|OBJECTIVE)/i;
+  const isContact = t => /^\+?\d[\d\s\-()]{5,}/.test(t) || /@\w+/.test(t) || (/^[A-Za-z][^,]{1,20},\s*[A-Za-z]/.test(t) && t.length < 50);
+  const lines = (text || '').split('\n');
+  let cBuf = [];
+
+  const flushC = () => {
+    if (!cBuf.length) return;
+    const parts = cBuf.flatMap(c => /\|/.test(c) ? c.split('|').map(p => p.trim()).filter(Boolean) : [c]);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(90, 90, 90);
+    chk(12);
+    doc.text(parts.join('  ·  '), m, y); y += 14;
+    cBuf = [];
+  };
+
+  lines.forEach(line => {
+    if (line.trim() === '---') { flushC(); return; }
+    if (line.startsWith('# ')) {
+      flushC(); chk(24);
+      doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+      doc.text(line.slice(2), m, y); y += 20;
+    } else if (line.startsWith('## ')) {
+      flushC();
+      const t = line.slice(3).trim();
+      if (SECTION.test(t)) {
+        chk(16); y += 5;
+        doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+        doc.text(t.toUpperCase(), m, y);
+        doc.setDrawColor(108, 79, 212); doc.setLineWidth(1.1);
+        doc.line(m, y + 2, W - m, y + 2); y += 11;
+      } else {
+        chk(); doc.setFontSize(11.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(90, 90, 90);
+        doc.text(t, m, y); y += lh;
+      }
+    } else if (line.startsWith('- ')) {
+      flushC();
+      const content = line.slice(2);
+      const bold = content.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
+      if (bold) {
+        const label = bold[1].replace(/:$/, '') + ': ';
+        chk();
+        doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60);
+        doc.text('•', m + 3, y);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+        const lw = doc.getTextWidth(label);
+        doc.text(label, m + 11, y);
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
+        const rest = doc.splitTextToSize(bold[2], maxW - 11 - lw);
+        doc.text(rest[0] || '', m + 11 + lw, y); y += lh;
+        rest.slice(1).forEach(r => { chk(); doc.text(r, m + 11 + lw, y); y += lh; });
+      } else {
+        chk(); doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
+        doc.text('•', m + 3, y);
+        const rest = doc.splitTextToSize(content, maxW - 11);
+        rest.forEach((r, i) => { if (i > 0) chk(); doc.text(r, m + 11, y); y += lh; });
+      }
+    } else if (line.trim() === '') {
+      flushC(); y += 1;
+    } else if (isContact(line.trim())) {
+      cBuf.push(line.trim());
+    } else if (/^\*\*[^*]+:?\*\*:?\s+\S/.test(line)) {
+      flushC();
+      const mo = line.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
+      if (mo) {
+        const label = mo[1].replace(/:$/, '') + ': ';
+        chk(); doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+        const lw = doc.getTextWidth(label);
+        doc.text(label, m, y);
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
+        const rest = doc.splitTextToSize(mo[2], maxW - lw);
+        doc.text(rest[0] || '', m + lw, y); y += lh;
+        rest.slice(1).forEach(r => { chk(); doc.text(r, m + lw, y); y += lh; });
+      }
+    } else if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
+      flushC(); chk();
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+      doc.text(line.replace(/\*\*/g, ''), m, y); y += lh;
+    } else if (line.trim()) {
+      flushC(); chk();
+      doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
+      const rest = doc.splitTextToSize(line, maxW);
+      rest.forEach(r => { chk(); doc.text(r, m, y); y += lh; });
+    }
+  });
+  flushC();
+
+  doc.save(`CV-${company}-${jobTitle}.pdf`.replace(/[\\/:*?"<>|]/g, '-'));
 }
 
 function ApplicationsPage() {
@@ -495,7 +540,7 @@ function ApplicationsPage() {
                           <button
                             type="button"
                             style={styles.tailoredButton}
-                            onClick={() => printCV(app.tailoredResume, app.company, app.title)}
+                            onClick={() => downloadCVAsPdf(app.tailoredResume, app.company, app.title)}
                           >
                             🖨️ הורד PDF
                           </button>
@@ -553,15 +598,7 @@ function ApplicationsPage() {
             <button
               type="button"
               style={styles.downloadPreview}
-              onClick={async () => {
-                if (!cvPreviewRef.current) return;
-                const { default: html2pdf } = await import('html2pdf.js');
-                const filename = `CV-${previewApplication.company}-${previewApplication.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-');
-                html2pdf()
-                  .set({ margin: 10, filename, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4' } })
-                  .from(cvPreviewRef.current)
-                  .save();
-              }}
+              onClick={() => downloadCVAsPdf(previewApplication.tailoredResume, previewApplication.company, previewApplication.title)}
             >
               🖨️ הורד כ-PDF
             </button>

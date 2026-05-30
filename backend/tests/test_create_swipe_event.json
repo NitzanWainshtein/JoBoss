@@ -1,0 +1,6 @@
+{
+  "httpMethod": "POST",
+  "pathParameters": null,
+  "queryStringParameters": null,
+  "body": "{\"userId\":\"user-001\",\"jobId\":\"job-001\",\"decision\":\"LIKE\"}"
+}

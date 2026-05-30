@@ -73,6 +73,7 @@ def normalize_user(user):
     user.setdefault("plan", "FREE")
     user.setdefault("role", "USER")
     user.setdefault("autoApply", False)
+    user.setdefault("autoTailorCV", False)
     user.setdefault("resumeUrl", None)
     user.setdefault("resumes", [])
     user.setdefault("onboardingCompleted", False)
@@ -143,6 +144,7 @@ def build_updated_user_from_body(existing_user, body):
         "plan",
         "role",
         "autoApply",
+        "autoTailorCV",
         "onboardingCompleted",
         "preferredRoles",
         "availability",

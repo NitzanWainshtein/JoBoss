@@ -14,6 +14,7 @@ MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0")
 AI_MODE = os.getenv("AI_MODE", "auto")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
 JOBS_TABLE = os.getenv("JOBS_TABLE", "joboss-jobs")
+APPLICATIONS_TABLE = os.getenv("APPLICATIONS_TABLE", "joboss-applications")
 RESUME_BUCKET = os.getenv("RESUME_BUCKET_NAME", "joboss-resumes-171109860478")
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
@@ -22,6 +23,7 @@ bedrock = boto3.client("bedrock-runtime", region_name=REGION)
 
 users_table = dynamodb.Table(USERS_TABLE)
 jobs_table = dynamodb.Table(JOBS_TABLE)
+applications_table = dynamodb.Table(APPLICATIONS_TABLE)
 
 
 def decimal_to_native(obj):
@@ -539,6 +541,19 @@ def lambda_handler(event, context):
         resume_text = provided_resume_text or read_resume_text(resume)
         tailored_text, mode = generate_tailored_resume(user, job, resume_text)
         saved_resume = save_tailored_resume(user_id, job_id, tailored_text)
+
+        try:
+            applications_table.update_item(
+                Key={"userId": user_id, "jobId": job_id},
+                UpdateExpression="SET tailoredResumeUrl = :url, tailoredResume = :text, tailoredAt = :at",
+                ExpressionAttributeValues={
+                    ":url": saved_resume["tailoredResumeUrl"],
+                    ":text": tailored_text[:5000],
+                    ":at": saved_resume["createdAt"],
+                },
+            )
+        except Exception:
+            pass
 
         return response(200, {
             "message": "Tailored resume generated",

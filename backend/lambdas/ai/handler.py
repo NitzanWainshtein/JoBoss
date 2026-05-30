@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 
 
 REGION = os.getenv("AWS_REGION", "us-east-1")
-MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-20250514-v1:0")
+MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
 AI_MODE = os.getenv("AI_MODE", "auto")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
 JOBS_TABLE = os.getenv("JOBS_TABLE", "joboss-jobs")

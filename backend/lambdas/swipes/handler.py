@@ -24,11 +24,21 @@ CORS = {
     "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
 }
 
-PLAN_LIMITS = {
-    "FREE":         {"daily_applications": 5},
-    "PREMIUM":      {"daily_applications": -1},
-    "PREMIUM_PLUS": {"daily_applications": -1},
+# ── Single source of truth for per-tier daily limits ─────────────────────────
+# daily_swipes  → max counted swipes per day; -1 = unlimited.
+# daily_applies → kept for parity with the subscriptions service; -1 = unlimited.
+# ai_tailoring  → whether AI CV tailoring is available on the tier.
+# NOTE: only LIKE swipes (applications) are metered — PASS/left-swipes are never
+# counted, so the daily reset is implicit via the today-window count below.
+TIER_LIMITS = {
+    "FREE":         {"daily_swipes": 5,   "daily_applies": 5,  "ai_tailoring": False},
+    "PREMIUM":      {"daily_swipes": 30,  "daily_applies": -1, "ai_tailoring": True},
+    "PREMIUM_PLUS": {"daily_swipes": -1,  "daily_applies": -1, "ai_tailoring": True},
 }
+
+
+def get_swipe_limit(plan):
+    return TIER_LIMITS.get(plan, TIER_LIMITS["FREE"])["daily_swipes"]
 
 
 def resp(status, body):
@@ -53,16 +63,22 @@ def get_effective_plan(user_id):
         result = subs_table.get_item(Key={"userId": user_id})
         sub = result.get("Item")
         if not sub:
+            print(f"PLAN LOOKUP: no subscription record for userId={user_id} → FREE")
             return "FREE"
         status = sub.get("status", "EXPIRED")
+        plan = sub.get("plan", "FREE")
+        print(f"PLAN LOOKUP: userId={user_id}, status={status}, plan={plan}")
         if status in ("ACTIVE", "TRIAL"):
             if status == "TRIAL":
                 trial_end = int(sub.get("trialEndAt", 0))
                 if datetime.now(timezone.utc).timestamp() > trial_end:
+                    print(f"PLAN LOOKUP: trial expired for userId={user_id} → FREE")
                     return "FREE"
-            return sub.get("plan", "FREE")
+            return plan
+        print(f"PLAN LOOKUP: inactive status={status} for userId={user_id} → FREE")
         return "FREE"
-    except Exception:
+    except Exception as e:
+        print(f"PLAN LOOKUP ERROR: userId={user_id}, error={e}")
         return "FREE"
 
 
@@ -106,13 +122,14 @@ def create_swipe(event):
 
     if decision == "LIKE":
         plan = get_effective_plan(user_id)
-        daily_limit = PLAN_LIMITS.get(plan, {}).get("daily_applications", 5)
+        daily_limit = get_swipe_limit(plan)
+        print(f"SWIPE CHECK: userId={user_id}, resolved_plan={plan}, daily_limit={daily_limit}")
 
         if daily_limit != -1:
             count = count_today_applications(user_id)
             if count >= daily_limit:
                 return resp(429, {
-                    "message": "Daily application limit reached",
+                    "message": "Daily swipe limit reached",
                     "code": "LIMIT_REACHED",
                     "plan": plan,
                     "limit": daily_limit,
@@ -141,12 +158,13 @@ def create_swipe(event):
     swipes_table.put_item(Item=swipe_item)
 
     plan = get_effective_plan(user_id)
-    daily_limit = PLAN_LIMITS.get(plan, {}).get("daily_applications", 5)
+    daily_limit = get_swipe_limit(plan)
     if daily_limit == -1:
+        used_after = 0
         remaining = -1
     else:
-        used = count_today_applications(user_id)
-        remaining = max(0, daily_limit - used)
+        used_after = count_today_applications(user_id)
+        remaining = max(0, daily_limit - used_after)
 
     return resp(201, {
         "message": "Swipe recorded",
@@ -154,6 +172,7 @@ def create_swipe(event):
         "quota": {
             "plan": plan,
             "limit": daily_limit,
+            "used": used_after,
             "remaining": remaining,
             "unlimited": daily_limit == -1,
             "resetAt": get_reset_time() if daily_limit != -1 else None,
@@ -196,7 +215,7 @@ def get_quota_status(event):
         return resp(401, {"message": "Unauthorized"})
 
     plan = get_effective_plan(user_id)
-    daily_limit = PLAN_LIMITS.get(plan, {}).get("daily_applications", 5)
+    daily_limit = get_swipe_limit(plan)
 
     if daily_limit == -1:
         return resp(200, {

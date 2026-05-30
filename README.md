@@ -113,6 +113,37 @@ pip install -r requirements.txt
 
 ---
 
+## ⚠️ Before testing: deploy the Lambdas
+
+**The single most common source of "impossible" bugs in this project is editing a
+Lambda's source locally and forgetting to deploy it.** Tests pass on direct
+invoke, the code looks correct, and the bug appears unfixable — because AWS is
+still running the old code.
+
+**Always run the master deployer before any testing/debugging session:**
+
+```bash
+python .tmp_lambda/deploy_all.py
+```
+
+This pushes the latest local source for every Lambda to AWS and verifies that
+the deployed handler bytes match the local file. To deploy only specific
+functions, pass name fragments:
+
+```bash
+python .tmp_lambda/deploy_all.py jobs users   # only joboss-jobs and joboss-users
+```
+
+Notes:
+- It is **safe to run repeatedly** — it refuses to overwrite a function whose
+  deployed package contains bundled dependencies (e.g. `stripe`, `telethon`)
+  with a code-only zip, so it can never wipe dependencies.
+- `joboss-jobs-importer` is skipped automatically (it bundles `telethon`, which
+  needs Linux wheels built separately).
+- To check what's stale without deploying, run `python .tmp_lambda/audit_lambdas.py`.
+
+---
+
 ## Deployment Notes
 
 Infrastructure automation scripts are available under `infrastructure/` to help provision or update:

@@ -118,9 +118,12 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
 
 // ── Quota counter bar ────────────────────────────────────────────────────────
 function QuotaBar({ quota, onUpgradeClick }) {
+  // PREMIUM_PLUS is unlimited — no counter needed.
+  // FREE and PREMIUM both have a finite daily limit: show the bar for both.
   if (!quota || quota.unlimited) return null;
 
-  const pct = Math.min(100, Math.round((quota.used / quota.limit) * 100));
+  const plan = quota.plan || 'FREE';
+  const pct = Math.min(100, Math.round(((quota.used ?? 0) / quota.limit) * 100));
   const color = pct >= 100 ? '#F44336' : pct >= 80 ? '#FF9800' : '#4CAF50';
 
   return (
@@ -131,9 +134,14 @@ function QuotaBar({ quota, onUpgradeClick }) {
     >
       <div style={styles.quotaBarTop}>
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#555' }}>
-          {quota.remaining === 0 ? '🔒 הגעת למגבלה' : `📨 ${quota.remaining} הגשות נותרו היום`}
+          {quota.remaining === 0
+            ? '🔒 הגעת למגבלה'
+            : `📨 ${quota.used ?? 0} / ${quota.limit} החלקות היום`}
         </span>
-        <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
+        {/* Upgrade button only for FREE users — Premium users are already paying */}
+        {plan === 'FREE' && (
+          <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
+        )}
       </div>
       <div style={styles.quotaBarBg}>
         <motion.div
@@ -216,7 +224,12 @@ function SwipePage() {
     const loadSwipes = async () => {
       try {
         const data = await getMySwipes();
-        setSwipedJobs(new Set((data.swipes || []).map(s => s.jobId)));
+        const swipes = data.swipes || [];
+        setSwipedJobs(new Set(swipes.map(s => s.jobId)));
+        // Seed the "applied" counter from persisted LIKE swipes so it reflects
+        // past right-swipes (not just the current session). It then keeps
+        // incrementing/decrementing via handleSwipe/handleUndo.
+        setSwipedRight(swipes.filter(s => s.decision === 'LIKE').length);
       } catch {}
     };
     loadSwipes();
@@ -348,6 +361,24 @@ function SwipePage() {
     </div>
   );
 
+  // Upgrade prompt overlaid on top of the (blurred) cards when the daily limit
+  // is reached. Shared between the "jobs remaining" and "feed exhausted" cases.
+  const lockedOverlay = (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      style={styles.lockedOverlay}
+      onClick={() => setLimitModal(true)}
+    >
+      <div style={styles.lockedContent}>
+        <span style={{ fontSize: '40px' }}>🔒</span>
+        <p style={styles.lockedTitle}>הגעת למגבלה היומית</p>
+        <p style={styles.lockedSub}>שדרג כדי להמשיך</p>
+        <button style={styles.lockedBtn}>שדרג עכשיו ⭐</button>
+      </div>
+    </motion.div>
+  );
+
   return (
     <div style={styles.container}>
       {/* Quota bar */}
@@ -361,19 +392,7 @@ function SwipePage() {
       )}
 
       <div style={styles.cardContainer}>
-        {filteredJobs.length === 0 ? (
-          <motion.div style={styles.emptyState} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
-            <motion.p style={{ fontSize: '80px', margin: 0 }} animate={{ rotate: [0, 10, -10, 10, 0] }} transition={{ duration: 1, delay: 0.3 }}>🎉</motion.p>
-            <p style={styles.emptyTitle}>סיימת את כל המשרות!</p>
-            <p style={styles.emptySubtitle}>חזור מחר למשרות חדשות</p>
-            <div style={styles.emptyStats}>
-              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{totalJobs}</p><p style={styles.emptyStatLabel}>נסקרו</p></div>
-              <div style={styles.emptyStatDivider} />
-              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{swipedRight}</p><p style={styles.emptyStatLabel}>הוגשו</p></div>
-            </div>
-            <motion.button style={styles.emptyBtn} whileHover={{ scale: 1.05 }} onClick={() => navigate('/applications')}>📋 ראה הגשות</motion.button>
-          </motion.div>
-        ) : (
+        {filteredJobs.length > 0 ? (
           <>
             {/* Next card preview */}
             {nextJob && (
@@ -396,23 +415,41 @@ function SwipePage() {
               />
             </AnimatePresence>
 
-            {/* Locked overlay */}
-            {isLocked && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={styles.lockedOverlay}
-                onClick={() => setLimitModal(true)}
-              >
-                <div style={styles.lockedContent}>
-                  <span style={{ fontSize: '40px' }}>🔒</span>
-                  <p style={styles.lockedTitle}>הגעת למגבלה היומית</p>
-                  <p style={styles.lockedSub}>שדרג כדי להמשיך</p>
-                  <button style={styles.lockedBtn}>שדרג עכשיו ⭐</button>
-                </div>
-              </motion.div>
-            )}
+            {/* Locked overlay (limit reached, jobs still in feed = blurred teaser) */}
+            {isLocked && lockedOverlay}
           </>
+        ) : isLocked ? (
+          // Daily limit reached AND the visible feed is exhausted: still show the
+          // limit UI (blurred placeholder teaser + upgrade overlay), NOT the
+          // "all done" empty state.
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ ...styles.card, filter: 'blur(5px)', opacity: 0.5, pointerEvents: 'none' }}
+            >
+              <div style={styles.cardHeader}>
+                <div style={{ ...styles.logo_placeholder }}>★</div>
+                <div><h2 style={styles.company}>משרה נוספת</h2><p style={styles.location}>📍  זמין אחרי שדרוג</p></div>
+              </div>
+              <h3 style={styles.title}>משרה מחכה לך</h3>
+              <p style={styles.salary}>💰 ———</p>
+            </motion.div>
+            {lockedOverlay}
+          </>
+        ) : (
+          // Genuinely out of jobs and NOT blocked — the "all done" celebration.
+          <motion.div style={styles.emptyState} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
+            <motion.p style={{ fontSize: '80px', margin: 0 }} animate={{ rotate: [0, 10, -10, 10, 0] }} transition={{ duration: 1, delay: 0.3 }}>🎉</motion.p>
+            <p style={styles.emptyTitle}>סיימת את כל המשרות!</p>
+            <p style={styles.emptySubtitle}>חזור מחר למשרות חדשות</p>
+            <div style={styles.emptyStats}>
+              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{totalJobs}</p><p style={styles.emptyStatLabel}>נסקרו</p></div>
+              <div style={styles.emptyStatDivider} />
+              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{swipedRight}</p><p style={styles.emptyStatLabel}>הוגשו</p></div>
+            </div>
+            <motion.button style={styles.emptyBtn} whileHover={{ scale: 1.05 }} onClick={() => navigate('/applications')}>📋 ראה הגשות</motion.button>
+          </motion.div>
         )}
       </div>
 
@@ -439,16 +476,30 @@ function SwipePage() {
       )}
 
       {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
-        <>
-          <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
-            {lastSwipe.direction === 'right'
-              ? autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
-              : `👋 דולגה — ${lastSwipe.job.company}`}
-          </motion.p>
-          <motion.button style={styles.undoBtn} whileHover={{ scale: 1.05 }} onClick={handleUndo} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            ↩️ Undo
-          </motion.button>
-        </>
+        <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
+          {lastSwipe.direction === 'right'
+            ? autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
+            : `👋 דולגה — ${lastSwipe.job.company}`}
+        </motion.p>
+      )}
+
+      {/* Undo button — fixed at bottom of screen, above navbar, never hidden behind cards.
+          Only shown when there is a previous swipe to undo. */}
+      {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
+        <motion.button
+          style={styles.undoBtn}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleUndo}
+          aria-label="בטל את ה-Swipe האחרון"
+          title="בטל"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <span style={{ fontSize: '20px', lineHeight: 1 }}>↩</span>
+          <span>Undo</span>
+        </motion.button>
       )}
 
       {/* Limit modal */}
@@ -457,6 +508,7 @@ function SwipePage() {
         resetAt={quota?.resetAt}
         used={quota?.used || 0}
         limit={quota?.limit || 5}
+        plan={quota?.plan || 'FREE'}
         onClose={() => setLimitModal(false)}
       />
 
@@ -503,7 +555,7 @@ const styles = {
   rejectBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #F44336', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#F44336' },
   acceptBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #4CAF50', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#4CAF50' },
   unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '24px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700 },
-  undoBtn: { position: 'absolute', bottom: '120px', left: '50%', transform: 'translateX(-50%)', padding: '10px 24px', background: '#FF9800', color: 'white', border: 'none', borderRadius: '24px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 },
+  undoBtn: { position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minWidth: '44px', minHeight: '44px', padding: '12px 28px', background: '#FF9800', color: 'white', border: 'none', borderRadius: '28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '24px' },
   emptyTitle: { fontSize: '24px', fontWeight: 800, margin: 0 },

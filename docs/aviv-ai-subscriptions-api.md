@@ -49,9 +49,12 @@ limitResetAt
 
 Plan limits:
 
+Daily swipe limits (counted on LIKE swipes only; see `TIER_LIMITS`):
+
 ```text
-FREE: 5 applications per day
-PREMIUM: 50 applications per day
+FREE:         5 swipes per day
+PREMIUM:      30 swipes per day
+PREMIUM_PLUS: unlimited
 ```
 
 The Lambda resolves the user identity in this order:

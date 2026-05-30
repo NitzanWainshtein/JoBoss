@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-function LimitModal({ visible, resetAt, used, limit, onClose }) {
+function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose }) {
   const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState('');
 
@@ -48,9 +48,13 @@ function LimitModal({ visible, resetAt, used, limit, onClose }) {
               <span style={styles.icon}>🔒</span>
             </div>
 
-            <h2 style={styles.title}>הגעת למגבלת הגשות</h2>
+            <h2 style={styles.title}>הגעת למגבלת ההחלקות היומית</h2>
             <p style={styles.sub}>
-              השתמשת ב-<strong>{used}</strong> מתוך <strong>{limit}</strong> הגשות חינמיות שלך להיום.
+              {plan === 'FREE' ? (
+                <>השתמשת ב-<strong>{used}</strong> מתוך <strong>{limit}</strong> ההחלקות החינמיות שלך להיום.</>
+              ) : (
+                <>השתמשת בכל <strong>{limit}</strong> ההחלקות היומיות שלך במסלול פרימיום.</>
+              )}
             </p>
 
             <div style={styles.countdownBox}>
@@ -63,7 +67,7 @@ function LimitModal({ visible, resetAt, used, limit, onClose }) {
                 name="פרימיום"
                 price="₪36"
                 perMonth="לחודש"
-                features={['הגשות ללא הגבלה', '10 התאמות AI לחודש', 'Auto Apply']}
+                features={['30 החלקות ביום', '10 התאמות AI לחודש', 'Auto Apply']}
                 color="#6C4FD4"
                 onClick={() => { onClose(); navigate('/profile?tab=subscription'); }}
               />
@@ -71,7 +75,7 @@ function LimitModal({ visible, resetAt, used, limit, onClose }) {
                 name="פרימיום+"
                 price="₪72"
                 perMonth="לחודש"
-                features={['הגשות ללא הגבלה', 'AI ללא הגבלה', 'Priority Matching', 'Analytics מתקדם']}
+                features={['החלקות ללא הגבלה', 'AI ללא הגבלה', 'Priority Matching', 'Analytics מתקדם']}
                 color="#FF6B6B"
                 highlight
                 onClick={() => { onClose(); navigate('/profile?tab=subscription'); }}

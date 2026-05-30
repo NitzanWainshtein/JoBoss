@@ -154,6 +154,10 @@ export const analyzeCV = async (resumeUrl) => {
   return apiCall('POST', '/ai/analyze-cv', { resumeUrl });
 };
 
+export const tailorCVForJob = async (jobId) => {
+  return apiCall('POST', '/ai/tailor', { jobId });
+};
+
 // ===== MOCK =====
 
 // Mock subscription state

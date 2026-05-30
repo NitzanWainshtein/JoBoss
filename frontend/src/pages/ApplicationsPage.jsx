@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getMyApplications, updateApplication, tailorCVForJob } from '../api';
 import Spinner from '../components/Spinner';
 
@@ -24,6 +24,234 @@ const FILTERS = [
 
 const STATUS_ACTIONS = ['SUBMITTED', 'REVIEWED', 'INTERVIEW', 'ACCEPTED', 'REJECTED'];
 
+const CONTACT_PATTERNS = {
+  phone: /^\+?\d[\d\s\-()]{5,}/,
+  email: /@\w+\.\w+/,
+  location: /^[A-Za-z-￿].*,\s*[A-Za-z-￿]/,
+};
+
+function contactIcon(line) {
+  const t = line.trim();
+  if (CONTACT_PATTERNS.phone.test(t)) return '📞';
+  if (CONTACT_PATTERNS.email.test(t)) return '✉️';
+  if (CONTACT_PATTERNS.location.test(t)) return '📍';
+  return null;
+}
+
+function CVRenderer({ text }) {
+  const lines = (text || '').split('\n');
+  const elements = [];
+  let bulletBuffer = [];
+  let contactBuffer = [];
+
+  const flushBullets = (key) => {
+    if (!bulletBuffer.length) return;
+    elements.push(
+      <ul key={`ul-${key}`} style={{ margin: '4px 0 8px 16px', padding: 0 }}>
+        {bulletBuffer.map((b, bi) => (
+          <li key={bi} style={{ fontSize: '13px', color: '#374151', lineHeight: 1.65, marginBottom: '2px' }}>
+            {/github\.com/i.test(b)
+              ? <span>🔗 <a href={b.trim().startsWith('http') ? b.trim() : `https://${b.trim()}`} target="_blank" rel="noreferrer" style={{ color: '#6C4FD4' }}>{b.trim()}</a></span>
+              : b}
+          </li>
+        ))}
+      </ul>
+    );
+    bulletBuffer = [];
+  };
+
+  const flushContact = (key) => {
+    if (!contactBuffer.length) return;
+    elements.push(
+      <div key={`contact-${key}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '13px', color: '#555', margin: '4px 0 10px' }}>
+        {contactBuffer.map((c, ci) => {
+          const icon = contactIcon(c);
+          return <span key={ci}>{icon ? `${icon} ` : ''}{c.trim()}</span>;
+        })}
+      </div>
+    );
+    contactBuffer = [];
+  };
+
+  const SECTION_KEYWORDS = /^(SUMMARY|EDUCATION|EXPERIENCE|PROJECTS|SKILLS|TECHNICAL|PROFESSIONAL|CONTACT|OBJECTIVE)/i;
+
+  lines.forEach((line, i) => {
+    if (line.trim() === '---') { flushBullets(i); flushContact(i); return; }
+
+    if (line.startsWith('# ')) {
+      flushBullets(i); flushContact(i);
+      elements.push(<h1 key={i} style={{ fontSize: '26px', fontWeight: 900, color: '#1E2A4A', margin: '0 0 2px', letterSpacing: '1px' }}>{line.slice(2)}</h1>);
+
+    } else if (line.startsWith('## ')) {
+      flushBullets(i); flushContact(i);
+      const title = line.slice(3).trim();
+      if (SECTION_KEYWORDS.test(title)) {
+        elements.push(
+          <div key={i} style={{ marginTop: '16px', marginBottom: '5px', borderBottom: '2px solid #6C4FD4', paddingBottom: '2px' }}>
+            <h2 style={{ fontSize: '12px', fontWeight: 800, color: '#1E2A4A', margin: 0, letterSpacing: '1.5px', textTransform: 'uppercase' }}>{title}</h2>
+          </div>
+        );
+      } else {
+        elements.push(<p key={i} style={{ fontSize: '14px', fontStyle: 'italic', color: '#555', margin: '2px 0 6px' }}>{title}</p>);
+      }
+
+    } else if (line.startsWith('- ')) {
+      flushContact(i);
+      bulletBuffer.push(line.slice(2));
+
+    } else if (line.trim() === '') {
+      flushBullets(i); flushContact(i);
+
+    } else if (contactIcon(line.trim())) {
+      flushBullets(i);
+      contactBuffer.push(line.trim());
+
+    } else if (/^\*\*[^*]+:?\*\*:?\s+\S/.test(line)) {
+      flushBullets(i); flushContact(i);
+      const m = line.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
+      if (m) {
+        const label = m[1].replace(/:$/, '');
+        elements.push(<p key={i} style={{ fontSize: '13px', margin: '3px 0', color: '#374151' }}><strong style={{ color: '#1E2A4A' }}>{label}:</strong> {m[2]}</p>);
+      }
+
+    } else if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
+      flushBullets(i); flushContact(i);
+      elements.push(<p key={i} style={{ fontWeight: 700, fontSize: '14px', color: '#1E2A4A', margin: '8px 0 1px' }}>{line.replace(/\*\*/g, '')}</p>);
+
+    } else {
+      flushBullets(i); flushContact(i);
+      elements.push(<p key={i} style={{ fontSize: '13px', color: '#374151', margin: '2px 0', lineHeight: 1.65 }}>{line}</p>);
+    }
+  });
+  flushBullets('end'); flushContact('end');
+
+  return <div style={{ fontFamily: 'Arial, sans-serif', direction: 'ltr', textAlign: 'left' }}>{elements}</div>;
+}
+
+async function printCV(text, company, jobTitle) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  const maxW = pageW - margin * 2;
+  const lh = 14;
+  let y = margin;
+
+  const addPage = () => { doc.addPage(); y = margin; };
+  const checkY = (needed = lh) => { if (y + needed > pageH - margin) addPage(); };
+
+  const writeLine = (txt, opts = {}) => {
+    const { size = 10, bold = false, color = [55, 65, 81], indent = 0 } = opts;
+    doc.setFontSize(size);
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setTextColor(...color);
+    const wrapped = doc.splitTextToSize(txt, maxW - indent);
+    wrapped.forEach(wl => { checkY(); doc.text(wl, margin + indent, y); y += lh; });
+  };
+
+  const SECTION_KW = /^(SUMMARY|EDUCATION|EXPERIENCE|PROJECTS|SKILLS|TECHNICAL|PROFESSIONAL|CONTACT|OBJECTIVE)/i;
+  const isContact = (t) => /^\+?\d[\d\s\-()]{5,}/.test(t) || /@\w+\.\w+/.test(t) || (/^[A-Za-z][^,]{1,20},\s*[A-Za-z]/.test(t) && t.length < 50);
+  const contactPrefix = (t) => /@/.test(t) ? '' : /^\+?\d/.test(t) ? '' : '';
+
+  const lines = (text || '').split('\n');
+  let contactBuf = [];
+
+  const flushContact = () => {
+    if (!contactBuf.length) return;
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
+    const parts = contactBuf.flatMap(c => {
+      if (/\|/.test(c)) return c.split('|').map(p => p.trim()).filter(Boolean);
+      return [c];
+    });
+    const joined = parts.join('   |   ');
+    const wrapped = doc.splitTextToSize(joined, maxW);
+    wrapped.forEach(wl => { checkY(); doc.text(wl, margin, y); y += 12; });
+    y += 3;
+    contactBuf = [];
+  };
+
+  lines.forEach(line => {
+    if (line.trim() === '---') { flushContact(); return; }
+
+    if (line.startsWith('# ')) {
+      flushContact();
+      checkY(30);
+      doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+      doc.text(line.slice(2), margin, y); y += 22;
+
+    } else if (line.startsWith('## ')) {
+      flushContact();
+      const title = line.slice(3).trim();
+      if (SECTION_KW.test(title)) {
+        checkY(18); y += 6;
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+        doc.text(title.toUpperCase(), margin, y);
+        doc.setDrawColor(108, 79, 212); doc.setLineWidth(1.2);
+        doc.line(margin, y + 2, pageW - margin, y + 2);
+        y += 13;
+      } else {
+        writeLine(title, { size: 11, bold: false, color: [100, 100, 100] });
+      }
+
+    } else if (line.startsWith('- ')) {
+      flushContact();
+      const content = line.slice(2);
+      const boldMatch = content.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
+      if (boldMatch) {
+        const label = boldMatch[1].replace(/:$/, '') + ': ';
+        checkY();
+        doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
+        doc.text('•', margin + 4, y);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+        const lw = doc.getTextWidth(label);
+        doc.text(label, margin + 12, y);
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
+        const rest = doc.splitTextToSize(boldMatch[2], maxW - 12 - lw);
+        doc.text(rest[0] || '', margin + 12 + lw, y); y += lh;
+        rest.slice(1).forEach(r => { checkY(); doc.text(r, margin + 12 + lw, y); y += lh; });
+      } else {
+        writeLine('• ' + content, { indent: 8 });
+      }
+
+    } else if (line.trim() === '') {
+      flushContact(); y += 2;
+
+    } else if (isContact(line.trim())) {
+      contactBuf.push(line.trim());
+
+    } else if (/^\*\*[^*]+:?\*\*:?\s+\S/.test(line)) {
+      flushContact();
+      const m = line.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
+      if (m) {
+        const label = m[1].replace(/:$/, '') + ': ';
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
+        const lw = doc.getTextWidth(label);
+        checkY();
+        doc.text(label, margin, y);
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
+        const rest = doc.splitTextToSize(m[2], maxW - lw);
+        doc.text(rest[0] || '', margin + lw, y); y += lh;
+        rest.slice(1).forEach(r => { checkY(); doc.text(r, margin + lw, y); y += lh; });
+      }
+
+    } else if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
+      flushContact();
+      writeLine(line.replace(/\*\*/g, ''), { size: 11, bold: true, color: [30, 42, 74] });
+      y -= 2;
+
+    } else if (line.trim()) {
+      flushContact();
+      writeLine(line);
+    }
+  });
+  flushContact();
+
+  const filename = `CV-${company}-${jobTitle}.pdf`.replace(/[\\/:*?"<>|]/g, '-');
+  doc.save(filename);
+}
+
 function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -32,6 +260,7 @@ function ApplicationsPage() {
   const [updating, setUpdating] = useState(null);
   const [previewApplication, setPreviewApplication] = useState(null);
   const [tailoringJobId, setTailoringJobId] = useState(null);
+  const cvPreviewRef = useRef(null);
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
   const [tailoringJobs, setTailoringJobs] = useState(() => {
     const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
@@ -266,9 +495,9 @@ function ApplicationsPage() {
                           <button
                             type="button"
                             style={styles.tailoredButton}
-                            onClick={() => downloadTailoredResume(app)}
+                            onClick={() => printCV(app.tailoredResume, app.company, app.title)}
                           >
-                            הורדה
+                            🖨️ הורד PDF
                           </button>
                         </div>
                       )}
@@ -318,13 +547,23 @@ function ApplicationsPage() {
                 סגור
               </button>
             </div>
-            <pre style={styles.previewText}>{previewApplication.tailoredResume}</pre>
+            <div style={styles.previewText} ref={cvPreviewRef}>
+              <CVRenderer text={previewApplication.tailoredResume} />
+            </div>
             <button
               type="button"
               style={styles.downloadPreview}
-              onClick={() => downloadTailoredResume(previewApplication)}
+              onClick={async () => {
+                if (!cvPreviewRef.current) return;
+                const { default: html2pdf } = await import('html2pdf.js');
+                const filename = `CV-${previewApplication.company}-${previewApplication.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-');
+                html2pdf()
+                  .set({ margin: 10, filename, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4' } })
+                  .from(cvPreviewRef.current)
+                  .save();
+              }}
             >
-              הורדה
+              🖨️ הורד כ-PDF
             </button>
           </div>
         </div>

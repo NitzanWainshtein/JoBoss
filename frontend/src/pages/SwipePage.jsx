@@ -287,7 +287,7 @@ function SwipePage() {
 
       if (direction === 'right' && autoTailorCV) {
 
-        tailorCVForJob(currentJob.jobId)
+        tailorCVForJob(currentJob.jobId, true)
           .then(result => {
             const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
             delete p[currentJob.jobId];

@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
@@ -334,6 +335,43 @@ def format_resume_bullets(lines, fallback):
     return "\n".join(f"- {line[:190]}" for line in selected)
 
 
+def check_job_relevance(user, job, resume_text):
+    """Returns {isRelevant: bool, reason: str}. Always falls back to isRelevant=True on error."""
+    if AI_MODE.lower() == "mock":
+        return {"isRelevant": True, "reason": ""}
+
+    job_title = job.get("title", "")
+    requirements = job.get("requirements") or job.get("technologies") or []
+    req_text = ", ".join(str(r) for r in requirements[:8]) if isinstance(requirements, list) else str(requirements)
+    resume_snippet = resume_text[:600] if resume_text else ""
+
+    prompt = (
+        f"Candidate resume (excerpt):\n{resume_snippet}\n\n"
+        f"Job title: {job_title}\n"
+        f"Requirements: {req_text}\n\n"
+        "Is this job reasonably relevant to the candidate's background? "
+        "Consider education, experience level, and skills. Be lenient — only flag a clear mismatch. "
+        'Answer ONLY with valid JSON: {"isRelevant": true/false, "reason": "brief Hebrew explanation if false, empty string if true"}'
+    )
+
+    try:
+        raw = invoke_bedrock_claude(
+            [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+            max_tokens=100,
+        )
+        match = re.search(r'\{[\s\S]*?\}', raw)
+        if match:
+            parsed = json.loads(match.group())
+            return {
+                "isRelevant": bool(parsed.get("isRelevant", True)),
+                "reason": str(parsed.get("reason", "")),
+            }
+    except Exception as e:
+        print(f"[RELEVANCE_CHECK_ERROR] {type(e).__name__}: {e}")
+
+    return {"isRelevant": True, "reason": ""}
+
+
 def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
     job_description = build_job_description(job)
 
@@ -580,6 +618,16 @@ def lambda_handler(event, context):
 
         pdf_bytes = None if provided_resume_text else read_resume_bytes(resume)
         resume_text = provided_resume_text or read_resume_text(resume)
+
+        force = body.get("force", False)
+        if not force:
+            relevance = check_job_relevance(user, job, resume_text)
+            if not relevance.get("isRelevant", True):
+                return response(200, {
+                    "isRelevant": False,
+                    "reason": relevance.get("reason") or "המשרה אינה תואמת לפרופיל שלך",
+                })
+
         tailored_text, mode = generate_tailored_resume(user, job, resume_text, pdf_bytes=pdf_bytes)
         saved_resume = save_tailored_resume(user_id, job_id, tailored_text)
 

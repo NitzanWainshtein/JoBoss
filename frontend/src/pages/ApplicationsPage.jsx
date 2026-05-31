@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring } from '../api';
 import LimitModal from '../components/LimitModal';
+import MismatchWarningModal from '../components/MismatchWarningModal';
 import Spinner from '../components/Spinner';
 
 const STATUS_CONFIG = {
@@ -142,7 +143,7 @@ function buildCVHtml(text) {
   const flushContact = () => {
     if (!contactBuf.length) return;
     const parts = contactBuf.flatMap(c => /\|/.test(c) ? c.split('|').map(p => p.trim()).filter(Boolean) : [c]);
-    html += `<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:#555;margin:3px 0 8px;">${parts.map(c => `<span>${contactEmoji(c)} ${esc(c)}</span>`).join('')}</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#555;margin:4px 0 10px;">${parts.map(c => `<span>${contactEmoji(c)} ${esc(c)}</span>`).join('')}</div>`;
     contactBuf = [];
   };
 
@@ -150,26 +151,28 @@ function buildCVHtml(text) {
     if (line.trim() === '---') { if (inList) { html += '</ul>'; inList = false; } flushContact(); return; }
     if (line.startsWith('# ')) {
       if (inList) { html += '</ul>'; inList = false; } flushContact();
-      html += `<h1 style="font-size:22px;font-weight:900;color:#1E2A4A;margin:0 0 2px;letter-spacing:0.5px;">${esc(line.slice(2))}</h1>`;
+      html += `<h1 style="font-size:26px;font-weight:900;color:#1E2A4A;margin:0 0 2px;letter-spacing:1px;">${esc(line.slice(2))}</h1>`;
     } else if (line.startsWith('## ')) {
       if (inList) { html += '</ul>'; inList = false; } flushContact();
       const title = line.slice(3).trim();
       if (SECTION_KW.test(title)) {
-        html += `<div style="margin-top:12px;margin-bottom:4px;border-bottom:1.5px solid #6C4FD4;padding-bottom:2px;"><h2 style="font-size:9.5px;font-weight:800;color:#1E2A4A;margin:0;letter-spacing:1.5px;text-transform:uppercase;">${esc(title)}</h2></div>`;
+        html += `<div style="margin-top:16px;margin-bottom:5px;border-bottom:2px solid #6C4FD4;padding-bottom:2px;"><h2 style="font-size:12px;font-weight:800;color:#1E2A4A;margin:0;letter-spacing:1.5px;text-transform:uppercase;">${esc(title)}</h2></div>`;
       } else {
-        html += `<p style="font-size:12px;font-style:italic;color:#555;margin:2px 0 3px;">${esc(title)}</p>`;
+        html += `<p style="font-size:14px;font-style:italic;color:#555;margin:2px 0 6px;">${esc(title)}</p>`;
       }
     } else if (line.startsWith('- ')) {
-      if (!inList) { html += '<ul style="margin:3px 0 5px 14px;padding:0;">'; inList = true; }
+      flushContact();
+      if (!inList) { html += '<ul style="margin:4px 0 8px 16px;padding:0;">'; inList = true; }
       const content = line.slice(2);
       const m = content.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
       if (m) {
         const label = m[1].replace(/:$/, '');
-        html += `<li style="font-size:11px;color:#374151;line-height:1.45;margin-bottom:1px;"><strong style="color:#1E2A4A;">${esc(label)}:</strong> ${esc(m[2])}</li>`;
-      } else if (/github\.com/.test(content)) {
-        html += `<li style="font-size:11px;color:#374151;line-height:1.45;">🔗 <a href="${esc(content.trim())}" style="color:#6C4FD4;">${esc(content.trim())}</a></li>`;
+        html += `<li style="font-size:13px;color:#374151;line-height:1.65;margin-bottom:2px;"><strong style="color:#1E2A4A;">${esc(label)}:</strong> ${esc(m[2])}</li>`;
+      } else if (/github\.com/i.test(content)) {
+        const url = content.trim().startsWith('http') ? content.trim() : `https://${content.trim()}`;
+        html += `<li style="font-size:13px;color:#374151;line-height:1.65;">🔗 <a href="${esc(url)}" style="color:#6C4FD4;">${esc(content.trim())}</a></li>`;
       } else {
-        html += `<li style="font-size:11px;color:#374151;line-height:1.45;margin-bottom:1px;">${esc(content)}</li>`;
+        html += `<li style="font-size:13px;color:#374151;line-height:1.65;margin-bottom:2px;">${esc(content)}</li>`;
       }
     } else if (line.trim() === '') {
       if (inList) { html += '</ul>'; inList = false; } flushContact();
@@ -179,13 +182,13 @@ function buildCVHtml(text) {
     } else if (/^\*\*[^*]+:?\*\*:?\s+\S/.test(line)) {
       if (inList) { html += '</ul>'; inList = false; } flushContact();
       const m = line.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
-      if (m) html += `<p style="font-size:11px;margin:2px 0;color:#374151;"><strong style="color:#1E2A4A;">${esc(m[1].replace(/:$/,''))}:</strong> ${esc(m[2])}</p>`;
+      if (m) html += `<p style="font-size:13px;margin:3px 0;color:#374151;"><strong style="color:#1E2A4A;">${esc(m[1].replace(/:$/,''))}:</strong> ${esc(m[2])}</p>`;
     } else if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
       if (inList) { html += '</ul>'; inList = false; } flushContact();
-      html += `<p style="font-weight:700;font-size:12.5px;color:#1E2A4A;margin:6px 0 1px;">${esc(line.replace(/\*\*/g,''))}</p>`;
+      html += `<p style="font-weight:700;font-size:14px;color:#1E2A4A;margin:8px 0 1px;">${esc(line.replace(/\*\*/g,''))}</p>`;
     } else if (line.trim()) {
       if (inList) { html += '</ul>'; inList = false; } flushContact();
-      html += `<p style="font-size:11px;color:#374151;margin:2px 0;line-height:1.45;">${esc(line)}</p>`;
+      html += `<p style="font-size:13px;color:#374151;margin:2px 0;line-height:1.65;">${esc(line)}</p>`;
     }
   });
   if (inList) html += '</ul>'; flushContact();
@@ -193,109 +196,23 @@ function buildCVHtml(text) {
 }
 
 async function downloadCVAsPdf(text, company, jobTitle) {
-  const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const W = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
-  const m = 38;
-  const maxW = W - m * 2;
-  const lh = 12.5;
-  let y = m;
+  const html2pdf = (await import('html2pdf.js')).default;
+  const fileName = `CV-${company || 'Company'}-${jobTitle || 'Job'}`.replace(/[\\/:*?"<>|]/g, '-');
 
-  const newPage = () => { doc.addPage(); y = m; };
-  const chk = (n = lh) => { if (y + n > H - m) newPage(); };
-  const txt = (s, x, size, bold, r, g, b) => {
-    doc.setFontSize(size); doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setTextColor(r, g, b);
-    const lines = doc.splitTextToSize(String(s), maxW - (x - m));
-    lines.forEach(l => { chk(); doc.text(l, x, y); y += lh; });
-  };
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'width:794px;font-family:Arial,Helvetica,sans-serif;direction:ltr;text-align:left;background:#fff;';
+  wrapper.innerHTML = buildCVHtml(text);
 
-  const SECTION = /^(SUMMARY|EDUCATION|EXPERIENCE|PROJECTS|SKILLS|TECHNICAL|PROFESSIONAL|CONTACT|OBJECTIVE)/i;
-  const isContact = t => /^\+?\d[\d\s\-()]{5,}/.test(t) || /@\w+/.test(t) || (/^[A-Za-z][^,]{1,20},\s*[A-Za-z]/.test(t) && t.length < 50);
-  const lines = (text || '').split('\n');
-  let cBuf = [];
-
-  const flushC = () => {
-    if (!cBuf.length) return;
-    const parts = cBuf.flatMap(c => /\|/.test(c) ? c.split('|').map(p => p.trim()).filter(Boolean) : [c]);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(90, 90, 90);
-    chk(12);
-    doc.text(parts.join('  ·  '), m, y); y += 14;
-    cBuf = [];
-  };
-
-  lines.forEach(line => {
-    if (line.trim() === '---') { flushC(); return; }
-    if (line.startsWith('# ')) {
-      flushC(); chk(24);
-      doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-      doc.text(line.slice(2), m, y); y += 20;
-    } else if (line.startsWith('## ')) {
-      flushC();
-      const t = line.slice(3).trim();
-      if (SECTION.test(t)) {
-        chk(16); y += 5;
-        doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-        doc.text(t.toUpperCase(), m, y);
-        doc.setDrawColor(108, 79, 212); doc.setLineWidth(1.1);
-        doc.line(m, y + 2, W - m, y + 2); y += 11;
-      } else {
-        chk(); doc.setFontSize(11.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(90, 90, 90);
-        doc.text(t, m, y); y += lh;
-      }
-    } else if (line.startsWith('- ')) {
-      flushC();
-      const content = line.slice(2);
-      const bold = content.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
-      if (bold) {
-        const label = bold[1].replace(/:$/, '') + ': ';
-        chk();
-        doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60);
-        doc.text('•', m + 3, y);
-        doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-        const lw = doc.getTextWidth(label);
-        doc.text(label, m + 11, y);
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-        const rest = doc.splitTextToSize(bold[2], maxW - 11 - lw);
-        doc.text(rest[0] || '', m + 11 + lw, y); y += lh;
-        rest.slice(1).forEach(r => { chk(); doc.text(r, m + 11 + lw, y); y += lh; });
-      } else {
-        chk(); doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-        doc.text('•', m + 3, y);
-        const rest = doc.splitTextToSize(content, maxW - 11);
-        rest.forEach((r, i) => { if (i > 0) chk(); doc.text(r, m + 11, y); y += lh; });
-      }
-    } else if (line.trim() === '') {
-      flushC(); y += 1;
-    } else if (isContact(line.trim())) {
-      cBuf.push(line.trim());
-    } else if (/^\*\*[^*]+:?\*\*:?\s+\S/.test(line)) {
-      flushC();
-      const mo = line.match(/^\*\*([^*]+?)[:,]?\*\*:?\s*(.*)/);
-      if (mo) {
-        const label = mo[1].replace(/:$/, '') + ': ';
-        chk(); doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-        const lw = doc.getTextWidth(label);
-        doc.text(label, m, y);
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-        const rest = doc.splitTextToSize(mo[2], maxW - lw);
-        doc.text(rest[0] || '', m + lw, y); y += lh;
-        rest.slice(1).forEach(r => { chk(); doc.text(r, m + lw, y); y += lh; });
-      }
-    } else if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
-      flushC(); chk();
-      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 42, 74);
-      doc.text(line.replace(/\*\*/g, ''), m, y); y += lh;
-    } else if (line.trim()) {
-      flushC(); chk();
-      doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-      const rest = doc.splitTextToSize(line, maxW);
-      rest.forEach(r => { chk(); doc.text(r, m, y); y += lh; });
-    }
-  });
-  flushC();
-
-  doc.save(`CV-${company}-${jobTitle}.pdf`.replace(/[\\/:*?"<>|]/g, '-'));
+  await html2pdf()
+    .set({
+      margin: [12, 15, 12, 15],
+      filename: `${fileName}.pdf`,
+      html2canvas: { scale: 2, useCORS: false, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css'] },
+    })
+    .from(wrapper)
+    .save();
 }
 
 function ApplicationsPage() {
@@ -308,8 +225,8 @@ function ApplicationsPage() {
   const [tailoringJobId, setTailoringJobId] = useState(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const [clearedTailoring, setClearedTailoring] = useState(new Set());
+  const [mismatchState, setMismatchState] = useState(null);
   const [planKey, setPlanKey] = useState('FREE');
-  const cvPreviewRef = useRef(null);
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
   const canTailorCV = planKey !== 'FREE';
   const [tailoringJobs, setTailoringJobs] = useState(() => {
@@ -392,10 +309,16 @@ function ApplicationsPage() {
     ? applications
     : applications.filter(a => (a.status || '').toUpperCase() === filter.toUpperCase());
 
-  const handleTailorCV = async (app) => {
+  const handleTailorCV = async (app, force = false) => {
     setTailoringJobId(app.jobId);
     try {
-      const result = await tailorCVForJob(app.jobId);
+      const result = await tailorCVForJob(app.jobId, force);
+
+      if (result.isRelevant === false) {
+        setMismatchState({ app, reason: result.reason });
+        return;
+      }
+
       setApplications(prev => prev.map(a =>
         a.jobId === app.jobId
           ? { ...a, tailoredResumeUrl: result.tailoredResumeUrl, tailoredResume: result.tailoredResume }
@@ -406,22 +329,6 @@ function ApplicationsPage() {
     } finally {
       setTailoringJobId(null);
     }
-  };
-
-  const downloadTailoredResume = (app) => {
-    if (!app.tailoredResume) return;
-
-    const fileName = `joboss-tailored-${app.company || 'company'}-${app.jobId || 'job'}.pdf`
-      .replace(/[\\/:*?"<>|]/g, '-');
-    const blob = buildSimplePdfBlob(app.tailoredResume);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
   };
 
   if (loading) return (
@@ -593,6 +500,17 @@ function ApplicationsPage() {
 
       <LimitModal visible={showUpsell} mode="tailor" onClose={() => setShowUpsell(false)} />
 
+      <MismatchWarningModal
+        visible={!!mismatchState}
+        reason={mismatchState?.reason}
+        onCancel={() => setMismatchState(null)}
+        onContinue={() => {
+          const app = mismatchState.app;
+          setMismatchState(null);
+          handleTailorCV(app, true);
+        }}
+      />
+
       {previewApplication && (
         <div style={styles.previewOverlay} onClick={() => setPreviewApplication(null)}>
           <div style={styles.previewModal} onClick={(event) => event.stopPropagation()}>
@@ -611,7 +529,7 @@ function ApplicationsPage() {
                 סגור
               </button>
             </div>
-            <div style={styles.previewText} ref={cvPreviewRef}>
+            <div style={styles.previewText}>
               <CVRenderer text={previewApplication.tailoredResume} />
             </div>
             <button
@@ -627,74 +545,6 @@ function ApplicationsPage() {
     </div>
   );
 }
-
-const buildSimplePdfBlob = (text) => {
-  const escapePdfText = (value) => value
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)');
-
-  const wrapLine = (line, maxChars = 82) => {
-    const words = line.split(/\s+/).filter(Boolean);
-    const lines = [];
-    let current = '';
-
-    words.forEach((word) => {
-      if ((current + ' ' + word).trim().length > maxChars) {
-        lines.push(current);
-        current = word;
-      } else {
-        current = `${current} ${word}`.trim();
-      }
-    });
-
-    if (current) lines.push(current);
-    return lines.length ? lines : [''];
-  };
-
-  const lines = text
-    .split('\n')
-    .flatMap((line) => wrapLine(line))
-    .slice(0, 52);
-
-  const content = [
-    'BT',
-    '/F1 11 Tf',
-    '50 790 Td',
-    '14 TL',
-    ...lines.flatMap((line, index) => [
-      ...(index > 0 ? ['T*'] : []),
-      `(${escapePdfText(line)}) Tj`,
-    ]),
-    'ET',
-  ].join('\n');
-
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-  ];
-
-  let pdf = '%PDF-1.4\n';
-  const offsets = [];
-
-  objects.forEach((obj, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${obj}\nendobj\n`;
-  });
-
-  const xrefStart = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += '0000000000 65535 f \n';
-  offsets.forEach((offset) => {
-    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
-
-  return new Blob([pdf], { type: 'application/pdf' });
-};
 
 const styles = {
   container: { minHeight: '100vh', background: 'var(--background)' },

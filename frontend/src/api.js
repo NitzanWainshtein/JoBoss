@@ -80,6 +80,10 @@ export const updateApplication = async (jobId, status) => {
   return apiCall('PUT', '/applications', { jobId, status });
 };
 
+export const clearApplicationTailoring = async (jobId) => {
+  return apiCall('PUT', '/applications', { jobId, clearTailoring: true });
+};
+
 // ===== USERS =====
 export const getMyProfile = async () => apiCall('GET', '/users/me');
 
@@ -154,8 +158,8 @@ export const analyzeCV = async (resumeUrl) => {
   return apiCall('POST', '/ai/analyze-cv', { resumeUrl });
 };
 
-export const tailorCVForJob = async (jobId) => {
-  return apiCall('POST', '/ai/tailor', { jobId });
+export const tailorCVForJob = async (jobId, force = false) => {
+  return apiCall('POST', '/ai/tailor', { jobId, ...(force && { force: true }) });
 };
 
 // ===== MOCK =====

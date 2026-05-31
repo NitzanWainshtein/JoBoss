@@ -123,7 +123,9 @@ function ProfilePage() {
         const normAvail = AVAIL_NORMALIZE[rawAvail.toLowerCase()] ?? rawAvail;
         setAvailability(VALID_AVAIL.has(normAvail) ? normAvail : '');
 
-        setPlanKey(subData?.planKey || 'FREE');
+        const plan = subData?.planKey || 'FREE';
+        setPlanKey(plan);
+        localStorage.setItem('planKey', plan);
         setLoadingProfile(false);
         // Mark as loaded after the state-setter batch has re-rendered, so the
         // save effect skips the initial population render and only fires on

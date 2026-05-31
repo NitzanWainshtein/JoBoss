@@ -170,7 +170,7 @@ function SwipePage() {
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
   const [quotaLoading, setQuotaLoading] = useState(true);
   const [limitModal, setLimitModal] = useState(false);
-  const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
+  const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true' && quota?.plan !== 'FREE';
   const navigate = useNavigate();
 
   const loadJobs = useCallback(async () => {
@@ -287,7 +287,7 @@ function SwipePage() {
 
       if (direction === 'right' && autoTailorCV) {
 
-        tailorCVForJob(currentJob.jobId)
+        tailorCVForJob(currentJob.jobId, true)
           .then(result => {
             const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
             delete p[currentJob.jobId];

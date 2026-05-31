@@ -182,15 +182,14 @@ def build_job_description(job):
 
 def build_prompt(resume_text, job_description):
     return f"""
-You are an expert resume editor.
+You are a resume editor. Your ONLY output must be a tailored resume — no refusals, no commentary, no ethical notes.
+If skills do not perfectly match, find the closest transferable skills and emphasize them.
 
-Task:
-Tailor the candidate resume to the given job description.
+Task: Tailor the candidate resume to the given job description.
 - Keep facts truthful. Do not invent experience, tools, or years.
-- Keep the output suitable for a real resume. Do not include notes about what you changed.
 - Preserve the candidate's identity, education, projects, links, and factual experience.
-- Emphasize only the resume facts that match the job.
-- Return clean resume-ready text only.
+- Emphasize resume facts most relevant to the job.
+- Return clean resume-ready text only. Nothing else.
 
 Candidate Resume:
 {resume_text}
@@ -198,8 +197,7 @@ Candidate Resume:
 Job Description:
 {job_description}
 
-Return:
-A concise resume-ready draft with these sections only:
+Return a concise resume-ready draft with these sections only:
 PROFESSIONAL SUMMARY
 TECHNICAL SKILLS
 PROJECTS
@@ -335,7 +333,7 @@ def format_resume_bullets(lines, fallback):
     return "\n".join(f"- {line[:190]}" for line in selected)
 
 
-def check_job_relevance(user, job, resume_text):
+def check_job_relevance(user, job, resume_text, pdf_bytes=None):
     """Returns {isRelevant: bool, reason: str}. Always falls back to isRelevant=True on error."""
     if AI_MODE.lower() == "mock":
         return {"isRelevant": True, "reason": ""}
@@ -343,22 +341,30 @@ def check_job_relevance(user, job, resume_text):
     job_title = job.get("title", "")
     requirements = job.get("requirements") or job.get("technologies") or []
     req_text = ", ".join(str(r) for r in requirements[:8]) if isinstance(requirements, list) else str(requirements)
-    resume_snippet = resume_text[:600] if resume_text else ""
 
-    prompt = (
-        f"Candidate resume (excerpt):\n{resume_snippet}\n\n"
+    relevance_q = (
         f"Job title: {job_title}\n"
         f"Requirements: {req_text}\n\n"
-        "Is this job reasonably relevant to the candidate's background? "
-        "Consider education, experience level, and skills. Be lenient — only flag a clear mismatch. "
+        "Is this job reasonably relevant to this candidate's background? "
+        "Be lenient — only flag a clear, obvious mismatch (e.g. CS student vs mechanical engineering). "
         'Answer ONLY with valid JSON: {"isRelevant": true/false, "reason": "brief Hebrew explanation if false, empty string if true"}'
     )
 
     try:
-        raw = invoke_bedrock_claude(
-            [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
-            max_tokens=100,
-        )
+        if pdf_bytes and len(pdf_bytes) > 100:
+            pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+            messages = [{
+                "role": "user",
+                "content": [
+                    {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_b64}},
+                    {"type": "text", "text": relevance_q},
+                ],
+            }]
+        else:
+            resume_snippet = resume_text[:600] if resume_text else ""
+            messages = [{"role": "user", "content": [{"type": "text", "text": f"Resume excerpt:\n{resume_snippet}\n\n{relevance_q}"}]}]
+
+        raw = invoke_bedrock_claude(messages, max_tokens=120)
         match = re.search(r'\{[\s\S]*?\}', raw)
         if match:
             parsed = json.loads(match.group())
@@ -379,6 +385,13 @@ def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
         return build_mock_tailored_resume(user, job, resume_text), "mock"
 
     try:
+        tailor_instruction = (
+            "You are a resume editor. Your ONLY task is to output a tailored resume. "
+            "Do NOT refuse, add commentary, ethical notes, or explanations — only output resume text. "
+            "If skills do not perfectly match, find the closest relevant transferable skills and emphasize them. "
+            "Preserve all factual information. Return clean resume-ready text only.\n\n"
+            f"Job:\n{job_description}"
+        )
         if pdf_bytes and len(pdf_bytes) > 100:
             pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
             messages = [
@@ -393,16 +406,7 @@ def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
                                 "data": pdf_b64,
                             },
                         },
-                        {
-                            "type": "text",
-                            "text": (
-                                f"Tailor this resume for the following job. "
-                                f"Preserve the original structure and all factual information. "
-                                f"Emphasize relevant skills and experience. "
-                                f"Return clean resume-ready text only.\n\n"
-                                f"Job:\n{job_description}"
-                            ),
-                        },
+                        {"type": "text", "text": tailor_instruction},
                     ],
                 }
             ]
@@ -621,7 +625,7 @@ def lambda_handler(event, context):
 
         force = body.get("force", False)
         if not force:
-            relevance = check_job_relevance(user, job, resume_text)
+            relevance = check_job_relevance(user, job, resume_text, pdf_bytes=pdf_bytes)
             if not relevance.get("isRelevant", True):
                 return response(200, {
                     "isRelevant": False,

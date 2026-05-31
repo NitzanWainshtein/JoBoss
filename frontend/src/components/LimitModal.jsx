@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose }) {
+function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mode = 'swipe' }) {
+  const isTailorMode = mode === 'tailor';
   const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState('');
 
@@ -48,19 +49,25 @@ function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose }) {
               <span style={styles.icon}>🔒</span>
             </div>
 
-            <h2 style={styles.title}>הגעת למגבלת ההחלקות היומית</h2>
+            <h2 style={styles.title}>
+              {isTailorMode ? 'התאמת קורות חיים' : 'הגעת למגבלת ההחלקות היומית'}
+            </h2>
             <p style={styles.sub}>
-              {plan === 'FREE' ? (
+              {isTailorMode ? (
+                <>פיצ'ר התאמת קורות חיים חכמה על ידי AI זמין <strong>למנויי פרימיום בלבד</strong>.</>
+              ) : plan === 'FREE' ? (
                 <>השתמשת ב-<strong>{used}</strong> מתוך <strong>{limit}</strong> ההחלקות החינמיות שלך להיום.</>
               ) : (
                 <>השתמשת בכל <strong>{limit}</strong> ההחלקות היומיות שלך במסלול פרימיום.</>
               )}
             </p>
 
-            <div style={styles.countdownBox}>
-              <p style={styles.countdownLabel}>המגבלה מתאפסת בעוד</p>
-              <p style={styles.countdown}>{timeLeft || '--:--:--'}</p>
-            </div>
+            {!isTailorMode && (
+              <div style={styles.countdownBox}>
+                <p style={styles.countdownLabel}>המגבלה מתאפסת בעוד</p>
+                <p style={styles.countdown}>{timeLeft || '--:--:--'}</p>
+              </div>
+            )}
 
             <div style={styles.plansRow}>
               <PlanCard

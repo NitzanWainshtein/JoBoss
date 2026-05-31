@@ -6,8 +6,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-from job_description_normalizer import normalize_job_description
-
 import boto3
 from botocore.exceptions import ClientError
 
@@ -602,10 +600,6 @@ def lambda_handler(event, context):
 
     try:
         body = get_body(event)
-
-        action = body.get("action") or event.get("action")
-        if action == "normalize-job-description":
-            return normalize_job_description(body, invoke_bedrock_nova, response)
 
         user_id = get_user_id(event, body)
         job_id = body.get("jobId")

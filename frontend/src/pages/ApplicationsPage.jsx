@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getMyApplications, updateApplication, tailorCVForJob } from '../api';
+import { getMyApplications, updateApplication, tailorCVForJob, getSubscription } from '../api';
 import Spinner from '../components/Spinner';
 
 const STATUS_CONFIG = {
@@ -344,9 +344,9 @@ function ApplicationsPage() {
   const [previewApplication, setPreviewApplication] = useState(null);
   const [tailoringJobId, setTailoringJobId] = useState(null);
   const [showUpsell, setShowUpsell] = useState(false);
+  const [planKey, setPlanKey] = useState('FREE');
   const cvPreviewRef = useRef(null);
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
-  const planKey = localStorage.getItem('planKey') || 'FREE';
   const canTailorCV = planKey !== 'FREE';
   const [tailoringJobs, setTailoringJobs] = useState(() => {
     const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
@@ -355,6 +355,9 @@ function ApplicationsPage() {
 
   useEffect(() => {
     loadApplications();
+    getSubscription()
+      .then(sub => setPlanKey(sub?.planKey || 'FREE'))
+      .catch(() => setPlanKey('FREE'));
   }, []);
 
   useEffect(() => {

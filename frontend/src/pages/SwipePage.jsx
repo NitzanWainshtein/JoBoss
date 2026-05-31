@@ -170,8 +170,7 @@ function SwipePage() {
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
   const [quotaLoading, setQuotaLoading] = useState(true);
   const [limitModal, setLimitModal] = useState(false);
-  const planKey = localStorage.getItem('planKey') || 'FREE';
-  const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true' && planKey !== 'FREE';
+  const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true' && quota?.plan !== 'FREE';
   const navigate = useNavigate();
 
   const loadJobs = useCallback(async () => {

@@ -23,6 +23,8 @@ Rules:
 - If a section has no reliable information, omit that section.
 - Do not include markdown fences.
 - Return plain text only.
+- Never return a refusal, apology, or explanation that you cannot complete the task.
+- If the raw text contains any role-specific details, extract and structure them even if the page also says applications are closed or no longer accepted.
 
 Job metadata:
 Title: {title}

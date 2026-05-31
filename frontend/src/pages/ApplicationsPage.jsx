@@ -297,6 +297,44 @@ async function downloadCVAsPdf(text, company, jobTitle) {
   doc.save(`CV-${company}-${jobTitle}.pdf`.replace(/[\\/:*?"<>|]/g, '-'));
 }
 
+function TailorUpsellModal({ onClose }) {
+  const navigate = useNavigate();
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' }}>
+      <div style={{ background: 'white', borderRadius: '20px', padding: '28px 24px', width: 'min(360px, 95vw)', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 24px 80px rgba(0,0,0,0.25)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: '40px', margin: 0 }}>🔒</p>
+          <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1E2A4A', margin: '8px 0 4px' }}>התאמת קורות חיים</h2>
+          <p style={{ fontSize: '14px', color: '#555', margin: 0 }}>פיצ'ר זה זמין למנויי פרימיום בלבד</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {[
+            { plan: '⭐ פרימיום', price: '₪29/חודש', features: ['עד 30 החלקות ביום', 'עד 10 התאמות CV בחודש'], color: '#6C4FD4' },
+            { plan: '🔥 פרימיום+', price: '₪59/חודש', features: ['החלקות ללא הגבלה', 'התאמות CV ללא הגבלה'], color: '#FF6B6B' },
+          ].map(({ plan, price, features, color }) => (
+            <div key={plan} style={{ border: `2px solid ${color}`, borderRadius: '14px', padding: '14px', background: '#FAFAFA' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontWeight: 800, color, fontSize: '15px' }}>{plan}</span>
+                <span style={{ fontWeight: 700, color: '#333', fontSize: '14px' }}>{price}</span>
+              </div>
+              {features.map(f => <p key={f} style={{ fontSize: '12px', color: '#555', margin: '2px 0' }}>✓ {f}</p>)}
+            </div>
+          ))}
+        </div>
+        <button
+          style={{ background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '14px', padding: '14px', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}
+          onClick={() => { onClose(); navigate('/profile?tab=subscription'); }}
+        >
+          שדרג עכשיו ⭐
+        </button>
+        <button style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '13px' }} onClick={onClose}>
+          אולי אחר כך
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -305,8 +343,11 @@ function ApplicationsPage() {
   const [updating, setUpdating] = useState(null);
   const [previewApplication, setPreviewApplication] = useState(null);
   const [tailoringJobId, setTailoringJobId] = useState(null);
+  const [showUpsell, setShowUpsell] = useState(false);
   const cvPreviewRef = useRef(null);
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
+  const planKey = localStorage.getItem('planKey') || 'FREE';
+  const canTailorCV = planKey !== 'FREE';
   const [tailoringJobs, setTailoringJobs] = useState(() => {
     const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
     return new Set(Object.keys(pending));
@@ -510,11 +551,11 @@ function ApplicationsPage() {
                   {!autoTailorCV && !app.tailoredResumeUrl && !tailoringJobs.has(app.jobId) && (
                     <button
                       type="button"
-                      style={styles.manualTailorBtn}
+                      style={canTailorCV ? styles.manualTailorBtn : styles.manualTailorBtnLocked}
                       disabled={tailoringJobId === app.jobId}
-                      onClick={() => handleTailorCV(app)}
+                      onClick={() => canTailorCV ? handleTailorCV(app) : setShowUpsell(true)}
                     >
-                      {tailoringJobId === app.jobId ? '⏳ מתאים...' : '🤖 התאמת קורות חיים למשרה'}
+                      {tailoringJobId === app.jobId ? '⏳ מתאים...' : canTailorCV ? '🤖 התאמת קורות חיים למשרה' : '🔒 התאמת קורות חיים — פרימיום בלבד'}
                     </button>
                   )}
 
@@ -573,6 +614,8 @@ function ApplicationsPage() {
           </div>
         )}
       </div>
+
+      {showUpsell && <TailorUpsellModal onClose={() => setShowUpsell(false)} />}
 
       {previewApplication && (
         <div style={styles.previewOverlay} onClick={() => setPreviewApplication(null)}>
@@ -705,6 +748,7 @@ const styles = {
   tailoringTitle: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#F57F17' },
   tailoringSub: { margin: '2px 0 0', fontSize: '11px', color: '#F9A825' },
   manualTailorBtn: { width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px dashed #6C4FD4', background: '#F8F6FF', color: '#6C4FD4', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
+  manualTailorBtnLocked: { width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px dashed #ccc', background: '#F5F5F5', color: '#999', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
   actions: { display: 'flex', gap: '6px', flexWrap: 'wrap' },
   actionBtn: { padding: '5px 10px', borderRadius: '20px', border: '1.5px solid', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' },
   actionActive: {},

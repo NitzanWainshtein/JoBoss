@@ -307,6 +307,7 @@ function ApplicationsPage() {
   const [previewApplication, setPreviewApplication] = useState(null);
   const [tailoringJobId, setTailoringJobId] = useState(null);
   const [showUpsell, setShowUpsell] = useState(false);
+  const [clearedTailoring, setClearedTailoring] = useState(new Set());
   const [planKey, setPlanKey] = useState('FREE');
   const cvPreviewRef = useRef(null);
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
@@ -525,35 +526,39 @@ function ApplicationsPage() {
                     </button>
                   )}
 
-                  {app.tailoredResumeUrl && (
+                  {app.tailoredResumeUrl && !clearedTailoring.has(app.jobId) && (
                     <div style={styles.tailoredBox}>
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <p style={styles.tailoredTitle}>קורות חיים מותאמים צורפו</p>
                         <p style={styles.tailoredSub}>
-                          {app.tailoredResume
-                            ? 'ניתן לצפות בטיוטה או להוריד אותה כקובץ.'
-                            : 'הקובץ נשמר בענן. צפייה והורדה זמינות בהגשות חדשות.'}
+                          {app.tailoredResume ? 'ניתן לצפות בטיוטה או להוריד אותה כקובץ.' : 'הקובץ נשמר בענן.'}
                         </p>
                       </div>
-                      {app.tailoredResume && (
-                        <div style={styles.tailoredActions}>
-                          <button
-                            type="button"
-                            style={styles.tailoredButton}
-                            onClick={() => setPreviewApplication(app)}
-                          >
-                            צפייה
-                          </button>
-                          <button
-                            type="button"
-                            style={styles.tailoredButton}
-                            onClick={() => downloadCVAsPdf(app.tailoredResume, app.company, app.title)}
-                          >
-                            🖨️ הורד PDF
-                          </button>
-                        </div>
-                      )}
+                      <div style={styles.tailoredActions}>
+                        {app.tailoredResume && (<>
+                          <button type="button" style={styles.tailoredButton} onClick={() => setPreviewApplication(app)}>צפייה</button>
+                          <button type="button" style={styles.tailoredButton} onClick={() => downloadCVAsPdf(app.tailoredResume, app.company, app.title)}>🖨️ PDF</button>
+                        </>)}
+                        <button
+                          type="button"
+                          title="בטל התאמה"
+                          style={{ ...styles.tailoredButton, color: '#aaa', borderColor: '#ddd', padding: '7px 10px' }}
+                          onClick={() => setClearedTailoring(prev => new Set([...prev, app.jobId]))}
+                        >✕</button>
+                      </div>
                     </div>
+                  )}
+
+                  {app.tailoredResumeUrl && clearedTailoring.has(app.jobId) && (
+                    canTailorCV ? (
+                      <button type="button" style={styles.manualTailorBtn} disabled={tailoringJobId === app.jobId} onClick={() => handleTailorCV(app)}>
+                        {tailoringJobId === app.jobId ? '⏳ מתאים...' : '🔄 התאמת קורות חיים מחדש'}
+                      </button>
+                    ) : (
+                      <button type="button" style={styles.manualTailorBtnLocked} onClick={() => setShowUpsell(true)}>
+                        🔒 התאמת קורות חיים — פרימיום בלבד
+                      </button>
+                    )
                   )}
 
                   <div style={styles.actions}>

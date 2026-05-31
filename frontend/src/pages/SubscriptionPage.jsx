@@ -293,6 +293,20 @@ export default function SubscriptionPage({ api }) {
             </div>
           )}
 
+          {/* Upgrade section for premium users */}
+          {planKey === 'PREMIUM' && (
+            <div style={styles.upgradeSection}>
+              <p style={styles.upgradeTitle}>שדרג לפרימיום+ — ללא הגבלות</p>
+              <div style={styles.upgradeCards}>
+                <UpgradeCard
+                  plan={PLANS.PREMIUM_PLUS}
+                  loading={checkoutLoading === 'PREMIUM_PLUS'}
+                  onCheckout={() => handleCheckout('PREMIUM_PLUS')}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Payment failed warning */}
           {status === 'PAYMENT_FAILED' && (
             <div style={styles.warningCard}>

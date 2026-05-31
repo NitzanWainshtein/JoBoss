@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getMyApplications, updateApplication, tailorCVForJob, getSubscription } from '../api';
+import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring } from '../api';
 import LimitModal from '../components/LimitModal';
 import Spinner from '../components/Spinner';
 
@@ -543,7 +543,12 @@ function ApplicationsPage() {
                           type="button"
                           title="בטל התאמה"
                           style={{ ...styles.tailoredButton, color: '#aaa', borderColor: '#ddd', padding: '7px 10px' }}
-                          onClick={() => setClearedTailoring(prev => new Set([...prev, app.jobId]))}
+                          onClick={async () => {
+                            await clearApplicationTailoring(app.jobId).catch(() => {});
+                            setApplications(prev => prev.map(a =>
+                              a.jobId === app.jobId ? { ...a, tailoredResumeUrl: null, tailoredResume: null } : a
+                            ));
+                          }}
                         >✕</button>
                       </div>
                     </div>

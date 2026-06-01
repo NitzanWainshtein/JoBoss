@@ -107,12 +107,15 @@ def insert_jobs(messages):
                 extract_preview_description(msg, parsed["description"]),
             )
 
-            description = normalize_description_with_ai(
+            normalized_description = normalize_description_with_ai(
                 parsed["title"],
                 parsed["company"],
                 parsed["location"],
                 raw_description,
             )
+
+            description = normalized_description["description"]
+            short_description = normalized_description["shortDescription"]
 
             item = {
                 "jobId": str(uuid.uuid4()),
@@ -121,12 +124,13 @@ def insert_jobs(messages):
                 "title": parsed["title"],
                 "company": parsed["company"],
                 "location": parsed["location"],
-                "description": description,
                 "applyUrl": apply_url,
                 "telegramUrl": telegram_url,
                 "createdAt": created_at.isoformat(),
                 "expiresAt": expires_at,
                 "isActive": True,
+                "description": description,
+                "shortDescription": short_description,
             }
 
             if lat is not None and lng is not None:

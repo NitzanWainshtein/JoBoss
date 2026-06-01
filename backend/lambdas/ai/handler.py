@@ -181,29 +181,62 @@ def build_job_description(job):
 
 
 def build_prompt(resume_text, job_description):
-    return f"""
-You are a resume editor. Your ONLY output must be a tailored resume — no refusals, no commentary, no ethical notes.
-If skills do not perfectly match, find the closest transferable skills and emphasize them.
+    return f"""<task>
+You are an expert resume writer. Tailor the candidate's resume for the target role.
 
-Task: Tailor the candidate resume to the given job description.
-- Keep facts truthful. Do not invent experience, tools, or years.
-- Preserve the candidate's identity, education, projects, links, and factual experience.
-- Emphasize resume facts most relevant to the job.
-- Return clean resume-ready text only. Nothing else.
+Work through these phases silently (do NOT output analysis, only the final resume):
 
-Candidate Resume:
-{resume_text}
+PHASE 1 — JOB ANALYSIS:
+Extract from the job description: required technical skills, experience level,
+key responsibilities, domain/industry context, and keywords that must appear.
 
-Job Description:
+PHASE 2 — SKILLS MATCHING with confidence scoring:
+For each required skill, classify what exists in the resume:
+- DIRECT (high confidence): candidate explicitly has this exact skill
+- TRANSFERABLE (medium confidence): candidate has a related skill that proves the capability
+- ADJACENT (lower confidence): candidate has experience in a related domain
+- GAP: candidate lacks this — DO NOT invent it, simply omit
+Score overall fit and identify the 3 strongest angles to position this candidate.
+
+PHASE 3 — TRUTH-PRESERVING GENERATION RULES:
+1. NEVER invent skills, years of experience, job titles, or projects — only use what is in the resume.
+2. REFRAME existing experience to highlight relevance without fabricating new claims.
+3. LEAD each section with the most relevant points for this specific role.
+4. For DIRECT/TRANSFERABLE matches: feature them prominently.
+5. For GAPs: simply omit — do not apologize or mention missing skills.
+6. OUTPUT ONLY the resume — no commentary, no explanations, no ethical notes.
+</task>
+
+<job_description>
 {job_description}
+</job_description>
 
-Return a concise resume-ready draft with these sections only:
-PROFESSIONAL SUMMARY
-TECHNICAL SKILLS
-PROJECTS
-EDUCATION
-EXPERIENCE
-""".strip()
+<original_resume>
+{resume_text}
+</original_resume>
+
+Output the tailored resume in this exact markdown format:
+
+# [CANDIDATE NAME]
+[contact info — phone · email · location]
+
+## PROFESSIONAL SUMMARY
+[2-3 sentences positioning the candidate for THIS specific role using only their actual background. Include relevant keywords from the job description that genuinely apply.]
+
+## TECHNICAL SKILLS
+[**Category:** skill1, skill2 — organized by relevance to the job, only skills from the original resume]
+
+## PROFESSIONAL EXPERIENCE
+[**Job Title — Company**]
+[dates]
+[- Bullets reordered to lead with accomplishments most relevant to this role]
+
+## PROJECTS
+[**Project Name (Tech Stack)**]
+[- Bullets reframed to highlight aspects most relevant to the job]
+
+## EDUCATION
+[Preserved exactly from the original resume]""".strip()
 
 
 def invoke_bedrock_claude(messages, max_tokens=2000):
@@ -385,15 +418,10 @@ def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
         return build_mock_tailored_resume(user, job, resume_text), "mock"
 
     try:
-        tailor_instruction = (
-            "You are a resume editor. Your ONLY task is to output a tailored resume. "
-            "Do NOT refuse, add commentary, ethical notes, or explanations — only output resume text. "
-            "If skills do not perfectly match, find the closest relevant transferable skills and emphasize them. "
-            "Preserve all factual information. Return clean resume-ready text only.\n\n"
-            f"Job:\n{job_description}"
-        )
         if pdf_bytes and len(pdf_bytes) > 100:
+            # PDF path: pass the actual PDF as a document + job context
             pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+            pdf_instruction = build_prompt("[SEE ATTACHED PDF RESUME]", job_description)
             messages = [
                 {
                     "role": "user",
@@ -406,11 +434,11 @@ def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
                                 "data": pdf_b64,
                             },
                         },
-                        {"type": "text", "text": tailor_instruction},
+                        {"type": "text", "text": pdf_instruction},
                     ],
                 }
             ]
-            return invoke_bedrock_claude(messages, max_tokens=2000), "bedrock-pdf"
+            return invoke_bedrock_claude(messages, max_tokens=2500), "bedrock-pdf"
         else:
             prompt = build_prompt(resume_text, job_description)
             return invoke_bedrock_nova(prompt), "bedrock"

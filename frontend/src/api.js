@@ -158,6 +158,18 @@ export const analyzeCV = async (resumeUrl) => {
   return apiCall('POST', '/ai/analyze-cv', { resumeUrl });
 };
 
+// ===== ADMIN =====
+export const adminGetStats       = ()           => apiCall('GET',    '/admin/stats');
+export const adminGetUsers       = ()           => apiCall('GET',    '/admin/users');
+export const adminGetJobs        = ()           => apiCall('GET',    '/admin/jobs');
+export const adminUpdateUserPlan = (uid, plan)  => apiCall('PUT',    `/admin/users/${uid}/plan`,        { plan });
+export const adminResetUserQuota = (uid)        => apiCall('POST',   `/admin/users/${uid}/reset-quota`, {});
+export const adminBlockUser      = (uid, block) => apiCall('PUT',    `/admin/users/${uid}/block`,       { blocked: block });
+export const adminDeleteUser     = (uid)        => apiCall('DELETE', `/admin/users/${uid}`);
+export const adminToggleJob      = (jid, act)   => apiCall('PUT',    `/admin/jobs/${jid}`,              { active: act });
+export const adminTriggerImport  = ()           => apiCall('POST',   '/admin/jobs/import',              {});
+export const adminResetMyQuota   = (plan)       => apiCall('POST',   '/admin/reset-my-quota',           { plan });
+
 export const tailorCVForJob = async (jobId, force = false) => {
   return apiCall('POST', '/ai/tailor', { jobId, ...(force && { force: true }) });
 };

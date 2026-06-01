@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'aws-amplify/auth';
 
-function Navbar() {
+function Navbar({ isAdmin = false }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -27,10 +27,17 @@ function Navbar() {
           <span style={styles.icon}>📋</span>
           <span style={styles.label}>הגשות</span>
         </button>
-<button style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.active : {}) }} onClick={() => navigate('/profile')}>
+        <button style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.active : {}) }} onClick={() => navigate('/profile')}>
           <span style={styles.icon}>👤</span>
           <span style={styles.label}>פרופיל</span>
         </button>
+        {isAdmin && (
+          <button style={{ ...styles.navBtn, ...(isActive('/admin') ? styles.active : {}), color: isActive('/admin') ? '#FF6B6B' : '#FF9800' }}
+            onClick={() => navigate('/admin')}>
+            <span style={styles.icon}>🛠️</span>
+            <span style={styles.label}>Admin</span>
+          </button>
+        )}
       </div>
     </>
   );

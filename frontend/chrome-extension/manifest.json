@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "JoBoss Auto Fill",
+  "version": "1.0.0",
+  "description": "Auto-fill job application forms from your JoBoss profile and access your tailored CV.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.smartrecruiters.com/*",
+        "https://*.lever.co/*",
+        "https://*.greenhouse.io/*",
+        "https://*.workday.com/*",
+        "https://*.ashbyhq.com/*",
+        "https://*.jobvite.com/*",
+        "https://*.taleo.net/*",
+        "https://*.icims.com/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.linkedin.com/jobs/*",
+        "https://*/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

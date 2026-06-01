@@ -112,7 +112,6 @@ function JobDetailModal({ job, onClose }) {
         </div>
         <div style={modal.meta}>
           <span style={modal.metaItem}>📍 {job.location}</span>
-          <span style={modal.metaItem}>💰 {job.salary || 'לא צוין'}</span>
           {job.distanceKm != null && (
             <span style={{ ...modal.metaItem, background: '#E8F5E9', color: '#2E7D32' }}>🗺 {job.distanceKm.toFixed(1)} ק"מ</span>
           )}
@@ -187,7 +186,6 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
         </div>
       </div>
       <h3 style={styles.title}>{job.title}</h3>
-      <p style={styles.salary}>💰 {job.salary || job.jobType || 'לא צוין'}</p>
       {job.distanceKm != null && <p style={styles.distance}>🗺 {job.distanceKm.toFixed(1)} ק"מ ממך</p>}
       <div style={styles.shortSummaryBlock}>
         <p style={styles.shortSummaryTitle}>Short Summary</p>

@@ -270,25 +270,58 @@ export default function AdminPage() {
         {/* SELF */}
         {tab === 'self' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ background: 'white', borderRadius: 20, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E2A4A', margin: '0 0 8px' }}>🔧 כלי בדיקה — Admin בלבד</h3>
-              <p style={{ fontSize: 13, color: '#777', margin: '0 0 20px' }}>
-                אפס quota ו/או שנה Plan של המשתמש המחובר. שינוי Plan משנה את ההגבלות המקוריות של המסלול.
+
+            {/* What is Quota */}
+            <div style={{ background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 16, padding: '14px 18px' }}>
+              <p style={{ fontWeight: 700, color: '#F57F17', margin: '0 0 4px' }}>💡 מה זה Quota?</p>
+              <p style={{ fontSize: 13, color: '#795548', margin: 0, lineHeight: 1.6 }}>
+                Quota = המונה של כמה פעולות השתמשת היום/החודש.
+                למשל: 5 swipes מתוך 5 = Quota מלא = לא ניתן להחליק יותר.
+                <strong> איפוס Quota</strong> = האפס את המונה כדי שתוכל לבדוק שוב מההתחלה — ללא תשלום.
               </p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <select value={myPlan} onChange={e => setMyPlan(e.target.value)}
-                  style={{ fontSize: 13, borderRadius: 10, border: '1.5px solid #ddd', padding: '10px 14px', cursor: 'pointer' }}>
-                  <option value="">שמור Plan נוכחי</option>
-                  <option value="FREE">FREE — 5 swipes, 0 AI</option>
-                  <option value="PREMIUM">PREMIUM — 30 swipes, 10 AI</option>
-                  <option value="PREMIUM_PLUS">PREMIUM_PLUS — ללא הגבלה</option>
-                </select>
-                <button onClick={doResetMy}
-                  style={{ background: 'linear-gradient(135deg,#6C4FD4,#1E2A4A)', color: 'white',
-                    border: 'none', borderRadius: 12, padding: '10px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
-                  ⟳ אפס Quota{myPlan ? ` + ${myPlan}` : ''}
-                </button>
+            </div>
+
+            {/* Switch Plan */}
+            <div style={{ background: 'white', borderRadius: 20, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E2A4A', margin: '0 0 6px' }}>🔄 עבור בין מסלולים</h3>
+              <p style={{ fontSize: 13, color: '#777', margin: '0 0 16px' }}>
+                משנה את המסלול שלך לבדיקות — ללא תשלום. כל מסלול מגיע עם ההגבלות האמיתיות שלו.
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {[
+                  { plan: 'FREE',         label: 'FREE',      sub: '5 swipes ביום · 0 AI',        color: '#888' },
+                  { plan: 'PREMIUM',      label: '⭐ PREMIUM', sub: '30 swipes ביום · 10 AI/חודש', color: '#6C4FD4' },
+                  { plan: 'PREMIUM_PLUS', label: '🔥 PREMIUM+',sub: 'ללא הגבלה בכל מה',            color: '#FF6B6B' },
+                ].map(({ plan, label, sub, color }) => (
+                  <button key={plan}
+                    onClick={async () => {
+                      setMyPlan(plan);
+                      try {
+                        await adminResetMyQuota(plan);
+                        showToast(`עברת ל-${plan} + Quota אופס`);
+                      } catch { showToast('שגיאה', false); }
+                    }}
+                    style={{ flex: 1, minWidth: 130, padding: '14px 10px', borderRadius: 14,
+                      border: `2px solid ${color}`, background: color + '10',
+                      cursor: 'pointer', textAlign: 'center' }}>
+                    <p style={{ fontWeight: 800, fontSize: 14, color, margin: '0 0 4px' }}>{label}</p>
+                    <p style={{ fontSize: 11, color: '#777', margin: 0 }}>{sub}</p>
+                  </button>
+                ))}
               </div>
+            </div>
+
+            {/* Reset quota only */}
+            <div style={{ background: 'white', borderRadius: 20, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E2A4A', margin: '0 0 8px' }}>⟳ איפוס Quota בלבד</h3>
+              <p style={{ fontSize: 13, color: '#777', margin: '0 0 14px' }}>
+                אפס את המונה מבלי לשנות מסלול — כשהגעת ל-30 swipes ורוצה לבדוק שוב.
+              </p>
+              <button onClick={doResetMy}
+                style={{ background: 'linear-gradient(135deg,#6C4FD4,#1E2A4A)', color: 'white',
+                  border: 'none', borderRadius: 12, padding: '10px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
+                ⟳ אפס Quota (שמור Plan נוכחי)
+              </button>
             </div>
           </div>
         )}

@@ -5,6 +5,88 @@ import Spinner from '../components/Spinner';
 import LimitModal from '../components/LimitModal';
 import { getJobs, createSwipe, createApplication, updateMyProfile, getMySwipes, undoSwipe, getQuotaStatus, tailorCVForJob } from '../api';
 
+const DESCRIPTION_SECTION_TITLES = new Set([
+  'summary',
+  'responsibilities',
+  'requirements',
+  'nice to have',
+  'technologies',
+]);
+
+function parseJobDescription(description = '') {
+  const sections = [];
+  let currentSection = null;
+
+  description
+    .replace(/\r/g, '')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const normalized = line.toLowerCase();
+
+      if (DESCRIPTION_SECTION_TITLES.has(normalized)) {
+        currentSection = { title: line, items: [] };
+        sections.push(currentSection);
+        return;
+      }
+
+      if (!currentSection) {
+        currentSection = { title: 'Summary', items: [] };
+        sections.push(currentSection);
+      }
+
+      currentSection.items.push(line.replace(/^[-•]\s*/, ''));
+    });
+
+  return sections;
+}
+
+function getJobSummary(description = '') {
+  const summary = parseJobDescription(description)
+    .find(section => section.title.toLowerCase() === 'summary');
+
+  return summary?.items?.join(' ') || description;
+}
+
+function JobDescription({ description }) {
+  const sections = parseJobDescription(description);
+
+  if (!sections.length) return null;
+
+  return (
+    <div style={modal.descriptionPanel}>
+      {sections.map((section) => {
+        const normalizedTitle = section.title.toLowerCase();
+        const isBulletSection = ['responsibilities', 'requirements', 'nice to have'].includes(normalizedTitle);
+        const isTechnologySection = normalizedTitle === 'technologies';
+
+        return (
+          <div key={section.title} style={modal.descriptionSection}>
+            <h4 style={modal.descriptionHeading}>{section.title}</h4>
+
+            {isTechnologySection ? (
+              <div style={modal.techList}>
+                {section.items.join(', ').split(',').map(item => item.trim()).filter(Boolean).map(item => (
+                  <span key={item} style={modal.techPill}>{item}</span>
+                ))}
+              </div>
+            ) : isBulletSection ? (
+              <ul style={modal.bulletList}>
+                {section.items.map((item, index) => (
+                  <li key={`${section.title}-${index}`} style={modal.bulletItem}>{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p style={modal.descriptionText}>{section.items.join(' ')}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Job detail modal (unchanged) ────────────────────────────────────────────
 function JobDetailModal({ job, onClose }) {
   const [logoError, setLogoError] = useState(false);
@@ -46,7 +128,7 @@ function JobDetailModal({ job, onClose }) {
         {job.description && (
           <div style={modal.section}>
             <p style={modal.sectionTitle}>תיאור המשרה</p>
-            <p style={modal.description}>{job.description}</p>
+            <JobDescription description={job.description} />
           </div>
         )}
         {job.applyUrl && (
@@ -107,7 +189,7 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       <h3 style={styles.title}>{job.title}</h3>
       <p style={styles.salary}>💰 {job.salary || job.jobType || 'לא צוין'}</p>
       {job.distanceKm != null && <p style={styles.distance}>🗺 {job.distanceKm.toFixed(1)} ק"מ ממך</p>}
-      <p style={styles.description}>{job.description}</p>
+      <p style={styles.description}>{getJobSummary(job.description)}</p>
       <div style={styles.techContainer}>
         {(job.technologies || job.requirements || []).map(t => <span key={t} style={styles.techBadge}>{t}</span>)}
       </div>
@@ -584,7 +666,14 @@ const modal = {
   tags: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   tag: { background: '#F0F2FF', color: '#6C4FD4', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600 },
   description: { fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: 0 },
-  applyLink: { color: '#6C4FD4', fontSize: '14px', fontWeight: 600 },
+  descriptionPanel: { display: 'flex', flexDirection: 'column', gap: '14px' },
+  descriptionSection: { background: '#F8FAFC', border: '1px solid #EEF2F7', borderRadius: '14px', padding: '14px' },
+  descriptionHeading: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 8px' },
+  descriptionText: { fontSize: '14px', color: '#5F6675', lineHeight: 1.65, margin: 0 },
+  bulletList: { margin: 0, paddingInlineStart: '18px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  bulletItem: { fontSize: '14px', color: '#5F6675', lineHeight: 1.55 },
+  techList: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+  techPill: { background: 'white', color: '#6C4FD4', border: '1px solid #DDD6FE', borderRadius: '999px', padding: '5px 10px', fontSize: '12px', fontWeight: 700 },  applyLink: { color: '#6C4FD4', fontSize: '14px', fontWeight: 600 },
   footer: { display: 'flex', gap: '12px', paddingTop: '8px' },
   passBtn: { flex: 1, padding: '14px', borderRadius: '14px', border: '2px solid #F44336', background: 'white', color: '#F44336', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
   applyBtn: { flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },

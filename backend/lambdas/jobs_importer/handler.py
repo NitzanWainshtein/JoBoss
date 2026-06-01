@@ -8,6 +8,7 @@ from telethon import TelegramClient
 from telethon.sessions import StringSession
 
 from geocoding import geocode_location
+from job_description_ai import normalize_description_with_ai
 from job_description_fetcher import fetch_full_description
 from jobs_repository import exists_by_source_job
 from telegram_jobs import extract_apply_url, extract_preview_description, parse_message
@@ -101,6 +102,18 @@ def insert_jobs(messages):
             created_at = datetime.now(timezone.utc)
             expires_at = int((created_at + timedelta(days=10)).timestamp()) # sets expire date for 10 days
 
+            raw_description = fetch_full_description(
+                apply_url,
+                extract_preview_description(msg, parsed["description"]),
+            )
+
+            description = normalize_description_with_ai(
+                parsed["title"],
+                parsed["company"],
+                parsed["location"],
+                raw_description,
+            )
+
             item = {
                 "jobId": str(uuid.uuid4()),
                 "source": source,
@@ -108,10 +121,7 @@ def insert_jobs(messages):
                 "title": parsed["title"],
                 "company": parsed["company"],
                 "location": parsed["location"],
-                "description": fetch_full_description(
-                    apply_url,
-                    extract_preview_description(msg, parsed["description"]),
-                ),
+                "description": description,
                 "applyUrl": apply_url,
                 "telegramUrl": telegram_url,
                 "createdAt": created_at.isoformat(),

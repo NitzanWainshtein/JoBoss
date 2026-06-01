@@ -110,12 +110,34 @@ def fetch_html(url: str) -> str:
 
 
 def extract_full_description_from_html(html_text: str) -> str:
+    start_markers = [
+        "Job Description",
+        "Meet the Team",
+        "Your Impact",
+        "Key Responsibilities",
+        "What You’ll Do",
+        "What You'll Do",
+        "About the Role",
+        "About The Role",
+        "Minimum Qualifications",
+    ]
+
+    end_markers = [
+        "Apply now",
+        "Apply for this job",
+        "Similar Jobs",
+        "Share this job",
+        "Equal Opportunity",
+        "Privacy",
+        "Cookie",
+    ]
+
     candidates = []
 
     escaped_section = extract_between_markers(
         html_text,
-        ["Job Description", "About the Role", "About The Role", "What You’ll Do", "What You'll Do"],
-        ["Apply now", "Apply for this job", "Similar Jobs", "Share this job", "Equal Opportunity", "Privacy"],
+        start_markers,
+        end_markers,
     )
 
     if escaped_section:
@@ -124,15 +146,35 @@ def extract_full_description_from_html(html_text: str) -> str:
     plain_text = html_to_text(html_text)
     plain_section = extract_between_markers(
         plain_text,
-        ["Job Description", "About the Role", "About The Role", "What You’ll Do", "What You'll Do"],
-        ["Apply now", "Apply for this job", "Similar Jobs", "Share this job", "Equal Opportunity", "Privacy"],
+        start_markers,
+        end_markers,
     )
 
     if plain_section:
         candidates.append(clean_text(plain_section))
 
-    candidates.append(plain_text)
+    role_signal_markers = [
+        "meet the team",
+        "your impact",
+        "minimum qualifications",
+        "preferred qualifications",
+        "key responsibilities",
+        "responsibilities",
+        "requirements",
+    ]
 
+    role_candidates = [
+        candidate
+        for candidate in candidates
+        if len(candidate) >= 120
+        and any(marker in candidate.lower() for marker in role_signal_markers)
+    ]
+
+    if role_candidates:
+        best = max(role_candidates, key=len)
+        return best[:MAX_DESCRIPTION_LENGTH]
+
+    candidates.append(plain_text)
     candidates = [candidate for candidate in candidates if len(candidate) >= 120]
 
     if not candidates:

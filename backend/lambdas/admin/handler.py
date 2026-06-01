@@ -12,7 +12,7 @@ USERS_TABLE   = os.getenv("USERS_TABLE",   "joboss-users")
 APPS_TABLE    = os.getenv("APPS_TABLE",    "joboss-applications")
 SWIPES_TABLE  = os.getenv("SWIPES_TABLE",  "joboss-swipes")
 JOBS_TABLE    = os.getenv("JOBS_TABLE",    "joboss-jobs")
-USAGE_TABLE   = os.getenv("USAGE_TABLE",   "joboss-usage")
+SUBS_TABLE    = os.getenv("SUBS_TABLE",    "joboss-subscriptions")
 IMPORTER_FN   = os.getenv("IMPORTER_FN",  "joboss-jobs-importer")
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
@@ -22,6 +22,7 @@ users_table  = dynamodb.Table(USERS_TABLE)
 apps_table   = dynamodb.Table(APPS_TABLE)
 swipes_table = dynamodb.Table(SWIPES_TABLE)
 jobs_table   = dynamodb.Table(JOBS_TABLE)
+subs_table   = dynamodb.Table(SUBS_TABLE)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -210,12 +211,23 @@ def handle_update_user_plan(admin_id, user_id, body):
     if new_plan not in ("FREE", "PREMIUM", "PREMIUM_PLUS"):
         return resp(400, {"error": "Invalid plan"})
     log_action(admin_id, "UPDATE_PLAN", f"userId={user_id} plan={new_plan}")
+    now = datetime.now(timezone.utc).isoformat()
+    # Update both tables
     users_table.update_item(
         Key={"userId": user_id},
         UpdateExpression="SET #p = :p",
         ExpressionAttributeNames={"#p": "plan"},
         ExpressionAttributeValues={":p": new_plan},
     )
+    try:
+        subs_table.update_item(
+            Key={"userId": user_id},
+            UpdateExpression="SET #p = :p, #s = :s, updatedAt = :t",
+            ExpressionAttributeNames={"#p": "plan", "#s": "status"},
+            ExpressionAttributeValues={":p": new_plan, ":s": new_plan, ":t": now},
+        )
+    except Exception as e:
+        print(f"[UPDATE_PLAN] subs update failed: {e}")
     return resp(200, {"success": True, "plan": new_plan})
 
 
@@ -301,24 +313,42 @@ def handle_trigger_import(admin_id):
 def handle_reset_my_quota(admin_id, body):
     plan = body.get("plan", "").upper()
     log_action(admin_id, "RESET_MY_QUOTA", f"plan={plan or 'keep'}")
-    update_expr = "SET dailySwipesUsed = :z, aiTailoringsUsed = :z, aiTailoringsMonth = :m"
-    expr_vals   = {":z": 0, ":m": ""}
+    now = datetime.now(timezone.utc).isoformat()
+
+    # 1. Update joboss-users
+    user_expr = "SET dailySwipesUsed = :z, aiTailoringsUsed = :z, aiTailoringsMonth = :m"
+    user_vals = {":z": 0, ":m": ""}
     if plan in ("FREE", "PREMIUM", "PREMIUM_PLUS"):
-        update_expr += ", #p = :p"
-        expr_vals[":p"] = plan
+        user_expr += ", #p = :p"
+        user_vals[":p"] = plan
         users_table.update_item(
             Key={"userId": admin_id},
-            UpdateExpression=update_expr,
+            UpdateExpression=user_expr,
             ExpressionAttributeNames={"#p": "plan"},
-            ExpressionAttributeValues=expr_vals,
+            ExpressionAttributeValues=user_vals,
         )
     else:
         users_table.update_item(
             Key={"userId": admin_id},
-            UpdateExpression=update_expr,
-            ExpressionAttributeValues=expr_vals,
+            UpdateExpression=user_expr,
+            ExpressionAttributeValues=user_vals,
         )
-    return resp(200, {"success": True})
+        # Get current plan from users table if not provided
+        item = users_table.get_item(Key={"userId": admin_id}).get("Item", {})
+        plan = item.get("plan", "FREE")
+
+    # 2. Update joboss-subscriptions (what SwipePage and ProfilePage actually read)
+    try:
+        subs_table.update_item(
+            Key={"userId": admin_id},
+            UpdateExpression="SET #p = :p, #s = :s, dailyApplications = :z, updatedAt = :t",
+            ExpressionAttributeNames={"#p": "plan", "#s": "status"},
+            ExpressionAttributeValues={":p": plan, ":s": plan, ":z": 0, ":t": now},
+        )
+    except Exception as e:
+        print(f"[RESET_QUOTA] subs update failed: {e}")
+
+    return resp(200, {"success": True, "plan": plan})
 
 
 # ── router ────────────────────────────────────────────────────────────────────

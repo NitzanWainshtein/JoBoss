@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   adminGetStats, adminGetUsers, adminGetJobs,
   adminUpdateUserPlan, adminResetUserQuota, adminBlockUser, adminDeleteUser,
-  adminToggleJob, adminTriggerImport, adminResetMyQuota,
+  adminToggleJob, adminTriggerImport, adminResetMyQuota, adminResetMySwipes,
 } from '../api';
 
 const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: '⭐ פרימיום', PREMIUM_PLUS: '🔥 פרימיום+' };
@@ -321,6 +321,25 @@ export default function AdminPage() {
                 style={{ background: 'linear-gradient(135deg,#6C4FD4,#1E2A4A)', color: 'white',
                   border: 'none', borderRadius: 12, padding: '10px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
                 ⟳ אפס Quota (שמור Plan נוכחי)
+              </button>
+            </div>
+
+            {/* Reset swipes */}
+            <div style={{ background: 'white', borderRadius: 20, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E2A4A', margin: '0 0 8px' }}>🔁 איפוס היסטוריית Swipes</h3>
+              <p style={{ fontSize: 13, color: '#777', margin: '0 0 6px' }}>
+                כשמוצגת "סיימת את כל המשרות" — פירושו שעברת על כל המשרות הקיימות, לא שהגעת למכסה.
+              </p>
+              <p style={{ fontSize: 13, color: '#777', margin: '0 0 14px' }}>
+                לחיצה כאן מוחקת את כל ה-Swipes שלך → תוכל לראות את כל המשרות מחדש.
+              </p>
+              <button onClick={async () => {
+                  try { const r = await adminResetMySwipes(); showToast(`Swipes אופסו (${r.deleted} נמחקו)`); }
+                  catch { showToast('שגיאה', false); }
+                }}
+                style={{ background: '#FF9800', color: 'white', border: 'none', borderRadius: 12,
+                  padding: '10px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
+                🔁 אפס את כל ה-Swipes שלי
               </button>
             </div>
           </div>

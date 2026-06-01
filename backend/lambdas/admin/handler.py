@@ -311,6 +311,24 @@ def handle_trigger_import(admin_id):
 
 # ── admin self-service ────────────────────────────────────────────────────────
 
+def handle_reset_my_swipes(admin_id):
+    """Delete all swipe records for admin — lets them see all jobs again."""
+    log_action(admin_id, "RESET_MY_SWIPES")
+    deleted = 0
+    try:
+        result = swipes_table.query(
+            KeyConditionExpression=boto3.dynamodb.conditions.Key("userId").eq(admin_id)
+        )
+        with swipes_table.batch_writer() as batch:
+            for item in result.get("Items", []):
+                batch.delete_item(Key={"userId": item["userId"], "jobId": item["jobId"]})
+                deleted += 1
+    except Exception as e:
+        print(f"[RESET_SWIPES] {e}")
+        return resp(500, {"error": str(e)})
+    return resp(200, {"success": True, "deleted": deleted})
+
+
 def handle_reset_my_quota(admin_id, body):
     plan = body.get("plan", "").upper()
     log_action(admin_id, "RESET_MY_QUOTA", f"plan={plan or 'keep'}")
@@ -413,6 +431,9 @@ def lambda_handler(event, context):
         # Admin self reset
         if method == "POST" and path.endswith("/admin/reset-my-quota"):
             return handle_reset_my_quota(admin_id, body)
+
+        if method == "POST" and path.endswith("/admin/reset-my-swipes"):
+            return handle_reset_my_swipes(admin_id)
 
         return resp(404, {"error": f"Unknown admin route: {method} {path}"})
 

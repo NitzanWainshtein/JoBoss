@@ -219,12 +219,13 @@ def handle_update_user_plan(admin_id, user_id, body):
         ExpressionAttributeNames={"#p": "plan"},
         ExpressionAttributeValues={":p": new_plan},
     )
+    subs_status = "FREE" if new_plan == "FREE" else "ACTIVE"
     try:
         subs_table.update_item(
             Key={"userId": user_id},
             UpdateExpression="SET #p = :p, #s = :s, updatedAt = :t",
             ExpressionAttributeNames={"#p": "plan", "#s": "status"},
-            ExpressionAttributeValues={":p": new_plan, ":s": new_plan, ":t": now},
+            ExpressionAttributeValues={":p": new_plan, ":s": subs_status, ":t": now},
         )
     except Exception as e:
         print(f"[UPDATE_PLAN] subs update failed: {e}")
@@ -338,12 +339,14 @@ def handle_reset_my_quota(admin_id, body):
         plan = item.get("plan", "FREE")
 
     # 2. Update joboss-subscriptions (what SwipePage and ProfilePage actually read)
+    # status must be "ACTIVE" for paid plans, "FREE" for free tier
+    subs_status = "FREE" if plan == "FREE" else "ACTIVE"
     try:
         subs_table.update_item(
             Key={"userId": admin_id},
             UpdateExpression="SET #p = :p, #s = :s, dailyApplications = :z, updatedAt = :t",
             ExpressionAttributeNames={"#p": "plan", "#s": "status"},
-            ExpressionAttributeValues={":p": plan, ":s": plan, ":z": 0, ":t": now},
+            ExpressionAttributeValues={":p": plan, ":s": subs_status, ":z": 0, ":t": now},
         )
     except Exception as e:
         print(f"[RESET_QUOTA] subs update failed: {e}")

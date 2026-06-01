@@ -70,14 +70,16 @@ function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mod
             )}
 
             <div style={styles.plansRow}>
-              <PlanCard
-                name="פרימיום"
-                price="₪36"
-                perMonth="לחודש"
-                features={['30 החלקות ביום', '10 התאמות AI לחודש', 'Auto Apply']}
-                color="#6C4FD4"
-                onClick={() => { onClose(); navigate('/profile?tab=subscription'); }}
-              />
+              {plan !== 'PREMIUM' && (
+                <PlanCard
+                  name="פרימיום"
+                  price="₪36"
+                  perMonth="לחודש"
+                  features={['30 החלקות ביום', '10 התאמות AI לחודש', 'Auto Apply']}
+                  color="#6C4FD4"
+                  onClick={() => { onClose(); navigate('/profile?tab=subscription'); }}
+                />
+              )}
               <PlanCard
                 name="פרימיום+"
                 price="₪72"

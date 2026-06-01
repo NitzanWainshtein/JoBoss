@@ -329,12 +329,22 @@ function ApplicationsPage() {
           ? { ...a, tailoredResumeUrl: result.tailoredResumeUrl, tailoredResume: result.tailoredResume }
           : a
       ));
-    } catch {
-      alert('שגיאה בהתאמת קורות החיים. ודא שיש קורות חיים פעילים בפרופיל.');
+    } catch (err) {
+      if (err?.code === 'AI_LIMIT_REACHED' || err?.status === 429) {
+        setShowUpsell(true);
+      } else {
+        alert('שגיאה בהתאמת קורות החיים. ודא שיש קורות חיים פעילים בפרופיל.');
+      }
     } finally {
       setTailoringJobId(null);
     }
   };
+
+  useEffect(() => {
+    if (tailoringJobs.size === 0) return;
+    const interval = setInterval(loadApplications, 6000);
+    return () => clearInterval(interval);
+  }, [tailoringJobs.size]);
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
@@ -503,7 +513,7 @@ function ApplicationsPage() {
         )}
       </div>
 
-      <LimitModal visible={showUpsell} mode="tailor" onClose={() => setShowUpsell(false)} />
+      <LimitModal visible={showUpsell} mode="tailor" plan={planKey} onClose={() => setShowUpsell(false)} />
 
       <MismatchWarningModal
         visible={!!mismatchState}

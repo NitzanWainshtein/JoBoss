@@ -649,6 +649,29 @@ def lambda_handler(event, context):
         if not resume:
             return response(404, {"error": "Resume was not found"})
 
+        # ── AI tailoring quota ─────────────────────────────────────────────
+        AI_MONTHLY_LIMITS = {"FREE": 0, "PREMIUM": 10, "PREMIUM_PLUS": -1}
+        user_plan = user.get("plan", "FREE")
+        ai_limit = AI_MONTHLY_LIMITS.get(user_plan, 0)
+
+        if ai_limit == 0:
+            return response(403, {"error": "AI tailoring not available on Free plan", "code": "AI_NOT_AVAILABLE"})
+
+        if ai_limit != -1:
+            now_month = datetime.now(timezone.utc).strftime("%Y-%m")
+            stored_month = user.get("aiTailoringsMonth", "")
+            ai_used = int(user.get("aiTailoringsUsed", 0)) if stored_month == now_month else 0
+
+            if ai_used >= ai_limit:
+                return response(429, {
+                    "error": "Monthly AI tailoring limit reached",
+                    "code": "AI_LIMIT_REACHED",
+                    "used": ai_used,
+                    "limit": ai_limit,
+                    "plan": user_plan,
+                })
+        # ──────────────────────────────────────────────────────────────────
+
         pdf_bytes = None if provided_resume_text else read_resume_bytes(resume)
         resume_text = provided_resume_text or read_resume_text(resume)
 
@@ -676,6 +699,20 @@ def lambda_handler(event, context):
             )
         except Exception:
             pass
+
+        if ai_limit != -1:
+            try:
+                now_month = datetime.now(timezone.utc).strftime("%Y-%m")
+                users_table.update_item(
+                    Key={"userId": user_id},
+                    UpdateExpression="SET aiTailoringsUsed = :used, aiTailoringsMonth = :month",
+                    ExpressionAttributeValues={
+                        ":used": ai_used + 1,
+                        ":month": now_month,
+                    },
+                )
+            except Exception:
+                pass
 
         return response(200, {
             "message": "Tailored resume generated",

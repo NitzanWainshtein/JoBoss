@@ -73,23 +73,48 @@ def get_user_email(user_id):
         return ""
 
 
-def download_resume(user_id):
+def _download_s3_pdf(bucket, key, label="resume"):
+    """Download a PDF from S3 to a temp file and return its path."""
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    s3.download_fileobj(bucket, key, tmp)
+    tmp.flush()
+    log.info("%s downloaded: s3://%s/%s → %s", label, bucket, key, tmp.name)
+    return tmp.name
+
+
+def download_resume(user_id, tailored_s3_url=None):
+    """Return a local path to the best available resume PDF.
+
+    Priority:
+      1. tailored_s3_url (s3://bucket/key) — the Bedrock-tailored version for
+         this specific job, passed in the SQS payload by the ai-tailor Lambda.
+      2. Latest original PDF under users/{user_id}/ in the resume bucket.
+    """
+    # 1. Tailored CV takes priority.
+    if tailored_s3_url and tailored_s3_url.startswith("s3://"):
+        try:
+            without_scheme = tailored_s3_url[5:]
+            bucket, _, key = without_scheme.partition("/")
+            if bucket and key:
+                return _download_s3_pdf(bucket, key, label="tailored_resume")
+            log.warning("Could not parse tailored_s3_url=%s, falling back to original", tailored_s3_url)
+        except Exception as e:
+            log.warning("Tailored CV download failed (%s), falling back to original", e)
+
+    # 2. Fall back to the most recent original upload.
     prefix = f"users/{user_id}/"
     try:
         resp = s3.list_objects_v2(Bucket=RESUME_BUCKET, Prefix=prefix)
+        # Exclude the tailored/ sub-prefix so we only pick original uploads.
         pdfs = sorted(
-            [o["Key"] for o in resp.get("Contents", []) if o["Key"].lower().endswith(".pdf")],
+            [o["Key"] for o in resp.get("Contents", [])
+             if o["Key"].lower().endswith(".pdf") and "/tailored/" not in o["Key"]],
             reverse=True,
         )
         if not pdfs:
-            log.warning("No PDF found for userId=%s", user_id)
+            log.warning("No original PDF found for userId=%s", user_id)
             return None
-        key = pdfs[0]
-        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-        s3.download_fileobj(RESUME_BUCKET, key, tmp)
-        tmp.flush()
-        log.info("Resume downloaded: s3://%s/%s → %s", RESUME_BUCKET, key, tmp.name)
-        return tmp.name
+        return _download_s3_pdf(RESUME_BUCKET, pdfs[0], label="original_resume")
     except Exception as e:
         log.error("Resume download failed: %s", e)
         return None
@@ -619,13 +644,17 @@ def apply_generic(page, user_email, resume_path):
 # ── Main apply logic ──────────────────────────────────────────────────────────
 
 def run_apply(payload):
-    user_id   = payload["userId"]
-    job_id    = payload["jobId"]
-    job_url   = payload.get("jobUrl", "")
-    job_title = payload.get("jobTitle", "")
-    company   = payload.get("company", "")
+    user_id             = payload["userId"]
+    job_id              = payload["jobId"]
+    job_url             = payload.get("jobUrl", "")
+    job_title           = payload.get("jobTitle", "")
+    company             = payload.get("company", "")
+    tailored_resume_url = payload.get("tailoredResumeUrl", "")
 
-    log.info("Starting apply: userId=%s jobId=%s url=%s", user_id, job_id, job_url)
+    log.info(
+        "Starting apply: userId=%s jobId=%s url=%s tailoredCV=%s",
+        user_id, job_id, job_url, "yes" if tailored_resume_url else "no",
+    )
 
     if not job_url:
         reason = "no jobUrl provided"
@@ -634,7 +663,7 @@ def run_apply(payload):
         return False, reason
 
     user_email  = get_user_email(user_id)
-    resume_path = download_resume(user_id)
+    resume_path = download_resume(user_id, tailored_s3_url=tailored_resume_url)
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(

@@ -203,6 +203,18 @@
     </div>
 
     <div class="section">
+      <!-- CV selector — visible only for Premium users with a tailored CV for this job -->
+      <div id="cv-selector" style="display:none; flex-direction:column; gap:6px; margin-bottom:10px;">
+        <div style="font-size:11px; font-weight:700; color:#6C4FD4; text-transform:uppercase; letter-spacing:0.5px;">קורות חיים לצרף</div>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:#1E2A4A;">
+          <input type="radio" name="cv-choice" id="cv-radio-tailored" />
+          קורות חיים מותאמים למשרה ✨
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:#555;">
+          <input type="radio" name="cv-choice" id="cv-radio-original" />
+          קורות חיים מקוריים
+        </label>
+      </div>
       <button class="btn btn-primary" id="fill-btn">⚡ מלא טופס אוטומטית</button>
       <div id="status-msg" class="status"></div>
     </div>

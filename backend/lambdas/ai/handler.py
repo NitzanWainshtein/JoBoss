@@ -17,9 +17,11 @@ USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
 JOBS_TABLE = os.getenv("JOBS_TABLE", "joboss-jobs")
 APPLICATIONS_TABLE = os.getenv("APPLICATIONS_TABLE", "joboss-applications")
 RESUME_BUCKET = os.getenv("RESUME_BUCKET_NAME", "joboss-resumes-171109860478")
+SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/171109860478/joboss-auto-apply-queue")
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 s3 = boto3.client("s3", region_name=REGION)
+sqs = boto3.client("sqs", region_name=REGION)
 bedrock = boto3.client("bedrock-runtime", region_name=REGION)
 
 users_table = dynamodb.Table(USERS_TABLE)
@@ -240,22 +242,38 @@ Output the tailored resume in this exact markdown format:
 
 
 def invoke_bedrock_claude(messages, max_tokens=2000):
+    import time
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": max_tokens,
         "temperature": 0.4,
         "messages": messages,
     }
+    payload = json.dumps(body)
 
-    result = bedrock.invoke_model(
-        modelId=MODEL_ID,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps(body),
-    )
-
-    result_body = json.loads(result["body"].read())
-    return result_body["content"][0]["text"]
+    # Exponential backoff on ThrottlingException: 1s, 2s, 4s before giving up.
+    delay = 1
+    last_exc = None
+    for attempt in range(3):
+        try:
+            result = bedrock.invoke_model(
+                modelId=MODEL_ID,
+                contentType="application/json",
+                accept="application/json",
+                body=payload,
+            )
+            result_body = json.loads(result["body"].read())
+            return result_body["content"][0]["text"]
+        except Exception as e:
+            err_code = getattr(e, "response", {}).get("Error", {}).get("Code", "") if hasattr(e, "response") else ""
+            if err_code == "ThrottlingException" and attempt < 2:
+                print(f"[BEDROCK_THROTTLE] attempt {attempt + 1}/3 — retrying in {delay}s")
+                time.sleep(delay)
+                delay *= 2
+                last_exc = e
+            else:
+                raise
+    raise last_exc
 
 
 def invoke_bedrock_nova(prompt):
@@ -823,6 +841,62 @@ def explain_failure(event):
     return response(200, {"explanation": explanation, "cached": False})
 
 
+def _maybe_dispatch_auto_apply(user_id, job_id, tailored_resume_url, job):
+    """If this application was held in 'pending_tailoring' state, transition it
+    to 'pending' and dispatch to the auto-apply SQS queue with the tailored CV URL.
+    Fails silently — tailoring success must not be rolled back by a queue hiccup."""
+    try:
+        result = applications_table.update_item(
+            Key={"userId": user_id, "jobId": job_id},
+            UpdateExpression="SET autoApplyStatus = :p, updatedAt = :t",
+            ConditionExpression="autoApplyStatus = :pt",
+            ExpressionAttributeValues={
+                ":p": "pending",
+                ":pt": "pending_tailoring",
+                ":t": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            },
+            ReturnValues="UPDATED_NEW",
+        )
+        print(f"[AUTO_APPLY_DISPATCH] transitioned pending_tailoring → pending userId={user_id} jobId={job_id}")
+    except Exception as e:
+        # ConditionalCheckFailed = not a pending_tailoring record (autoApply off, or already dispatched).
+        code = getattr(e, "response", {}).get("Error", {}).get("Code", "") if hasattr(e, "response") else type(e).__name__
+        if "ConditionalCheckFailed" not in str(code):
+            print(f"[AUTO_APPLY_DISPATCH_ERROR] unexpected error userId={user_id} jobId={job_id}: {e}")
+        return  # not a pending_tailoring record — nothing to dispatch
+
+    try:
+        message = {
+            "userId": user_id,
+            "jobId": job_id,
+            "jobUrl": (job or {}).get("applyUrl", ""),
+            "jobTitle": (job or {}).get("title", ""),
+            "company": (job or {}).get("company", ""),
+            "tailoredResumeUrl": tailored_resume_url,
+            "aiTailoring": True,
+        }
+        kwargs = {"QueueUrl": SQS_QUEUE_URL, "MessageBody": json.dumps(message)}
+        if SQS_QUEUE_URL.endswith(".fifo"):
+            kwargs["MessageGroupId"] = user_id
+        sqs.send_message(**kwargs)
+        print(f"[AUTO_APPLY_DISPATCH] queued with tailored CV userId={user_id} jobId={job_id}")
+    except Exception as e:
+        # Revert status so the user isn't stuck on "pending" with no Fargate task.
+        print(f"[AUTO_APPLY_DISPATCH_SQS_ERROR] userId={user_id} jobId={job_id}: {e}")
+        try:
+            applications_table.update_item(
+                Key={"userId": user_id, "jobId": job_id},
+                UpdateExpression="SET autoApplyStatus = :f, failReason = :r, updatedAt = :t",
+                ExpressionAttributeValues={
+                    ":f": "failed",
+                    ":r": f"SQS dispatch error after tailoring: {str(e)[:200]}",
+                    ":t": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                },
+            )
+        except Exception:
+            pass
+
+
 def lambda_handler(event, context):
     path = event.get("path") or event.get("rawPath") or ""
 
@@ -863,8 +937,10 @@ def lambda_handler(event, context):
             return response(404, {"error": "Resume was not found"})
 
         # ── AI tailoring quota ─────────────────────────────────────────────
+        # Use get_effective_plan() so Premium users with a stale users.plan = "FREE"
+        # are still correctly gated (same fix as explain_failure).
         AI_MONTHLY_LIMITS = {"FREE": 0, "PREMIUM": 10, "PREMIUM_PLUS": -1}
-        user_plan = user.get("plan", "FREE")
+        user_plan = get_effective_plan(user_id, user)
         ai_limit = AI_MONTHLY_LIMITS.get(user_plan, 0)
 
         if ai_limit == 0:
@@ -912,6 +988,10 @@ def lambda_handler(event, context):
             )
         except Exception:
             pass
+
+        # If the swipes Lambda deferred the SQS dispatch (pending_tailoring), do it
+        # now that we have the tailored CV URL. Update the status first, then send.
+        _maybe_dispatch_auto_apply(user_id, job_id, saved_resume["tailoredResumeUrl"], job)
 
         if ai_limit != -1:
             try:

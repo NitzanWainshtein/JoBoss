@@ -125,8 +125,32 @@ def normalize_application(user_id, item):
     # Attach the job's real apply URL so the dashboard's "apply manually" button works.
     item['jobApplyUrl'] = get_job_apply_url(item.get('jobId'))
 
+    # Generate a 1-hour presigned URL for the tailored CV (s3:// → https://) so
+    # the Chrome Extension can fetch and attach it directly.
+    raw_tailored = item.get('tailoredResumeUrl', '')
+    item['tailoredResumePresignedUrl'] = _presign_s3(raw_tailored) if raw_tailored else ''
+
     # autoApplyStatus is optional (free users / autoApply off → absent).
     return item
+
+
+def _presign_s3(s3_url, expiry=3600):
+    """Return a presigned GET URL for an s3:// path, or '' on any failure."""
+    if not s3_url or not s3_url.startswith('s3://'):
+        return ''
+    without_scheme = s3_url[5:]
+    bucket, _, key = without_scheme.partition('/')
+    if not bucket or not key:
+        return ''
+    try:
+        return boto3.client('s3', region_name='us-east-1').generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket, 'Key': key},
+            ExpiresIn=expiry,
+        )
+    except Exception as e:
+        print(f'PRESIGN ERROR for {s3_url}: {e}')
+        return ''
 
 
 def handler(event, context):

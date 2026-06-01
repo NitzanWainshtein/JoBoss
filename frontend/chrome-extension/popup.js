@@ -137,6 +137,9 @@ function populateProfile(profile) {
   document.getElementById("avatar").textContent        = initial;
 }
 
+// Track which CV presigned URL to attach when filling. Defaults to the original.
+let _selectedCvPresignedUrl = null;  // null = use original from profile
+
 // Load token → profile → main view. Returns true on success, false otherwise.
 async function loadProfileAndShow(token) {
   let profile;
@@ -147,10 +150,115 @@ async function loadProfileAndShow(token) {
   }
 
   await new Promise((r) => chrome.storage.local.set({ joboss_token: token, joboss_profile: profile }, r));
+  _selectedCvPresignedUrl = null;
   populateProfile(profile);
   loadTailoredCV(token);
+  loadCVSelector(token, profile);
   showMainView();
   return true;
+}
+
+// ── CV selector (Premium only) ────────────────────────────────────────────────
+// Finds the application matching the current job page and renders a toggle if a
+// tailored CV presigned URL is available.
+async function loadCVSelector(token, profile) {
+  const selectorEl = document.getElementById("cv-selector");
+  if (!selectorEl) return;
+  selectorEl.style.display = "none";
+  _selectedCvPresignedUrl = null;
+
+  // Plan check: use the subscription endpoint to get the real plan (not stale
+  // profile.plan). Best-effort — if it fails we skip the selector silently.
+  let isPremium = false;
+  try {
+    const subRes = await fetch(`${API_BASE}/subscriptions/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (subRes.ok) {
+      const subData = await subRes.json();
+      const planKey = (subData.planKey || subData.plan || "FREE").toUpperCase();
+      isPremium = planKey !== "FREE";
+    }
+  } catch { /* silently skip */ }
+  if (!isPremium) return;
+
+  try {
+    const tabs = await new Promise((r) => chrome.tabs.query({ active: true, currentWindow: true }, r));
+    const pageUrl = (tabs[0]?.url || "").toLowerCase();
+    if (!pageUrl) return;
+
+    const res = await fetch(`${API_BASE}/applications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const apps = data.applications || [];
+
+    console.log("JoBoss CV selector — current URL:", pageUrl);
+    console.log("JoBoss CV selector — jobApplyUrls:", apps.map(a => a.jobApplyUrl || "(none)"));
+
+    // Pass 1: exact / substring URL match against jobApplyUrl.
+    let match = apps.find(a => {
+      const u = (a.jobApplyUrl || "").toLowerCase();
+      return u && (pageUrl.includes(u) || u.includes(pageUrl));
+    });
+
+    // Pass 2: hostname match among applications that HAVE a tailored CV.
+    // Useful when jobApplyUrl is populated but the paths differ, or when
+    // multiple jobs from the same ATS are in play.
+    if (!match) {
+      let pageHost = "";
+      try { pageHost = new URL(pageUrl).hostname; } catch { /* ignore */ }
+      if (pageHost) {
+        const tailoredApps = apps.filter(a => a.tailoredResumePresignedUrl);
+        const hostMatch = tailoredApps.filter(a => {
+          try { return new URL(a.jobApplyUrl || "").hostname === pageHost; } catch { return false; }
+        });
+        // Only auto-select if exactly one tailored CV for this site — avoids ambiguity.
+        if (hostMatch.length === 1) match = hostMatch[0];
+        else if (hostMatch.length > 1) {
+          console.log("JoBoss CV selector — multiple tailored CVs for this host, skipping auto-select");
+        }
+      }
+    }
+
+    // Pass 3: if still no URL match, surface ANY tailored CV from the most recent
+    // application for the current session as a best-effort fallback.
+    // (Useful when jobApplyUrl is empty and the page is a known ATS.)
+    if (!match) {
+      const tailoredApps = apps.filter(a => a.tailoredResumePresignedUrl);
+      if (tailoredApps.length === 1) {
+        // Only one tailored CV total — unambiguous, show it.
+        match = tailoredApps[0];
+        console.log("JoBoss CV selector — single tailored CV fallback:", match.company);
+      }
+    }
+
+    console.log("JoBoss CV selector — match:", match ? `${match.company} (tailored: ${!!match.tailoredResumePresignedUrl})` : "none");
+    if (!match?.tailoredResumePresignedUrl) return;
+
+    // We have a tailored CV for this job — render the selector.
+    selectorEl.style.display = "flex";
+    const presignedUrl = match.tailoredResumePresignedUrl;
+    const originalUrl  = profile.resumePresignedUrl || "";
+
+    // Sync the radio buttons with current selection.
+    const radOriginal = document.getElementById("cv-radio-original");
+    const radTailored = document.getElementById("cv-radio-tailored");
+    if (!radOriginal || !radTailored) return;
+
+    const syncSelection = () => {
+      _selectedCvPresignedUrl = radTailored.checked ? presignedUrl : originalUrl;
+    };
+    radOriginal.addEventListener("change", syncSelection);
+    radTailored.addEventListener("change", syncSelection);
+
+    // Default to tailored.
+    radTailored.checked = true;
+    _selectedCvPresignedUrl = presignedUrl;
+  } catch {
+    // Silently ignore — CV selector is optional.
+  }
 }
 
 async function loadTailoredCV(token) {
@@ -273,8 +381,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
 document.getElementById("fill-btn").addEventListener("click", () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) { setStatus("לא ניתן לגשת לדף", "error"); return; }
-    chrome.tabs.sendMessage(tabs[0].id, { type: "FILL_FORM" }, (res) => {
-      // No content script on this page at all → genuinely unsupported.
+    // Pass the selected CV presigned URL so content.js can attach the right PDF.
+    const msg = { type: "FILL_FORM" };
+    if (_selectedCvPresignedUrl) msg.cvPresignedUrl = _selectedCvPresignedUrl;
+    chrome.tabs.sendMessage(tabs[0].id, msg, (res) => {
       if (chrome.runtime.lastError) {
         setStatus("⚠️ עמוד זה אינו נתמך", "warn");
         return;

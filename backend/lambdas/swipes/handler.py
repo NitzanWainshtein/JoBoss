@@ -190,23 +190,41 @@ def create_swipe(event):
                     "resetAt": get_reset_time(),
                 })
 
+        # Determine the auto-apply track up front so the record reflects it
+        # immediately: "pending" when Auto Apply runs, "manual" when it doesn't.
+        user_profile = get_user_profile(user_id)
+        auto_apply_on = user_profile.get("autoApply") is True
+
+        ai_tailoring_on = auto_apply_on and TIER_LIMITS.get(plan, TIER_LIMITS["FREE"])["ai_tailoring"]
+
+        if auto_apply_on:
+            # When AI tailoring is also enabled, hold off on SQS: write
+            # "pending_tailoring" so the ai-tailor Lambda can detect this state,
+            # finish tailoring, and then dispatch to SQS with the tailored CV URL.
+            # When AI tailoring is off (or Free plan), send to SQS immediately.
+            initial_auto_status = "pending_tailoring" if ai_tailoring_on else "pending"
+        else:
+            initial_auto_status = "manual"
+
         app_item = {
             "userId": user_id,
             "jobId": job_id,
             "company": body.get("company", ""),
             "title": body.get("title", ""),
             "status": "SUBMITTED",
+            "autoApplyStatus": initial_auto_status,
             "createdAt": now_iso(),
             "updatedAt": now_iso(),
         }
         applications_table.put_item(Item=app_item)
 
-        # Auto Apply: if the user has autoApply enabled, push to SQS.
-        user_profile = get_user_profile(user_id)
-        if user_profile.get("autoApply") is True:
+        if auto_apply_on and not ai_tailoring_on:
+            # Tailoring not involved — go straight to SQS.
             apply_url = get_job_apply_url(job_id)
             print(f"AUTO_APPLY: resolved applyUrl={apply_url!r} for jobId={job_id}")
             send_to_auto_apply_queue(user_id, job_id, body, plan, apply_url=apply_url)
+        elif auto_apply_on and ai_tailoring_on:
+            print(f"AUTO_APPLY: waiting for tailoring — autoApplyStatus=pending_tailoring userId={user_id} jobId={job_id}")
 
     swipe_item = {
         "userId": user_id,

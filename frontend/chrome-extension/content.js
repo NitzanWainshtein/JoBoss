@@ -185,33 +185,33 @@ function fillForm(profile) {
   return filled;
 }
 
-// Download the user's resume PDF and attach it to a file input on the page.
-async function attachResume(profile) {
-  // Prefer the presigned HTTPS URL (s3:// URLs can't be fetched from the browser).
-  const resumeUrl = profile.resumePresignedUrl || profile.resumeUrl || "";
-  if (!resumeUrl || !/^https?:\/\//i.test(resumeUrl)) {
-    if (resumeUrl) console.log("JoBoss: resume URL is not directly fetchable, skipping attach:", resumeUrl);
-    return;
-  }
-
+// Attach a PDF from a presigned HTTPS URL to the first file input on the page.
+async function attachResumeFromUrl(url, fileNameHint) {
   const fileInput = document.querySelector("input[type='file']");
   if (!fileInput) {
     console.log("JoBoss: no file input found on page");
     return;
   }
-
-  const res = await fetch(resumeUrl);
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`resume fetch ${res.status}`);
   const blob = await res.blob();
-
-  const fileName = (profile.resumeFileName || "resume.pdf").replace(/[^\w.\-]/g, "_");
+  const fileName = (fileNameHint || "resume.pdf").replace(/[^\w.\-]/g, "_");
   const file = new File([blob], fileName, { type: blob.type || "application/pdf" });
-
   const dt = new DataTransfer();
   dt.items.add(file);
   fileInput.files = dt.files;
   fileInput.dispatchEvent(new Event("change", { bubbles: true }));
   console.log("JoBoss: attached resume", fileName, "to", describeEl(fileInput));
+}
+
+// Auto-attach on form-fill (when no specific URL was passed via the popup message).
+async function attachResume(profile) {
+  const resumeUrl = profile.resumePresignedUrl || profile.resumeUrl || "";
+  if (!resumeUrl || !/^https?:\/\//i.test(resumeUrl)) {
+    if (resumeUrl) console.log("JoBoss: resume URL is not directly fetchable, skipping attach:", resumeUrl);
+    return;
+  }
+  return attachResumeFromUrl(resumeUrl, profile.resumeFileName);
 }
 
 // Signals that this is a genuine job application page. Require >= 2 to show the button.
@@ -357,11 +357,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "FILL_FORM") {
     getStoredProfile(({ joboss_profile }) => {
       const count = fillForm(joboss_profile);
-      // Report back so the popup can show the right toast: success if anything
-      // was filled, "unsupported" only when nothing filled AND no form present.
+      // If the popup selected a specific CV presigned URL, use it for the
+      // file-input attachment; otherwise fall back to the profile's original.
+      const cvUrl = msg.cvPresignedUrl || joboss_profile?.resumePresignedUrl || "";
+      if (cvUrl && /^https?:\/\//i.test(cvUrl)) {
+        attachResumeFromUrl(cvUrl, joboss_profile?.resumeFileName).catch(
+          e => console.warn("JoBoss resume attach failed:", e)
+        );
+      }
       sendResponse({ count, hasForm: hasApplicationForm() });
     });
-    return true; // keep the channel open for the async sendResponse
+    return true;
   }
 });
 

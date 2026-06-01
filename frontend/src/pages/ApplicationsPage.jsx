@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring } from '../api';
 import LimitModal from '../components/LimitModal';
 import MismatchWarningModal from '../components/MismatchWarningModal';
@@ -36,7 +36,7 @@ function contactIcon(line) {
   const t = line.trim();
   if (CONTACT_PATTERNS.phone.test(t)) return '📞';
   if (CONTACT_PATTERNS.email.test(t)) return '✉️';
-  if (CONTACT_PATTERNS.location.test(t)) return '📍';
+  if (t.length < 55 && CONTACT_PATTERNS.location.test(t)) return '📍';
   return null;
 }
 
@@ -64,9 +64,12 @@ function CVRenderer({ text }) {
 
   const flushContact = (key) => {
     if (!contactBuffer.length) return;
+    const parts = contactBuffer.flatMap(c =>
+      c.includes('·') ? c.split('·').map(p => p.trim()).filter(Boolean) : [c]
+    );
     elements.push(
       <div key={`contact-${key}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '13px', color: '#555', margin: '4px 0 10px' }}>
-        {contactBuffer.map((c, ci) => {
+        {parts.map((c, ci) => {
           const icon = contactIcon(c);
           return <span key={ci}>{icon ? `${icon} ` : ''}{c.trim()}</span>;
         })}
@@ -142,7 +145,9 @@ function buildCVHtml(text) {
 
   const flushContact = () => {
     if (!contactBuf.length) return;
-    const parts = contactBuf.flatMap(c => /\|/.test(c) ? c.split('|').map(p => p.trim()).filter(Boolean) : [c]);
+    const parts = contactBuf.flatMap(c =>
+      /[·|]/.test(c) ? c.split(/[·|]/).map(p => p.trim()).filter(Boolean) : [c]
+    );
     html += `<div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#555;margin:4px 0 10px;">${parts.map(c => `<span>${contactEmoji(c)} ${esc(c)}</span>`).join('')}</div>`;
     contactBuf = [];
   };
@@ -594,3 +599,4 @@ const styles = {
 };
 
 export default ApplicationsPage;
+

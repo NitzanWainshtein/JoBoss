@@ -55,7 +55,7 @@ function SplashScreen({ onDone }) {
   );
 }
 
-function AnimatedRoutes({ isLoggedIn, onboardingCompleted, onOnboardingComplete }) {
+function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboardingComplete }) {
   const location = useLocation();
 
   const home = isLoggedIn ? (onboardingCompleted ? '/swipe' : '/onboarding') : '/login';
@@ -104,7 +104,7 @@ function AnimatedRoutes({ isLoggedIn, onboardingCompleted, onOnboardingComplete 
         } />
         <Route path="/admin" element={
           <PageTransition>
-            {isLoggedIn ? <AdminPage /> : <Navigate to="/login" />}
+            {!isLoggedIn ? <Navigate to="/login" /> : isAdmin ? <AdminPage /> : <Navigate to="/swipe" />}
           </PageTransition>
         } />
         <Route path="/" element={<Navigate to={home} />} />
@@ -113,8 +113,19 @@ function AnimatedRoutes({ isLoggedIn, onboardingCompleted, onOnboardingComplete 
   );
 }
 
+export function isAdminUser(session) {
+  try {
+    const token = session?.tokens?.idToken?.toString();
+    if (!token) return false;
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const groups = payload['cognito:groups'] || [];
+    return Array.isArray(groups) ? groups.includes('ADMIN') : groups.split(',').includes('ADMIN');
+  } catch { return false; }
+}
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin]       = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
@@ -122,8 +133,9 @@ function App() {
   const checkAuth = async () => {
     try {
       await getCurrentUser();
-      await fetchAuthSession();
+      const session = await fetchAuthSession();
       setIsLoggedIn(true);
+      setIsAdmin(isAdminUser(session));
       // Check onboarding status — keep loading=true until we know
       try {
         const { getMyProfile } = await import('./api');
@@ -180,10 +192,11 @@ function App() {
           </div>
         ) : (
           <Router>
-            {isLoggedIn && onboardingCompleted && <Navbar />}
+            {isLoggedIn && onboardingCompleted && <Navbar isAdmin={isAdmin} />}
             <div style={{ paddingBottom: isLoggedIn && onboardingCompleted ? '64px' : '0', paddingTop: isLoggedIn && onboardingCompleted ? '56px' : '0' }}>
               <AnimatedRoutes
                 isLoggedIn={isLoggedIn}
+                isAdmin={isAdmin}
                 onboardingCompleted={onboardingCompleted}
                 onOnboardingComplete={() => setOnboardingCompleted(true)}
               />

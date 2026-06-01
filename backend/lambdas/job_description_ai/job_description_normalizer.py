@@ -23,6 +23,8 @@ Rules:
 - If a section has no reliable information, omit that section.
 - Do not include markdown fences.
 - Return plain text only.
+- Never return a refusal, apology, or explanation that you cannot complete the task.
+- If the raw text contains any role-specific details, extract and structure them even if the page also says applications are closed or no longer accepted.
 
 Job metadata:
 Title: {title}
@@ -51,6 +53,30 @@ Raw job page text:
 """.strip()
 
 
+def is_valid_normalized_description(text: str) -> bool:
+    return (text or "").strip().lower().startswith("summary")
+
+
+def build_metadata_fallback_description(title, company, location):
+    title = title or "this role"
+    company = company or "the company"
+    location_text = f" in {location}" if location else ""
+
+    return f"""
+Summary
+{company} is hiring for {title}{location_text}. The source page did not expose a complete structured job description during import, so candidates should review the original apply page for the full role details.
+
+Responsibilities
+- Review the original apply page for role-specific responsibilities.
+
+Requirements
+- Review the original apply page for role-specific requirements.
+
+Technologies
+Not specified in the imported source text.
+""".strip()
+
+
 def normalize_job_description(body, invoke_bedrock, response):
     title = (body.get("title") or "").strip()
     company = (body.get("company") or "").strip()
@@ -70,6 +96,13 @@ def normalize_job_description(body, invoke_bedrock, response):
     try:
         normalized_description = invoke_bedrock(prompt).strip()
 
+        if not is_valid_normalized_description(normalized_description):
+            normalized_description = build_metadata_fallback_description(
+                title,
+                company,
+                location,
+            )
+
         return response(200, {
             "message": "Job description normalized",
             "description": normalized_description[:5000],
@@ -81,6 +114,10 @@ def normalize_job_description(body, invoke_bedrock, response):
 
         return response(200, {
             "message": "Job description normalization fallback",
-            "description": raw_description[:5000],
+            "description": build_metadata_fallback_description(
+                title,
+                company,
+                location,
+            ),
             "mode": "fallback",
         })

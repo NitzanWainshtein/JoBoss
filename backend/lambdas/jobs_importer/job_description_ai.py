@@ -22,7 +22,10 @@ lambda_client = boto3.client("lambda", region_name=AWS_REGION)
 
 def normalize_description_with_ai(title, company, location, raw_description):
     if not raw_description:
-        return ""
+        return {
+            "description": "",
+            "shortDescription": "",
+        }
 
     payload = {
         "action": "normalize-job-description",
@@ -46,11 +49,18 @@ def normalize_description_with_ai(title, company, location, raw_description):
             body = json.loads(body)
 
         description = (body.get("description") or "").strip()
+        short_description = (body.get("shortDescription") or "").strip()
 
         if description:
-            return description[:5000]
+            return {
+                "description": description[:5000],
+                "shortDescription": short_description[:700],
+            }
 
     except Exception as e:
         print(f"AI description normalization failed: {e}")
 
-    return raw_description[:5000]
+    return {
+        "description": raw_description[:5000],
+        "shortDescription": raw_description[:700],
+    }

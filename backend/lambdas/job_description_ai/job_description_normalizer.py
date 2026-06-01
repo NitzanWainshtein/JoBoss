@@ -6,6 +6,9 @@ candidate-facing description using Bedrock. It removes page boilerplate and
 keeps only information that is relevant to the specific job.
 """
 
+import json
+import re
+
 
 def build_normalize_job_description_prompt(title, company, location, raw_description):
     return f"""
@@ -31,22 +34,11 @@ Title: {title}
 Company: {company}
 Location: {location}
 
-Required output format:
-
-Summary
-Write about 4 concise lines explaining the role, domain/team, and main work.
-
-Responsibilities
-- 3 to 6 bullets
-
-Requirements
-- 3 to 7 bullets
-
-Nice to have
-- 0 to 4 bullets, only if clearly present
-
-Technologies
-Comma-separated list of technologies, tools, methods, or domains clearly mentioned.
+Return ONLY a valid JSON object with this exact structure:
+{{
+  "shortDescription": "1 to 2 concise sentences, about 35 to 55 words, written for a swipe card. It should summarize the role, company/team, and main work without bullets.",
+  "description": "Summary\\nWrite about 4 concise lines explaining the role, domain/team, and main work.\\n\\nResponsibilities\\n- 3 to 6 bullets\\n\\nRequirements\\n- 3 to 7 bullets\\n\\nNice to have\\n- 0 to 4 bullets, only if clearly present\\n\\nTechnologies\\nComma-separated list of technologies, tools, methods, or domains clearly mentioned."
+}}
 
 Raw job page text:
 {raw_description[:7000]}
@@ -55,6 +47,55 @@ Raw job page text:
 
 def is_valid_normalized_description(text: str) -> bool:
     return (text or "").strip().lower().startswith("summary")
+
+def extract_json_object(text: str):
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{[\s\S]*\}", text or "")
+    if not match:
+        return None
+
+    try:
+        return json.loads(match.group())
+    except json.JSONDecodeError:
+        return None
+
+
+def build_short_description_from_full_description(description: str) -> str:
+    summary = ""
+    current_section = None
+
+    for line in (description or "").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        lowered = stripped.lower()
+        if lowered in {"summary", "responsibilities", "requirements", "nice to have", "technologies"}:
+            current_section = lowered
+            continue
+
+        if current_section == "summary":
+            summary = f"{summary} {stripped}".strip()
+
+    if not summary:
+        summary = " ".join((description or "").split())
+
+    return summary[:700]
+
+
+def build_metadata_fallback_short_description(title, company, location):
+    title = title or "this role"
+    company = company or "the company"
+    location_text = f" in {location}" if location else ""
+
+    return (
+        f"{company} is hiring for {title}{location_text}. "
+        "The full role details were not available during import, so candidates should review the original apply page."
+    )
 
 
 def build_metadata_fallback_description(title, company, location):
@@ -76,6 +117,11 @@ Technologies
 Not specified in the imported source text.
 """.strip()
 
+def build_metadata_fallback_result(title, company, location):
+    return {
+        "shortDescription": build_metadata_fallback_short_description(title, company, location),
+        "description": build_metadata_fallback_description(title, company, location),
+    }
 
 def normalize_job_description(body, invoke_bedrock, response):
     title = (body.get("title") or "").strip()
@@ -94,30 +140,40 @@ def normalize_job_description(body, invoke_bedrock, response):
     )
 
     try:
-        normalized_description = invoke_bedrock(prompt).strip()
+        raw_normalized_response = invoke_bedrock(prompt).strip()
+        parsed_response = extract_json_object(raw_normalized_response)
+
+        if not parsed_response:
+            parsed_response = {
+                "description": raw_normalized_response,
+            }
+
+        normalized_description = (parsed_response.get("description") or "").strip()
+        short_description = (parsed_response.get("shortDescription") or "").strip()
 
         if not is_valid_normalized_description(normalized_description):
-            normalized_description = build_metadata_fallback_description(
-                title,
-                company,
-                location,
-            )
+            fallback_result = build_metadata_fallback_result(title, company, location)
+            normalized_description = fallback_result["description"]
+            short_description = fallback_result["shortDescription"]
+
+        if not short_description:
+            short_description = build_short_description_from_full_description(normalized_description)
 
         return response(200, {
             "message": "Job description normalized",
             "description": normalized_description[:5000],
+            "shortDescription": short_description[:700],
             "mode": "bedrock",
         })
 
     except Exception as e:
         print(f"[NORMALIZE_JOB_DESCRIPTION_ERROR] {type(e).__name__}: {e}")
 
+        fallback_result = build_metadata_fallback_result(title, company, location)
+
         return response(200, {
             "message": "Job description normalization fallback",
-            "description": build_metadata_fallback_description(
-                title,
-                company,
-                location,
-            ),
+            "description": fallback_result["description"],
+            "shortDescription": fallback_result["shortDescription"],
             "mode": "fallback",
         })

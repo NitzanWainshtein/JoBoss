@@ -169,6 +169,7 @@ export const adminDeleteUser     = (uid)        => apiCall('DELETE', `/admin/use
 export const adminToggleJob      = (jid, act)   => apiCall('PUT',    `/admin/jobs/${jid}`,              { active: act });
 export const adminTriggerImport  = ()           => apiCall('POST',   '/admin/jobs/import',              {});
 export const adminResetMyQuota   = (plan)       => apiCall('POST',   '/admin/reset-my-quota',           { plan });
+export const adminResetMySwipes  = ()           => apiCall('POST',   '/admin/reset-my-swipes',           {});
 
 export const tailorCVForJob = async (jobId, force = false) => {
   return apiCall('POST', '/ai/tailor', { jobId, ...(force && { force: true }) });

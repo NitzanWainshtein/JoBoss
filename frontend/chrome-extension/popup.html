@@ -72,6 +72,7 @@
     }
     .btn:hover { transform: scale(1.02); }
     .btn:active { transform: scale(0.98); opacity: 0.9; }
+    .btn:disabled { opacity: 0.6; cursor: default; transform: none; }
     .btn-primary {
       background: linear-gradient(135deg, #6C4FD4, #1E2A4A);
       color: white;
@@ -82,6 +83,26 @@
       border: 2px solid #6C4FD4;
       margin-top: 8px;
     }
+    .btn-ghost {
+      background: transparent;
+      color: #999;
+      border: 1px solid #ddd;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .login-input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      box-sizing: border-box;
+      direction: rtl;
+      font-family: inherit;
+    }
+    .login-input:focus { border-color: #6C4FD4; }
 
     .cv-box {
       background: white;
@@ -116,15 +137,24 @@
     .status-warn    { background: #FFF8E1; color: #F57F17; }
 
     .login-prompt {
-      padding: 24px 16px;
+      padding: 22px 16px;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
-    .login-prompt .icon { font-size: 40px; }
-    .login-prompt p { font-size: 13px; color: #555; }
+    .login-prompt .icon { font-size: 38px; }
+    .login-prompt p.lead { font-size: 14px; color: #333; font-weight: 700; }
+    .login-error { color: #C62828; font-size: 12px; display: none; margin: 2px 0 0; }
+    .login-hint { font-size: 11px; color: #6C4FD4; text-decoration: none; margin-top: 4px; }
+    .divider {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; font-size: 11px; color: #aaa; margin: 4px 0;
+    }
+    .divider::before, .divider::after {
+      content: ""; flex: 1; height: 1px; background: #e5e5e5;
+    }
 
     .loading {
       padding: 32px;
@@ -146,12 +176,18 @@
   </div>
 
   <div id="loading" class="loading">טוען...</div>
+
+  <!-- In-popup login form (no new tab) -->
   <div id="login-view" class="login-prompt" style="display:none">
     <div class="icon">🔒</div>
-    <p>יש להתחבר לאפליקציית JoBoss<br/>כדי להשתמש בתוסף</p>
-    <a href="https://d231wno34rvped.cloudfront.net" target="_blank" class="btn btn-primary" style="text-decoration:none;display:block;padding:11px;text-align:center;">
-      פתח JoBoss ↗
-    </a>
+    <p class="lead">התחבר לחשבון JoBoss שלך</p>
+    <button id="sso-btn" class="btn btn-primary">🔗 התחבר דרך JoBoss</button>
+    <div class="divider">או עם אימייל וסיסמה</div>
+    <input type="email" id="login-email" class="login-input" placeholder="אימייל" autocomplete="username" />
+    <input type="password" id="login-password" class="login-input" placeholder="סיסמה" autocomplete="current-password" />
+    <button id="login-btn" class="btn btn-secondary" style="margin-top:0;">התחבר</button>
+    <p id="login-error" class="login-error"></p>
+    <a href="https://d231wno34rvped.cloudfront.net" target="_blank" class="login-hint">אין לך חשבון? הירשם ↗</a>
   </div>
 
   <div id="main-view" style="display:none">
@@ -174,6 +210,10 @@
     <div class="section">
       <div class="section-title">קורות חיים מותאמים</div>
       <div id="cv-content" class="cv-placeholder">אין קורות חיים מותאמים למשרה הנוכחית</div>
+    </div>
+
+    <div class="section" style="border-bottom:none;">
+      <button class="btn btn-ghost" id="logout-btn">התנתק</button>
     </div>
   </div>
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signIn, signUp, confirmSignUp, signInWithRedirect } from 'aws-amplify/auth';
+import { signIn, signUp, confirmSignUp, signInWithRedirect, fetchUserAttributes } from 'aws-amplify/auth';
 import { getMyProfile, createMyProfile } from '../api';
 
 function LoginPage() {
@@ -24,7 +24,16 @@ function LoginPage() {
   const ensureProfile = async () => {
     try { await getMyProfile(); }
     catch {
-      await createMyProfile({ fullName: name || email, email, plan: 'FREE', role: 'USER', autoApply: false, preferredLocation: '', desiredRole: '', experienceLevel: 'Junior' });
+      // Resolve the real name from Cognito (set during signUp). The local `name`
+      // state is empty on the login form, so never fall back to email for fullName.
+      let resolvedName = name.trim();
+      if (!resolvedName) {
+        try {
+          const attrs = await fetchUserAttributes();
+          resolvedName = (attrs.name || attrs.given_name || '').trim();
+        } catch { /* ignore — leave empty rather than storing email */ }
+      }
+      await createMyProfile({ fullName: resolvedName, email, plan: 'FREE', role: 'USER', autoApply: false, preferredLocation: '', desiredRole: '', experienceLevel: 'Junior' });
     }
   };
 
@@ -36,7 +45,9 @@ function LoginPage() {
       await signOut();
       await signIn({ username: email, password });
       await ensureProfile();
-      window.location.href = '/swipe';
+      // Honor a post-login redirect (e.g. the extension auth bridge), else /swipe.
+      const redirect = new URLSearchParams(window.location.search).get('redirect');
+      window.location.href = redirect || '/swipe';
     } catch (err) { setError(err.message); }
     setLoading(false);
   };

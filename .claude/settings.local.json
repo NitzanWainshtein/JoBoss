@@ -76,7 +76,16 @@
       "Bash(docker build *)",
       "Bash(docker tag *)",
       "Bash(docker push *)",
-      "Bash(aws ecs *)"
+      "Bash(aws ecs *)",
+      "PowerShell(Set-Location C:\\\\Users\\\\NITZAN\\\\JoBoss\\\\frontend; $env:VITE_API_URL=\"https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod\"; npm run build)",
+      "Bash(aws s3 *)",
+      "Bash(aws cloudfront *)",
+      "Bash(aws cognito-idp *)",
+      "PowerShell($ai = \"C:\\\\Users\\\\NITZAN\\\\JoBoss\\\\backend\\\\lambdas\\\\ai\"; Compress-Archive -Path \"$ai\\\\handler.py\" -DestinationPath \"$ai\\\\handler.zip\" -Force; \"ai zip rebuilt\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST \"https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/ai/explain-failure\" -H \"Content-Type: application/json\" -d '{\"jobId\":\"x\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X OPTIONS \"https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/ai/explain-failure\")",
+      "PowerShell($apps = \"C:\\\\Users\\\\NITZAN\\\\JoBoss\\\\backend\\\\lambdas\\\\applications\"; Compress-Archive -Path \"$apps\\\\handler.py\" -DestinationPath \"$apps\\\\handler.zip\" -Force; \"zip rebuilt\")",
+      "Bash(aws ecr *)"
     ]
   }
 }

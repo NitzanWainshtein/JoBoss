@@ -1,18 +1,23 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring } from '../api';
+import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring, explainFailure } from '../api';
 import LimitModal from '../components/LimitModal';
 import MismatchWarningModal from '../components/MismatchWarningModal';
 import Spinner from '../components/Spinner';
 
+// ── Track B: user-set funnel status ──────────────────────────────────────────
 const STATUS_CONFIG = {
   SUBMITTED: { color: '#FFC107', label: 'הוגש' },
   REVIEWED:  { color: '#2196F3', label: 'נסקר' },
   INTERVIEW: { color: '#9C27B0', label: 'ראיון' },
   ACCEPTED:  { color: '#4CAF50', label: 'התקבלת' },
   REJECTED:  { color: '#F44336', label: 'נדחה' },
-  pending:   { color: '#FFC107', label: 'ממתין' },
-  accepted:  { color: '#4CAF50', label: 'התקבלת' },
-  rejected:  { color: '#F44336', label: 'נדחה' },
+};
+
+// ── Track A: system-set auto-apply result ────────────────────────────────────
+const AUTO_APPLY_CONFIG = {
+  pending: { color: '#FF9800', label: '⏳ הגשה אוטומטית בתהליך', bg: '#FFF8E1', border: '#FFE082', text: '#F57F17' },
+  success: { color: '#4CAF50', label: '✅ הוגש אוטומטית בהצלחה',  bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' },
+  failed:  { color: '#F44336', label: '⚠️ הגשה אוטומטית נכשלה',   bg: '#FEF2F2', border: '#FECACA', text: '#B91C1C' },
 };
 
 const FILTERS = [
@@ -220,6 +225,102 @@ async function downloadCVAsPdf(text, company, jobTitle) {
     .save();
 }
 
+// ── Auto-apply result block ──────────────────────────────────────────────────
+function AutoApplyResult({ app, canExplain, isPremium, onApplyJobUrl }) {
+  const cfg = AUTO_APPLY_CONFIG[app.autoApplyStatus];
+  const [explanation, setExplanation] = useState(app.failExplanation || null);
+  const [loading, setLoading] = useState(false);
+
+  // Lazily fetch the Bedrock explanation for failures, once, if not cached.
+  useEffect(() => {
+    if (app.autoApplyStatus !== 'failed') return;
+    if (explanation || loading || !canExplain) return;
+    let cancelled = false;
+    setLoading(true);
+    explainFailure(app.jobId)
+      .then(res => { if (!cancelled && res?.explanation) setExplanation(res.explanation); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app.jobId, app.autoApplyStatus, canExplain]);
+
+  if (!cfg) return null;
+
+  if (app.autoApplyStatus === 'pending') {
+    return (
+      <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
+        <span style={styles.tailoringSpinner}>⏳</span>
+        <div>
+          <p style={{ ...styles.autoTitle, color: cfg.text }}>{cfg.label}</p>
+          <p style={{ ...styles.autoSub, color: cfg.text }}>הבוט מגיש את המשרה עבורך — יעודכן אוטומטית</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (app.autoApplyStatus === 'success') {
+    return (
+      <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
+        <span style={{ fontSize: '20px' }}>✅</span>
+        <div>
+          <p style={{ ...styles.autoTitle, color: cfg.text }}>{cfg.label}</p>
+          <p style={{ ...styles.autoSub, color: cfg.text }}>
+            {app.updatedAt ? new Date(app.updatedAt).toLocaleDateString('he-IL') : 'ההגשה בוצעה'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // failed — the manual-apply action depends on the user's plan (both open the job posting).
+  const jobUrl = app.jobApplyUrl || app.applyUrl || app.jobUrl || '';
+  const manualLabel = isPremium ? 'הגש עם תוסף הכרום 🧩' : 'הגש ישירות באתר 🌐';
+  const openJob = () => {
+    if (jobUrl) window.open(jobUrl, '_blank', 'noopener');
+    else onApplyJobUrl?.(app);
+  };
+
+  return (
+    <div style={{ ...styles.autoBoxCol, background: cfg.bg, borderColor: cfg.border }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '18px' }}>⚠️</span>
+        <p style={{ ...styles.autoTitle, color: cfg.text }}>
+          {explanation?.title || 'הגשה אוטומטית נכשלה'}
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+          <span style={styles.tailoringSpinner}>⏳</span>
+          <p style={{ ...styles.autoSub, color: cfg.text }}>🤖 מנתח את סיבת הכישלון...</p>
+        </div>
+      ) : explanation ? (
+        <>
+          <p style={{ ...styles.autoSub, color: cfg.text, lineHeight: 1.65, marginTop: '4px' }}>
+            {explanation.summary}
+          </p>
+          <button type="button" style={styles.failActionBtn} onClick={openJob}>
+            {manualLabel}
+          </button>
+        </>
+      ) : (
+        // No explanation available (e.g. free plan or fetch failed) — still offer a manual path.
+        <>
+          <p style={{ ...styles.autoSub, color: cfg.text, marginTop: '4px' }}>
+            ההגשה האוטומטית נכשלה. ניתן להגיש ידנית.
+          </p>
+          {jobUrl && (
+            <button type="button" style={styles.failActionBtn} onClick={openJob}>
+              {manualLabel}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -375,17 +476,40 @@ function ApplicationsPage() {
           </div>
           <div style={styles.stat}>
             <span style={{ ...styles.statNum, color: '#9C27B0' }}>
-              {applications.filter(a => ['INTERVIEW', 'interview'].includes(a.status)).length}
+              {applications.filter(a => a.status === 'INTERVIEW').length}
             </span>
             <span style={styles.statLabel}>ראיונות</span>
           </div>
           <div style={styles.stat}>
             <span style={{ ...styles.statNum, color: '#4CAF50' }}>
-              {applications.filter(a => ['ACCEPTED', 'accepted'].includes(a.status)).length}
+              {applications.filter(a => a.status === 'ACCEPTED').length}
             </span>
             <span style={styles.statLabel}>התקבלו</span>
           </div>
         </div>
+
+        {canTailorCV && applications.some(a => a.autoApplyStatus) && (
+          <div style={styles.statsRow}>
+            <div style={styles.statSmall}>
+              <span style={{ ...styles.statNumSmall, color: '#4CAF50' }}>
+                {applications.filter(a => a.autoApplyStatus === 'success').length}
+              </span>
+              <span style={styles.statLabel}>🤖 הוגשו אוטומטית</span>
+            </div>
+            <div style={styles.statSmall}>
+              <span style={{ ...styles.statNumSmall, color: '#F44336' }}>
+                {applications.filter(a => a.autoApplyStatus === 'failed').length}
+              </span>
+              <span style={styles.statLabel}>✍️ יש להגיש ידנית</span>
+            </div>
+            <div style={styles.statSmall}>
+              <span style={{ ...styles.statNumSmall, color: '#FF9800' }}>
+                {applications.filter(a => a.autoApplyStatus === 'pending').length}
+              </span>
+              <span style={styles.statLabel}>⏳ בתהליך</span>
+            </div>
+          </div>
+        )}
 
         <div style={styles.filterRow}>
           {FILTERS.map(f => (
@@ -426,6 +550,10 @@ function ApplicationsPage() {
                       {cfg.label}
                     </div>
                   </div>
+
+                  {app.autoApplyStatus && (
+                    <AutoApplyResult app={app} canExplain={canTailorCV} isPremium={canTailorCV} />
+                  )}
 
                   {tailoringJobs.has(app.jobId) && !app.tailoredResumeUrl && (
                     <div style={styles.tailoringBox}>
@@ -568,6 +696,13 @@ const styles = {
   stat: { background: 'white', borderRadius: '16px', padding: '16px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   statNum: { fontSize: '28px', fontWeight: 800, color: '#6C4FD4' },
   statLabel: { fontSize: '12px', color: '#777' },
+  statSmall: { background: 'white', borderRadius: '14px', padding: '10px 12px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
+  statNumSmall: { fontSize: '22px', fontWeight: 800 },
+  autoBox: { borderRadius: '12px', border: '1px solid', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', direction: 'rtl' },
+  autoBoxCol: { borderRadius: '12px', border: '1px solid', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '2px', direction: 'rtl' },
+  autoTitle: { margin: 0, fontSize: '13px', fontWeight: 800 },
+  autoSub: { margin: '2px 0 0', fontSize: '12px' },
+  failActionBtn: { alignSelf: 'flex-start', marginTop: '10px', border: 'none', borderRadius: '999px', background: '#1E2A4A', color: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
   filterRow: { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' },
   filterBtn: { flexShrink: 0, padding: '8px 16px', borderRadius: '20px', border: '1.5px solid #ddd', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#666', whiteSpace: 'nowrap' },
   filterActive: { background: '#6C4FD4', borderColor: '#6C4FD4', color: 'white' },

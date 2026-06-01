@@ -10,6 +10,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import ApplicationsPage from './pages/ApplicationsPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
+import AuthExtensionPage from './pages/AuthExtensionPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile } from './api';
@@ -62,14 +63,16 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
 
   // Logged in but needs onboarding — force redirect from any non-onboarding route.
   // Covers the case where OAuth callback lands the user on /swipe (stale URL) instead of /.
+  // The extension auth bridge is exempt so it can complete regardless of onboarding.
   const needsOnboarding = isLoggedIn && !onboardingCompleted;
-  if (needsOnboarding && location.pathname !== '/onboarding') {
+  if (needsOnboarding && location.pathname !== '/onboarding' && location.pathname !== '/auth-extension') {
     return <Navigate to="/onboarding" replace />;
   }
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
+        <Route path="/auth-extension" element={<AuthExtensionPage />} />
         <Route path="/login" element={
           <PageTransition>
             {!isLoggedIn ? <LoginPage /> : <Navigate to={home} />}
@@ -127,7 +130,9 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin]       = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showSplash, setShowSplash] = useState(true);
+  // Skip the splash for the extension auth bridge so it resolves instantly.
+  const isAuthExtRoute = typeof window !== 'undefined' && window.location.pathname === '/auth-extension';
+  const [showSplash, setShowSplash] = useState(!isAuthExtRoute);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
   const checkAuth = async () => {
@@ -192,8 +197,8 @@ function App() {
           </div>
         ) : (
           <Router>
-            {isLoggedIn && onboardingCompleted && <Navbar isAdmin={isAdmin} />}
-            <div style={{ paddingBottom: isLoggedIn && onboardingCompleted ? '64px' : '0', paddingTop: isLoggedIn && onboardingCompleted ? '56px' : '0' }}>
+            {isLoggedIn && onboardingCompleted && !isAuthExtRoute && <Navbar isAdmin={isAdmin} />}
+            <div style={{ paddingBottom: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? '64px' : '0', paddingTop: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? '56px' : '0' }}>
               <AnimatedRoutes
                 isLoggedIn={isLoggedIn}
                 isAdmin={isAdmin}

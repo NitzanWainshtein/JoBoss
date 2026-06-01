@@ -50,6 +50,10 @@ export default function OnboardingPage({ onComplete }) {
   const [radius, setRadius] = useState(20);
   const [expLevel, setExpLevel] = useState('');
   const [availability, setAvailability] = useState('');
+  const [phone, setPhone] = useState('');
+  const [currentLocation, setCurrentLocation] = useState('');
+  const [currentCompany, setCurrentCompany] = useState('');
+  const [gender, setGender] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -60,6 +64,10 @@ export default function OnboardingPage({ onComplete }) {
       if (u.searchRadius) setRadius(Number(u.searchRadius));
       if (u.experienceLevel) setExpLevel(u.experienceLevel);
       if (u.availability) setAvailability(u.availability);
+      if (u.phone) setPhone(u.phone);
+      if (u.currentLocation) setCurrentLocation(u.currentLocation);
+      if (u.currentCompany) setCurrentCompany(u.currentCompany);
+      if (u.gender) setGender(u.gender);
       if (u.preferredRoles?.length) setSelectedRoles(u.preferredRoles);
       const active = u.resumes?.find(r => r.isActive) || u.resumes?.[0];
       if (active) { setExistingResume(active); setUploadDone(true); }
@@ -73,6 +81,10 @@ export default function OnboardingPage({ onComplete }) {
       updateMyProfile({
         experienceLevel: expLevel,
         availability,
+        ...(phone && { phone }),
+        ...(currentLocation && { currentLocation }),
+        ...(currentCompany && { currentCompany }),
+        ...(gender && { gender }),
         ...(location && { preferredLocation: location, searchRadius: radius }),
         ...(lat && lng && { latitude: parseFloat(lat), longitude: parseFloat(lng) }),
       }).catch(() => {});
@@ -93,6 +105,10 @@ export default function OnboardingPage({ onComplete }) {
         preferredRoles: selectedRoles,
         experienceLevel: expLevel,
         availability,
+        ...(phone && { phone }),
+        ...(currentLocation && { currentLocation }),
+        ...(currentCompany && { currentCompany }),
+        ...(gender && { gender }),
         ...(location && { preferredLocation: location }),
         ...(radius && { searchRadius: radius }),
         ...(lat && { latitude: parseFloat(lat) }),
@@ -218,6 +234,14 @@ export default function OnboardingPage({ onComplete }) {
                 setExpLevel={setExpLevel}
                 availability={availability}
                 setAvailability={setAvailability}
+                phone={phone}
+                setPhone={setPhone}
+                currentLocation={currentLocation}
+                setCurrentLocation={setCurrentLocation}
+                currentCompany={currentCompany}
+                setCurrentCompany={setCurrentCompany}
+                gender={gender}
+                setGender={setGender}
               />
             )}
             {step === 5 && (
@@ -420,12 +444,60 @@ function roleTag(isSelected, isSuggested) {
 
 // ── Step 4: Settings ────────────────────────────────────────────────────────
 
-function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expLevel, setExpLevel, availability, setAvailability }) {
+function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expLevel, setExpLevel, availability, setAvailability, phone, setPhone, currentLocation, setCurrentLocation, currentCompany, setCurrentCompany, gender, setGender }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
         <h2 style={T.h2}>⚙️ הגדרות בסיסיות</h2>
-        <p style={T.sub}>ניתן לשנות בפרופיל בכל עת</p>
+        <p style={T.sub}>פרטים אלה ימלאו טפסי הגשה אוטומטית</p>
+      </div>
+
+      <div>
+        <div style={T.label}>📱 מספר טלפון</div>
+        <input
+          type="tel"
+          value={phone}
+          onChange={e => setPhone(e.target.value)}
+          placeholder="050-1234567"
+          dir="ltr"
+          style={textInput}
+        />
+      </div>
+
+      <div>
+        <div style={T.label}>🏙️ עיר / מיקום נוכחי</div>
+        <input
+          type="text"
+          value={currentLocation}
+          onChange={e => setCurrentLocation(e.target.value)}
+          placeholder="תל אביב"
+          style={textInput}
+        />
+      </div>
+
+      <div>
+        <div style={T.label}>🏢 חברה נוכחית <span style={{ fontWeight: 400, color: '#aaa', fontSize: 13 }}>(אופציונלי)</span></div>
+        <input
+          type="text"
+          value={currentCompany}
+          onChange={e => setCurrentCompany(e.target.value)}
+          placeholder="שם החברה"
+          style={textInput}
+        />
+      </div>
+
+      <div>
+        <div style={T.label}>⚧ מגדר <span style={{ fontWeight: 400, color: '#aaa', fontSize: 13 }}>(אופציונלי)</span></div>
+        <select
+          value={gender}
+          onChange={e => setGender(e.target.value)}
+          style={textInput}
+        >
+          <option value="">בחר...</option>
+          <option value="Male">זכר</option>
+          <option value="Female">נקבה</option>
+          <option value="Prefer not to say">מעדיף/ה לא לציין</option>
+        </select>
       </div>
 
       <div>
@@ -471,6 +543,12 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
     </div>
   );
 }
+
+const textInput = {
+  width: '100%', marginTop: 8, padding: '12px 14px', borderRadius: 12,
+  border: '1px solid #ddd', fontSize: 15, color: '#333',
+  outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+};
 
 function chipBtn(active) {
   return {

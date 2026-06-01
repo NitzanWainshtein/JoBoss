@@ -576,12 +576,95 @@ Return exactly this JSON structure:
 }}"""
 
 
+def build_extract_profile_prompt(cv_text):
+    return f"""Extract the following from this CV. Return only a JSON object with these exact keys: phone, currentLocation, currentCompany, fullName, linkedinUrl, githubUrl.
+
+Rules:
+- currentCompany: Extract ONLY the user's CURRENT employer (where they work right now, not past jobs). If they are a student or unemployed or it's unclear, return null for currentCompany. Return null if you're not confident the company is current.
+- linkedinUrl and githubUrl: return the full profile URL if present.
+- If a field is not found, return null for that field.
+
+CV text:
+{cv_text}""".strip()
+
+
+def extract_profile_fields(resume_text, pdf_bytes=None):
+    """Use Bedrock to extract phone/currentLocation/currentCompany/fullName from a CV.
+    Returns a dict with those keys (values may be None), or {} on failure."""
+    try:
+        if pdf_bytes and len(pdf_bytes) > 100:
+            pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+            instruction = build_extract_profile_prompt("[SEE ATTACHED PDF RESUME]")
+            messages = [{
+                "role": "user",
+                "content": [
+                    {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_b64}},
+                    {"type": "text", "text": instruction},
+                ],
+            }]
+            raw = invoke_bedrock_claude(messages, max_tokens=300)
+        elif resume_text:
+            raw = invoke_bedrock_nova(build_extract_profile_prompt(resume_text[:5000]))
+        else:
+            return {}
+
+        match = re.search(r'\{[\s\S]*\}', raw)
+        if not match:
+            return {}
+
+        parsed = json.loads(match.group())
+        return {
+            "phone": parsed.get("phone"),
+            "currentLocation": parsed.get("currentLocation"),
+            "currentCompany": parsed.get("currentCompany"),
+            "fullName": parsed.get("fullName"),
+            "linkedinUrl": parsed.get("linkedinUrl"),
+            "githubUrl": parsed.get("githubUrl"),
+        }
+    except Exception as e:
+        print(f"[EXTRACT_PROFILE_ERROR] {type(e).__name__}: {e}")
+        return {}
+
+
+def enrich_user_profile_from_cv(user_id, extracted):
+    """Update joboss-users with extracted CV fields, but only fields that are not already set
+    (never overwrite user-entered data)."""
+    if not user_id or not extracted:
+        return
+
+    user = get_user(user_id) or {}
+    updates = {}
+    for field in ("phone", "currentLocation", "currentCompany", "fullName", "linkedinUrl", "githubUrl"):
+        value = extracted.get(field)
+        if value and isinstance(value, str) and value.strip() and not str(user.get(field, "")).strip():
+            updates[field] = value.strip()
+
+    if not updates:
+        return
+
+    set_clause = ", ".join(f"#{k} = :{k}" for k in updates)
+    expr_names = {f"#{k}": k for k in updates}
+    expr_values = {f":{k}": v for k, v in updates.items()}
+
+    try:
+        users_table.update_item(
+            Key={"userId": user_id},
+            UpdateExpression=f"SET {set_clause}",
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_values,
+        )
+        print(f"[ENRICH_PROFILE] userId={user_id} updated={list(updates.keys())}")
+    except Exception as e:
+        print(f"[ENRICH_PROFILE_ERROR] {type(e).__name__}: {e}")
+
+
 def analyze_cv(event):
-    import re
     body = get_body(event)
     resume_url = body.get("resumeUrl", "")
     resume_text = body.get("resumeText", "").strip()
+    user_id = get_user_id(event, body)
 
+    pdf_bytes = None
     if resume_url and not resume_text:
         bucket, key = parse_s3_url(resume_url)
         if bucket and key:
@@ -591,8 +674,19 @@ def analyze_cv(event):
                 text = content.decode("utf-8", errors="ignore").strip()
                 if text and "%PDF" not in text[:20]:
                     resume_text = text[:5000]
+                else:
+                    pdf_bytes = content
             except Exception:
                 pass
+
+    # Enrich the user's profile with phone/location/company/name from the CV.
+    # Runs even for binary PDFs (via Bedrock document API). Best-effort, never blocks the response.
+    if user_id:
+        try:
+            extracted = extract_profile_fields(resume_text, pdf_bytes=pdf_bytes)
+            enrich_user_profile_from_cv(user_id, extracted)
+        except Exception as e:
+            print(f"[ANALYZE_CV_ENRICH_ERROR] {type(e).__name__}: {e}")
 
     if not resume_text:
         return response(200, {"suggestedRoles": [], "experienceLevel": "", "technologies": []})
@@ -613,6 +707,122 @@ def analyze_cv(event):
     return response(200, {"suggestedRoles": [], "experienceLevel": "", "technologies": []})
 
 
+def build_failure_prompt(fail_reason):
+    return f"""You are helping a job seeker understand why an automated job application failed.
+The technical failure reason was: "{fail_reason}"
+
+Respond in Hebrew with ONLY a JSON object (no markdown, no explanation):
+{{
+  "title": "a very short Hebrew title (2-4 words) naming what went wrong, e.g. האתר חסם את הבוט",
+  "summary": "2-3 short sentences in simple Hebrew explaining what happened, no technical jargon",
+  "category": "one of: captcha | bot_blocked | missing_data | no_form | site_error | timeout | unknown",
+  "action": "one short recommended next step in Hebrew"
+}}
+
+Map common cases:
+- captcha / hcaptcha / recaptcha detected → category captcha
+- access denied, blocked, 403, bot detection, cloudflare → category bot_blocked
+- missing email/phone/resume/required field → category missing_data
+- no application form found, no form, no apply button → category no_form
+- timeout or page load failure → category timeout
+- site or element or selector errors → category site_error
+- anything unclear → category unknown""".strip()
+
+
+FAILURE_FALLBACK = {
+    "title": "ההגשה נכשלה",
+    "summary": "ההגשה האוטומטית נכשלה מסיבה טכנית. ניתן לנסות להגיש ידנית.",
+    "category": "unknown",
+    "action": "נסה להגיש ידנית עם תוסף הכרום של JoBoss.",
+}
+
+
+SUBSCRIPTIONS_TABLE = os.getenv("SUBSCRIPTIONS_TABLE", "joboss-subscriptions")
+subscriptions_table = dynamodb.Table(SUBSCRIPTIONS_TABLE)
+
+
+def get_effective_plan(user_id, user):
+    """Resolve the user's effective plan, preferring an ACTIVE/TRIAL subscription
+    over the (often stale) users.plan field."""
+    try:
+        result = subscriptions_table.get_item(Key={"userId": user_id})
+        sub = result.get("Item")
+        if sub and sub.get("status", "").upper() in ("ACTIVE", "TRIAL"):
+            plan = sub.get("planKey") or sub.get("plan")
+            if plan:
+                return str(plan).upper()
+    except Exception as e:
+        print(f"[PLAN_LOOKUP_ERROR] {e}")
+    return str((user or {}).get("plan", "FREE")).upper()
+
+
+def explain_failure(event):
+    """Generate (and cache) a human-friendly Hebrew explanation for a failed
+    auto-apply. Premium/Premium+ only. Cached on the application item as
+    `failExplanation` so Bedrock is called at most once per failure."""
+    body = get_body(event)
+    user_id = get_user_id(event, body)
+    job_id = body.get("jobId")
+
+    if not user_id or not job_id:
+        return response(400, {"error": "userId and jobId are required"})
+
+    user = get_user(user_id)
+    if not user:
+        return response(404, {"error": "User was not found"})
+
+    # Plan gate — only Premium / Premium+. Use the subscription-derived effective
+    # plan, since users.plan is often stale (FREE) while the subscription is active.
+    if get_effective_plan(user_id, user) == "FREE":
+        return response(403, {"error": "Failure explanations are a Premium feature", "code": "NOT_AVAILABLE"})
+
+    try:
+        result = applications_table.get_item(Key={"userId": user_id, "jobId": job_id})
+        application = result.get("Item")
+    except Exception as e:
+        print(f"[EXPLAIN_FAILURE_DB_ERROR] {e}")
+        application = None
+
+    if not application:
+        return response(404, {"error": "Application was not found"})
+
+    # Return cached explanation if present (idempotent — no extra Bedrock call).
+    cached = application.get("failExplanation")
+    if cached:
+        return response(200, {"explanation": cached, "cached": True})
+
+    fail_reason = application.get("failReason") or "unknown failure"
+
+    explanation = dict(FAILURE_FALLBACK)
+    try:
+        raw = invoke_bedrock_nova(build_failure_prompt(fail_reason))
+        match = re.search(r"\{[\s\S]*\}", raw)
+        if match:
+            parsed = json.loads(match.group())
+            explanation = {
+                "title": parsed.get("title") or FAILURE_FALLBACK["title"],
+                "summary": parsed.get("summary") or FAILURE_FALLBACK["summary"],
+                "category": parsed.get("category") or "unknown",
+                "action": parsed.get("action") or FAILURE_FALLBACK["action"],
+            }
+    except Exception as e:
+        print(f"[EXPLAIN_FAILURE_AI_ERROR] {type(e).__name__}: {e}")
+
+    explanation["generatedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    # Cache it on the application item.
+    try:
+        applications_table.update_item(
+            Key={"userId": user_id, "jobId": job_id},
+            UpdateExpression="SET failExplanation = :e",
+            ExpressionAttributeValues={":e": explanation},
+        )
+    except Exception as e:
+        print(f"[EXPLAIN_FAILURE_CACHE_ERROR] {e}")
+
+    return response(200, {"explanation": explanation, "cached": False})
+
+
 def lambda_handler(event, context):
     path = event.get("path") or event.get("rawPath") or ""
 
@@ -621,6 +831,9 @@ def lambda_handler(event, context):
 
     if "analyze-cv" in path:
         return analyze_cv(event)
+
+    if "explain-failure" in path:
+        return explain_failure(event)
 
     direct_text_response = tailor_from_direct_text(event)
     if direct_text_response:

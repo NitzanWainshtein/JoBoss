@@ -158,6 +158,10 @@ export const analyzeCV = async (resumeUrl) => {
   return apiCall('POST', '/ai/analyze-cv', { resumeUrl });
 };
 
+export const explainFailure = async (jobId) => {
+  return apiCall('POST', '/ai/explain-failure', { jobId });
+};
+
 // ===== ADMIN =====
 export const adminGetStats       = ()           => apiCall('GET',    '/admin/stats');
 export const adminGetUsers       = ()           => apiCall('GET',    '/admin/users');

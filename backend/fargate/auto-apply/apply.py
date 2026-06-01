@@ -425,9 +425,128 @@ def apply_lever(page, user_email, resume_path):
     return True, None
 
 
+# CTAs that lead from a job posting to its application form.
+APPLY_CTA_SELECTORS = [
+    "a:has-text('Apply')", "button:has-text('Apply')",
+    "a:has-text('Apply here')", "a:has-text('Apply now')",
+    "button:has-text('Apply now')", "a:has-text('Register')",
+    "button:has-text('Register')", "a:has-text('Create account')",
+    "[class*='apply']", "[id*='apply']",
+]
+
+# Containers that may hold an application form in an overlay.
+MODAL_SELECTORS = ["dialog", "[role='dialog']", ".modal", "#modal", "[class*='modal']"]
+
+# Signals that a page is a genuine job application form (require >= 2).
+JOB_URL_KEYWORDS = ["job", "career", "apply", "position", "vacancy", "opening", "recruitment"]
+JOB_TEXT_KEYWORDS = ["resume", "cv", "cover letter", "application", "apply for", "job opening"]
+
+
+def is_real_application_form(page):
+    """Guard against submitting random forms (search bars, newsletter signups, etc.).
+    Requires at least TWO independent signals that this is a real job application.
+    Returns True only when >= 2 signals are present."""
+    signals = 0
+    found = []
+
+    # 1. Resume / file upload field.
+    try:
+        if page.locator("input[type='file']").count() > 0:
+            signals += 1
+            found.append("file_upload")
+    except Exception:
+        pass
+
+    # 2. Name field AND email field together.
+    try:
+        name_sels = FIELD_PATTERNS.get("name", []) + FIELD_PATTERNS.get("first_name", [])
+        has_name = any(page.locator(s).count() > 0 for s in name_sels)
+        has_email = any(page.locator(s).count() > 0 for s in FIELD_PATTERNS.get("email", []))
+        if has_name and has_email:
+            signals += 1
+            found.append("name+email")
+    except Exception:
+        pass
+
+    # 3. Three or more (non-hidden) input fields total.
+    try:
+        total_inputs = page.locator("input:not([type='hidden']), textarea").count()
+        if total_inputs >= 3:
+            signals += 1
+            found.append(f"inputs={total_inputs}")
+    except Exception:
+        pass
+
+    # 4. URL contains a job-related keyword.
+    try:
+        url = (page.url or "").lower()
+        if any(k in url for k in JOB_URL_KEYWORDS):
+            signals += 1
+            found.append("url_keyword")
+    except Exception:
+        pass
+
+    # 5. Page text mentions resume / application terms.
+    try:
+        text = (page.inner_text("body") or "").lower()
+        if any(k in text for k in JOB_TEXT_KEYWORDS):
+            signals += 1
+            found.append("text_keyword")
+    except Exception:
+        pass
+
+    log.info("Form validation: %d signal(s) [%s]", signals, ", ".join(found) or "none")
+    return signals >= 2
+
+
+def has_form_fields(page):
+    """Return True if the page currently shows at least one visible fillable field."""
+    selectors = [
+        "input[type='text']", "input[type='email']", "input[type='tel']",
+        "input:not([type])", "textarea", "input[type='file']",
+        "input[name='name']", "input[name='email']",
+    ]
+    for sel in selectors:
+        try:
+            loc = page.locator(sel)
+            if loc.count() > 0 and loc.first.is_visible():
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _submit_and_finish(page):
+    """Click submit, wait for settle, and check for a post-submit CAPTCHA."""
+    page.wait_for_timeout(1_000)
+    clicked = try_click_first(page, SUBMIT_PATTERNS)
+    if not clicked:
+        return False, "could not find submit button"
+
+    wait_for_settle(page)
+    captcha = detect_captcha(page)
+    if captcha:
+        return False, f"captcha_detected: {captcha}"
+
+    return True, None
+
+
+def _attempt_apply(page, user_email, resume_path):
+    """Validate the current page is a real application form, then fill + submit.
+    Returns (success, reason) if an attempt was made, or None if this page is not
+    a valid application form (so the caller can keep navigating)."""
+    if not is_real_application_form(page):
+        return None
+    if not fill_common_fields(page, user_email, resume_path):
+        return None
+    return _submit_and_finish(page)
+
+
 def apply_generic(page, user_email, resume_path):
     """
-    Generic fallback flow for unknown job boards.
+    Generic fallback flow for unknown job boards. Acts as a navigator: if the
+    landing page has no form, it tries to reach one (click Apply/Register CTA,
+    inspect modals, follow redirects) before giving up.
     Returns (success: bool, reason: str | None)
     """
     log.info("Generic flow")
@@ -443,21 +562,58 @@ def apply_generic(page, user_email, resume_path):
     if captcha:
         return False, f"captcha_detected: {captcha}"
 
-    filled_any = fill_common_fields(page, user_email, resume_path)
-    if not filled_any:
-        return False, "no fillable form fields found on page"
+    # Direct attempt — a validated form is already on the landing page.
+    res = _attempt_apply(page, user_email, resume_path)
+    if res is not None:
+        return res
 
-    page.wait_for_timeout(1_000)
-    clicked = try_click_first(page, SUBMIT_PATTERNS)
-    if not clicked:
-        return False, "could not find submit button"
+    log.info("No valid form on landing page — entering navigator mode")
+    start_url = page.url
 
-    wait_for_settle(page)
-    captcha = detect_captcha(page)
-    if captcha:
-        return False, f"captcha_detected: {captcha}"
+    # Step 1 — click an Apply/Register CTA, then re-validate + attempt.
+    cta = try_click_first(page, APPLY_CTA_SELECTORS)
+    if cta:
+        log.info("Clicked apply CTA: %s", cta)
+        wait_for_settle(page)
+        page.wait_for_timeout(2_000)
+        captcha = detect_captcha(page)
+        if captcha:
+            return False, f"captcha_detected: {captcha}"
+        res = _attempt_apply(page, user_email, resume_path)
+        if res is not None:
+            return res
 
-    return True, None
+    # Step 2 — a modal/dialog may have opened; if it holds a validated form, apply.
+    for msel in MODAL_SELECTORS:
+        try:
+            loc = page.locator(msel)
+            if loc.count() == 0:
+                continue
+            modal = loc.first
+            if not modal.is_visible():
+                continue
+            if modal.locator("input, textarea").count() > 0:
+                log.info("Found modal with fields: %s", msel)
+                res = _attempt_apply(page, user_email, resume_path)
+                if res is not None:
+                    return res
+        except Exception:
+            continue
+
+    # Step 3 — we may have been redirected to a new page; settle and re-attempt.
+    if page.url != start_url:
+        log.info("URL changed %s -> %s, re-checking for form", start_url, page.url)
+        wait_for_settle(page)
+        page.wait_for_timeout(2_000)
+        captcha = detect_captcha(page)
+        if captcha:
+            return False, f"captcha_detected: {captcha}"
+        res = _attempt_apply(page, user_email, resume_path)
+        if res is not None:
+            return res
+
+    # Step 4 — genuinely no valid application form anywhere.
+    return False, "no fillable form fields found on page"
 
 
 # ── Main apply logic ──────────────────────────────────────────────────────────

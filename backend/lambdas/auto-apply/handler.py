@@ -29,13 +29,14 @@ def now_iso():
 
 
 def mark_pending(user_id, job_id):
+    # Write the system result into the dedicated autoApplyStatus track so the
+    # user's funnel `status` (SUBMITTED/INTERVIEW/...) is never overwritten.
     apps_tbl.update_item(
         Key={"userId": user_id, "jobId": job_id},
-        UpdateExpression="SET #s = :s, updatedAt = :ts",
-        ExpressionAttributeNames={"#s": "status"},
-        ExpressionAttributeValues={":s": "auto_apply_pending", ":ts": now_iso()},
+        UpdateExpression="SET autoApplyStatus = :a, updatedAt = :ts",
+        ExpressionAttributeValues={":a": "pending", ":ts": now_iso()},
     )
-    print(f"AUTO_APPLY: status → auto_apply_pending (userId={user_id}, jobId={job_id})")
+    print(f"AUTO_APPLY: autoApplyStatus → pending (userId={user_id}, jobId={job_id})")
 
 
 def launch_fargate(payload):
@@ -110,10 +111,9 @@ def process_record(record):
         try:
             apps_tbl.update_item(
                 Key={"userId": user_id, "jobId": job_id},
-                UpdateExpression="SET #s = :s, failReason = :fr, updatedAt = :ts",
-                ExpressionAttributeNames={"#s": "status"},
+                UpdateExpression="SET autoApplyStatus = :a, failReason = :fr, updatedAt = :ts",
                 ExpressionAttributeValues={
-                    ":s": "auto_apply_failed",
+                    ":a": "failed",
                     ":fr": f"Fargate launch error: {str(e)[:300]}",
                     ":ts": now_iso(),
                 },

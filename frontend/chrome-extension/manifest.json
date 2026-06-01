@@ -6,13 +6,19 @@
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
-    "https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/*"
+    "https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/*",
+    "https://d231wno34rvped.cloudfront.net/*",
+    "https://cognito-idp.us-east-1.amazonaws.com/*"
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "externally_connectable": {
+    "matches": ["https://d231wno34rvped.cloudfront.net/*"]
   },
   "content_scripts": [
     {
@@ -28,6 +34,9 @@
         "https://*.myworkdayjobs.com/*",
         "https://*.linkedin.com/jobs/*",
         "https://*/*"
+      ],
+      "exclude_matches": [
+        "https://d231wno34rvped.cloudfront.net/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

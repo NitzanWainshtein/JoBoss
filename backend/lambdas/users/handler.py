@@ -1,4 +1,5 @@
 import json
+import re
 import boto3
 import os
 from datetime import datetime, timezone
@@ -52,6 +53,37 @@ def get_user_email_from_event(event):
     return claims.get("email", "")
 
 
+def get_user_name_from_event(event):
+    claims = get_claims_from_event(event)
+    return (claims.get("name") or claims.get("given_name") or "").strip()
+
+
+EMAIL_RE = re.compile(r"\S+@\S+\.\S+")
+
+
+def looks_like_email(value):
+    return isinstance(value, str) and bool(EMAIL_RE.fullmatch(value.strip()))
+
+
+def generate_presigned_resume_url(resume_url):
+    """Generate a 1-hour presigned GET URL from an s3:// resume URL. Returns '' on failure."""
+    if not resume_url or not isinstance(resume_url, str) or not resume_url.startswith("s3://"):
+        return ""
+    without_scheme = resume_url.replace("s3://", "", 1)
+    bucket, _, key = without_scheme.partition("/")
+    if not bucket or not key:
+        return ""
+    try:
+        return s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=3600,
+        )
+    except Exception as e:
+        print(f"PRESIGN ERROR: {type(e).__name__}: {e}")
+        return ""
+
+
 def get_http_method(event):
     return (
         event.get("httpMethod")
@@ -79,6 +111,13 @@ def normalize_user(user):
     user.setdefault("onboardingCompleted", False)
     user.setdefault("preferredRoles", [])
     user.setdefault("availability", "")
+    user.setdefault("phone", "")
+    user.setdefault("currentLocation", "")
+    user.setdefault("currentCompany", "")
+    user.setdefault("gender", "")
+    user.setdefault("linkedinUrl", "")
+    user.setdefault("githubUrl", "")
+    user.setdefault("websiteUrl", "")
     user.setdefault("latitude", None)
     user.setdefault("longitude", None)
 
@@ -148,6 +187,13 @@ def build_updated_user_from_body(existing_user, body):
         "onboardingCompleted",
         "preferredRoles",
         "availability",
+        "phone",
+        "currentLocation",
+        "currentCompany",
+        "gender",
+        "linkedinUrl",
+        "githubUrl",
+        "websiteUrl",
     ]
 
     for field in allowed_fields:
@@ -261,9 +307,27 @@ def get_user_profile(event):
             "message": "User profile not found"
         })
 
+    user = normalize_user(user)
+
+    # fullName fallback: if missing or storing an email (legacy bad data),
+    # use the Cognito name attribute from the token claims instead.
+    current_name = (user.get("fullName") or "").strip()
+    if not current_name or looks_like_email(current_name):
+        cognito_name = get_user_name_from_event(event)
+        if cognito_name and not looks_like_email(cognito_name):
+            user["fullName"] = cognito_name
+        elif looks_like_email(current_name):
+            user["fullName"] = ""
+
+    # Presigned URL so the browser/extension can fetch the resume PDF directly.
+    user["resumePresignedUrl"] = generate_presigned_resume_url(user.get("resumeUrl"))
+
+    active_resume = next((r for r in user.get("resumes", []) if r.get("isActive")), None)
+    user["resumeFileName"] = (active_resume or {}).get("fileName", "") if active_resume else ""
+
     return build_response(200, {
         "message": "User profile fetched successfully",
-        "user": normalize_user(user)
+        "user": user
     })
 
 

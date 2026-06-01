@@ -427,7 +427,7 @@ function ApplicationsPage() {
                     </div>
                   )}
 
-                  {!autoTailorCV && !app.tailoredResumeUrl && !tailoringJobs.has(app.jobId) && (
+                  {!app.tailoredResumeUrl && !tailoringJobs.has(app.jobId) && (
                     <button
                       type="button"
                       style={canTailorCV ? styles.manualTailorBtn : styles.manualTailorBtnLocked}

@@ -189,7 +189,10 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       <h3 style={styles.title}>{job.title}</h3>
       <p style={styles.salary}>💰 {job.salary || job.jobType || 'לא צוין'}</p>
       {job.distanceKm != null && <p style={styles.distance}>🗺 {job.distanceKm.toFixed(1)} ק"מ ממך</p>}
-      <p style={styles.description}>{getJobSummary(job.description)}</p>
+      <div style={styles.shortSummaryBlock}>
+        <p style={styles.shortSummaryTitle}>Short Summary</p>
+        <p style={styles.description}>{job.shortDescription || getJobSummary(job.description)}</p>
+      </div>
       <div style={styles.techContainer}>
         {(job.technologies || job.requirements || []).map(t => <span key={t} style={styles.techBadge}>{t}</span>)}
       </div>
@@ -624,10 +627,12 @@ const styles = {
   title: { fontSize: '20px', fontWeight: 700, color: 'var(--primary)', margin: 0 },
   salary: { fontSize: '15px', fontWeight: 600, color: 'var(--secondary)', margin: 0 },
   distance: { fontSize: '13px', fontWeight: 600, color: '#2E7D32', margin: 0 },
-  description: { fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, flex: 1, margin: 0 },
+  shortSummaryBlock: { marginTop: '8px' },
+  shortSummaryTitle: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 6px'},
+  description: { fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, margin: 0 },
   techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   techBadge: { background: 'var(--background)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid var(--primary)' },
-  tapHint: { fontSize: '11px', color: '#bbb', textAlign: 'center', margin: 0 },
+  tapHint: { fontSize: '11px', color: '#bbb', textAlign: 'center', margin: 0, marginTop: 'auto', paddingTop: '16px'},
   lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
   lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '24px' },
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },

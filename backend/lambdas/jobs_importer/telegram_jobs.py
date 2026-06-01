@@ -76,6 +76,20 @@ def extract_apply_url(message, fallback_url: str) -> str:
             if url and not is_telegram_url(url):
                 return url
 
+    # Fallback: extract from markdown link in raw text, e.g. [🔗 לינק למשרה המקורית](https://...)
+    match = re.search(r'\[.*?לינק.*?\]\((https?://[^\)]+)\)', text)
+    if match:
+        url = match.group(1)
+        if not is_telegram_url(url):
+            return url
+
+    # Fallback: any bare URL in the text
+    match = re.search(r'https?://\S+', text)
+    if match:
+        url = match.group(0).rstrip(')')
+        if not is_telegram_url(url):
+            return url
+
     return fallback_url
 
 

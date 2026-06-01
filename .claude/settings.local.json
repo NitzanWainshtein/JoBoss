@@ -69,7 +69,14 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/lambdas/jobs/handler.py'\\).read\\(\\)\\); print\\('syntax ok'\\)\")",
       "Bash(python .tmp_lambda/test_experience_filter.py)",
       "Bash(python .tmp_lambda/deploy_jobs.py)",
-      "Bash(python .tmp_lambda/live_wiring_and_restore.py)"
+      "Bash(python .tmp_lambda/live_wiring_and_restore.py)",
+      "PowerShell(aws iam get-role-policy --role-name JoBossLambdaRole --policy-name S3ProfileImageAccess --query 'PolicyDocument.Statement' --output json 2>&1)",
+      "PowerShell(aws dynamodb get-item --table-name joboss-applications --region us-east-1 --key '{\\\\\"userId\\\\\":{\\\\\"S\\\\\":\\\\\"5468e4e8-d0d1-70ba-4714-3aff33f82ac4\\\\\"},\\\\\"jobId\\\\\":{\\\\\"S\\\\\":\\\\\"test-auto-apply-003\\\\\"}}' --output json 2>&1)",
+      "PowerShell(aws cognito-idp admin-set-user-password --user-pool-id us-east-1_a8enAwcyl --region us-east-1 --username hepowa4713@alf5.com --password TempPass123! --permanent 2>&1)",
+      "Bash(docker build *)",
+      "Bash(docker tag *)",
+      "Bash(docker push *)",
+      "Bash(aws ecs *)"
     ]
   }
 }

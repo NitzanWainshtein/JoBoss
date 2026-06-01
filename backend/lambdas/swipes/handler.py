@@ -16,6 +16,11 @@ dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 swipes_table = dynamodb.Table(os.environ.get("SWIPES_TABLE", "joboss-swipes"))
 applications_table = dynamodb.Table(os.environ.get("APPLICATIONS_TABLE", "joboss-applications"))
 subs_table = dynamodb.Table(os.environ.get("SUBSCRIPTIONS_TABLE", "joboss-subscriptions"))
+users_table = dynamodb.Table(os.environ.get("USERS_TABLE", "joboss-users"))
+jobs_table = dynamodb.Table(os.environ.get("JOBS_TABLE", "joboss-jobs"))
+
+sqs = boto3.client("sqs", region_name="us-east-1")
+SQS_QUEUE_URL = os.environ.get("SQS_QUEUE_URL", "")
 
 CORS = {
     "Content-Type": "application/json",
@@ -39,6 +44,53 @@ TIER_LIMITS = {
 
 def get_swipe_limit(plan):
     return TIER_LIMITS.get(plan, TIER_LIMITS["FREE"])["daily_swipes"]
+
+
+def get_user_profile(user_id):
+    """Fetch the user record from joboss-users. Returns {} on any failure."""
+    try:
+        result = users_table.get_item(Key={"userId": user_id})
+        return result.get("Item") or {}
+    except Exception as e:
+        print(f"USER FETCH ERROR: userId={user_id}, error={e}")
+        return {}
+
+
+def get_job_apply_url(job_id):
+    """Fetch applyUrl from joboss-jobs. Returns '' on any failure."""
+    try:
+        result = jobs_table.get_item(Key={"jobId": job_id}, ProjectionExpression="applyUrl")
+        return result.get("Item", {}).get("applyUrl", "") or ""
+    except Exception as e:
+        print(f"JOB FETCH ERROR: jobId={job_id}, error={e}")
+        return ""
+
+
+def send_to_auto_apply_queue(user_id, job_id, body, plan, apply_url=""):
+    """
+    Push a message to joboss-auto-apply-queue.
+    Fails silently — a queue hiccup must never block the swipe response.
+    """
+    if not SQS_QUEUE_URL:
+        print("AUTO_APPLY: SQS_QUEUE_URL not configured, skipping")
+        return
+    try:
+        ai_tailoring = TIER_LIMITS.get(plan, TIER_LIMITS["FREE"])["ai_tailoring"]
+        message = {
+            "userId": user_id,
+            "jobId": job_id,
+            "jobUrl": apply_url,
+            "jobTitle": body.get("title", ""),
+            "company": body.get("company", ""),
+            "aiTailoring": ai_tailoring,
+        }
+        send_kwargs = {"QueueUrl": SQS_QUEUE_URL, "MessageBody": json.dumps(message)}
+        if SQS_QUEUE_URL.endswith(".fifo"):
+            send_kwargs["MessageGroupId"] = user_id
+        sqs.send_message(**send_kwargs)
+        print(f"AUTO_APPLY: queued userId={user_id}, jobId={job_id}, aiTailoring={ai_tailoring}")
+    except Exception as e:
+        print(f"AUTO_APPLY ERROR: userId={user_id}, jobId={job_id}, error={e}")
 
 
 def resp(status, body):
@@ -148,6 +200,13 @@ def create_swipe(event):
             "updatedAt": now_iso(),
         }
         applications_table.put_item(Item=app_item)
+
+        # Auto Apply: if the user has autoApply enabled, push to SQS.
+        user_profile = get_user_profile(user_id)
+        if user_profile.get("autoApply") is True:
+            apply_url = get_job_apply_url(job_id)
+            print(f"AUTO_APPLY: resolved applyUrl={apply_url!r} for jobId={job_id}")
+            send_to_auto_apply_queue(user_id, job_id, body, plan, apply_url=apply_url)
 
     swipe_item = {
         "userId": user_id,

@@ -4,11 +4,13 @@ import base64
 import uuid
 from datetime import datetime, timezone
 
+import os
+
 s3 = boto3.client('s3', region_name='us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-users_table = dynamodb.Table('joboss-users')
+users_table = dynamodb.Table(os.environ.get('USERS_TABLE_NAME', 'joboss-users'))
 
-BUCKET = 'joboss-resumes-171109860478'
+BUCKET = os.environ.get('BUCKET_NAME', 'joboss-resumes')
 
 CORS = {
     'Content-Type': 'application/json',

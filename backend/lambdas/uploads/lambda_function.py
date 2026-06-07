@@ -1,11 +1,12 @@
 ﻿import json
+import os
 import boto3
 import base64
 from datetime import datetime
 from uuid import uuid4
 
 s3 = boto3.client('s3')
-BUCKET_NAME = 'joboss-resumes-171109860478'
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'joboss-resumes')
 
 
 def get_now_iso():

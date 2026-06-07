@@ -1,15 +1,21 @@
 const awsConfig = {
   Auth: {
     Cognito: {
-      userPoolId: "us-east-1_a8enAwcyl",
-      userPoolClientId: "5o1mg9dtkh7kjuvqu145oafv00",
+      userPoolId: import.meta.env.VITE_USER_POOL_ID,
+      userPoolClientId: import.meta.env.VITE_USER_POOL_CLIENT_ID,
       loginWith: {
         email: true,
         oauth: {
-          domain: "joboss.auth.us-east-1.amazoncognito.com",
+          domain: import.meta.env.VITE_COGNITO_DOMAIN || "",
           scopes: ["openid", "email", "profile"],
-          redirectSignIn: ["https://d231wno34rvped.cloudfront.net", "http://localhost:5173"],
-          redirectSignOut: ["https://d231wno34rvped.cloudfront.net", "http://localhost:5173"],
+          redirectSignIn: [
+            import.meta.env.VITE_CLOUDFRONT_URL || "http://localhost:5173",
+            "http://localhost:5173"
+          ],
+          redirectSignOut: [
+            import.meta.env.VITE_CLOUDFRONT_URL || "http://localhost:5173",
+            "http://localhost:5173"
+          ],
           responseType: "code"
         }
       }

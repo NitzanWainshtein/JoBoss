@@ -1,0 +1,434 @@
+openapi: 3.0.3
+info:
+  title: JoBoss API
+  description: REST API for the JoBoss job discovery platform
+  version: 1.0.0
+
+servers:
+  - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/prod
+    description: AWS API Gateway (prod)
+    variables:
+      apiId:
+        description: API Gateway ID (output of setup_all.py)
+        default: your-api-id
+
+security:
+  - CognitoAuth: []
+
+components:
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito ID token — obtained via Amplify Auth
+
+  schemas:
+    Job:
+      type: object
+      properties:
+        jobId:       { type: string }
+        title:       { type: string }
+        company:     { type: string }
+        location:    { type: string }
+        salary:      { type: string }
+        description: { type: string }
+        applyUrl:    { type: string }
+        lat:         { type: number }
+        lng:         { type: number }
+
+    Swipe:
+      type: object
+      properties:
+        jobId:      { type: string }
+        decision:   { type: string, enum: [right, left] }
+        swipedAt:   { type: string, format: date-time }
+
+    Application:
+      type: object
+      properties:
+        applicationId:    { type: string }
+        jobId:            { type: string }
+        company:          { type: string }
+        title:            { type: string }
+        status:           { type: string, enum: [applied, interviewing, rejected, offered] }
+        tailoredResumeUrl:{ type: string }
+        appliedAt:        { type: string, format: date-time }
+
+    UserProfile:
+      type: object
+      properties:
+        userId:           { type: string }
+        fullName:         { type: string }
+        email:            { type: string }
+        plan:             { type: string, enum: [FREE, PREMIUM, PREMIUM_PLUS] }
+        role:             { type: string }
+        preferredLocation:{ type: string }
+        desiredRole:      { type: string }
+        experienceLevel:  { type: string }
+        autoApply:        { type: boolean }
+        resumes:
+          type: array
+          items:
+            type: object
+            properties:
+              resumeId:   { type: string }
+              fileName:   { type: string }
+              resumeUrl:  { type: string }
+              uploadedAt: { type: string }
+              active:     { type: boolean }
+
+    Error:
+      type: object
+      properties:
+        error:   { type: string }
+        message: { type: string }
+
+# ── Jobs ──────────────────────────────────────────────────────────────────────
+paths:
+  /jobs:
+    get:
+      summary: Get job listings
+      description: Returns jobs filtered by location/radius and user preferences.
+      parameters:
+        - in: query
+          name: lat
+          schema: { type: number }
+          description: Latitude for geo filter
+        - in: query
+          name: lng
+          schema: { type: number }
+          description: Longitude for geo filter
+        - in: query
+          name: radius
+          schema: { type: number }
+          description: Radius in km
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+
+  /jobs/{jobId}:
+    get:
+      summary: Get a single job
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '404':
+          description: Job not found
+
+# ── Swipes ────────────────────────────────────────────────────────────────────
+  /swipes:
+    post:
+      summary: Record a swipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId, decision]
+              properties:
+                jobId:    { type: string }
+                decision: { type: string, enum: [right, left] }
+      responses:
+        '200':
+          description: Swipe recorded
+        '429':
+          description: Daily swipe quota reached
+
+  /swipes/me:
+    get:
+      summary: Get my swipe history
+      responses:
+        '200':
+          description: List of swipes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Swipe' }
+
+  /swipes/{jobId}:
+    delete:
+      summary: Undo a swipe
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Swipe removed
+
+  /swipes/quota:
+    get:
+      summary: Get remaining swipe quota
+      responses:
+        '200':
+          description: Quota status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  used:      { type: integer }
+                  limit:     { type: integer }
+                  remaining: { type: integer }
+
+# ── Applications ──────────────────────────────────────────────────────────────
+  /applications:
+    get:
+      summary: Get my applications
+      responses:
+        '200':
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Application' }
+
+    post:
+      summary: Create an application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId]
+              properties:
+                jobId:             { type: string }
+                company:           { type: string }
+                title:             { type: string }
+                tailoredResumeUrl: { type: string }
+      responses:
+        '200':
+          description: Application created
+
+    put:
+      summary: Update application status or clear tailoring
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId]
+              properties:
+                jobId:          { type: string }
+                status:         { type: string }
+                clearTailoring: { type: boolean }
+      responses:
+        '200':
+          description: Application updated
+
+# ── Users ─────────────────────────────────────────────────────────────────────
+  /users/me:
+    get:
+      summary: Get my profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '404':
+          description: Profile not found
+
+    post:
+      summary: Create profile (first login)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, email]
+              properties:
+                fullName:         { type: string }
+                email:            { type: string }
+                plan:             { type: string }
+                role:             { type: string }
+                preferredLocation:{ type: string }
+                desiredRole:      { type: string }
+                experienceLevel:  { type: string }
+                autoApply:        { type: boolean }
+      responses:
+        '200':
+          description: Profile created
+
+    put:
+      summary: Update my profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserProfile' }
+      responses:
+        '200':
+          description: Profile updated
+
+# ── Resumes ───────────────────────────────────────────────────────────────────
+  /resumes/upload:
+    post:
+      summary: Upload a resume PDF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file, fileName]
+              properties:
+                file:     { type: string, description: Base64-encoded PDF }
+                fileName: { type: string }
+      responses:
+        '200':
+          description: Upload successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resumeId:   { type: string }
+                  resumeUrl:  { type: string }
+                  fileName:   { type: string }
+                  uploadedAt: { type: string }
+
+# ── Profile Image ─────────────────────────────────────────────────────────────
+  /profile/image:
+    post:
+      summary: Upload a profile image
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:    { type: string, description: Base64-encoded image (max 5MB) }
+                fileName: { type: string }
+      responses:
+        '200':
+          description: Image uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imageUrl: { type: string }
+
+# ── AI ────────────────────────────────────────────────────────────────────────
+  /ai/tailor:
+    post:
+      summary: Tailor a resume to a job description
+      description: Uses Amazon Bedrock (Claude) to rewrite the resume for the target role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resume_text:     { type: string, description: Plain text resume (optional if PDF uploaded) }
+                job_description: { type: string }
+                jobId:           { type: string }
+                resumeId:        { type: string }
+                force:           { type: boolean, description: Skip relevance check }
+      responses:
+        '200':
+          description: Tailored resume
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tailoredText:      { type: string }
+                  tailoredResumeUrl: { type: string }
+                  mode:              { type: string }
+        '400':
+          description: Job not relevant to candidate profile
+
+# ── Subscriptions ─────────────────────────────────────────────────────────────
+  /subscriptions/me:
+    get:
+      summary: Get my subscription
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan:      { type: string }
+                  status:    { type: string }
+                  expiresAt: { type: string }
+
+    delete:
+      summary: Cancel subscription
+      responses:
+        '200':
+          description: Subscription cancelled
+
+  /subscriptions/checkout:
+    post:
+      summary: Create a Stripe checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan]
+              properties:
+                plan: { type: string, enum: [PREMIUM, PREMIUM_PLUS] }
+      responses:
+        '200':
+          description: Checkout session URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkoutUrl: { type: string }
+
+  /subscriptions/consume:
+    post:
+      summary: Consume one AI tailoring credit
+      responses:
+        '200':
+          description: Credit consumed
+
+# ── Admin ─────────────────────────────────────────────────────────────────────
+  /admin/{proxy+}:
+    x-amazon-apigateway-any-method:
+      summary: Admin operations (internal use)
+      description: |
+        Endpoints for admin dashboard. No Cognito auth required — protect via network controls.
+        Includes: job management, user management, swipe reset, analytics.
+      parameters:
+        - in: path
+          name: proxy
+          required: true
+          schema: { type: string }
+      security: []
+      responses:
+        '200':
+          description: Admin response

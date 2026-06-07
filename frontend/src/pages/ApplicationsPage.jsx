@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
+import ICON_SIZES from '../iconSizes';
 import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring, explainFailure } from '../api';
 import LimitModal from '../components/LimitModal';
 import MismatchWarningModal from '../components/MismatchWarningModal';
@@ -8,8 +9,8 @@ import Spinner from '../components/Spinner';
 const STATUS_CONFIG = {
   SUBMITTED: { color: '#FFC107', label: 'הוגש' },
   REVIEWED:  { color: '#2196F3', label: 'נסקר' },
-  INTERVIEW: { color: '#9C27B0', label: 'ראיון' },
-  ACCEPTED:  { color: '#4CAF50', label: 'התקבלת' },
+  INTERVIEW: { color: '#9C27B0', label: 'ראיון',   icon: '/icons/interviews_icon.png' },
+  ACCEPTED:  { color: '#4CAF50', label: 'התקבלת',  icon: '/icons/accepted_icon.png' },
   REJECTED:  { color: '#F44336', label: 'נדחה' },
 };
 
@@ -255,7 +256,10 @@ function AutoApplyResult({ app, planKey, canExplain }) {
   if (app.autoApplyStatus === 'manual') {
     return (
       <div style={{ ...styles.autoBoxCol, background: cfg.bg, borderColor: cfg.border }}>
-        <p style={{ ...styles.autoTitle, color: cfg.text }}>{cfg.label}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.manualBlock}px`, height: `${ICON_SIZES.manualBlock}px`, objectFit: 'contain' }} />
+          <p style={{ ...styles.autoTitle, color: cfg.text, margin: 0 }}>{cfg.label}</p>
+        </div>
         <p style={{ ...styles.autoSub, color: cfg.text, marginTop: '4px' }}>לא הופעלה הגשה אוטומטית למשרה זו</p>
         {jobUrl && (
           <button type="button" style={{ ...styles.failActionBtn, alignSelf: 'flex-start', marginTop: '10px' }} onClick={openJob}>{manualLabel}</button>
@@ -268,7 +272,7 @@ function AutoApplyResult({ app, planKey, canExplain }) {
   if (app.autoApplyStatus === 'pending_tailoring') {
     return (
       <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
-        <span style={styles.tailoringSpinner}>🤖</span>
+        <img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
         <div>
           <p style={{ ...styles.autoTitle, color: cfg.text }}>{cfg.label}</p>
           <p style={{ ...styles.autoSub, color: cfg.text }}>ה-AI מתאים את קורות החיים למשרה לפני ההגשה</p>
@@ -281,7 +285,7 @@ function AutoApplyResult({ app, planKey, canExplain }) {
   if (app.autoApplyStatus === 'pending') {
     return (
       <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
-        <span style={styles.tailoringSpinner}>⏳</span>
+        <img src="/icons/process_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
         <div>
           <p style={{ ...styles.autoTitle, color: cfg.text }}>{cfg.label}</p>
           <p style={{ ...styles.autoSub, color: cfg.text }}>הבוט מגיש את המשרה עבורך — יעודכן אוטומטית</p>
@@ -294,7 +298,7 @@ function AutoApplyResult({ app, planKey, canExplain }) {
   if (app.autoApplyStatus === 'success') {
     return (
       <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
-        <span style={{ fontSize: '20px' }}>✅</span>
+        <img src="/icons/accepted_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
         <div>
           <p style={{ ...styles.autoTitle, color: cfg.text }}>{cfg.label}</p>
           <p style={{ ...styles.autoSub, color: cfg.text }}>
@@ -527,25 +531,25 @@ function ApplicationsPage() {
       <div style={styles.content}>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-8px' }}>
-          <button style={styles.refreshBtn} onClick={loadApplications}>🔄 רענן</button>
+          <button style={styles.refreshBtn} onClick={loadApplications}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><img src="/icons/refresh_icon.png" alt="" style={{ width: `${ICON_SIZES.cvButton}px`, height: `${ICON_SIZES.cvButton}px`, objectFit: 'contain' }} />רענן</span></button>
         </div>
 
         <div style={styles.statsRow}>
           <div style={styles.stat}>
             <span style={styles.statNum}>{applications.length}</span>
-            <span style={styles.statLabel}>📋 סה"כ</span>
+            <span style={styles.statLabel}><img src="/icons/applies_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />סה"כ</span>
           </div>
           <div style={styles.stat}>
             <span style={{ ...styles.statNum, color: '#9C27B0' }}>
               {applications.filter(a => a.status === 'INTERVIEW').length}
             </span>
-            <span style={styles.statLabel}>👁 ראיונות</span>
+            <span style={styles.statLabel}><img src="/icons/interviews_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />ראיונות</span>
           </div>
           <div style={styles.stat}>
             <span style={{ ...styles.statNum, color: '#4CAF50' }}>
               {applications.filter(a => a.status === 'ACCEPTED').length}
             </span>
-            <span style={styles.statLabel}>✅ התקבלו</span>
+            <span style={styles.statLabel}><img src="/icons/accepted_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />התקבלו</span>
           </div>
         </div>
 
@@ -555,19 +559,19 @@ function ApplicationsPage() {
               <span style={{ ...styles.statNumSmall, color: '#4CAF50' }}>
                 {applications.filter(a => a.autoApplyStatus === 'success').length}
               </span>
-              <span style={styles.statLabel}>🤖 הוגשו אוטומטית</span>
+              <span style={styles.statLabel}><img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />הוגשו אוטומטית</span>
             </div>
             <div style={styles.statSmall}>
               <span style={{ ...styles.statNumSmall, color: '#7C3AED' }}>
                 {applications.filter(a => a.autoApplyStatus === 'pending').length}
               </span>
-              <span style={styles.statLabel}>⏳ בתהליך</span>
+              <span style={styles.statLabel}><img src="/icons/process_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />בתהליך</span>
             </div>
             <div style={styles.statSmall}>
               <span style={{ ...styles.statNumSmall, color: '#FF9800' }}>
                 {applications.filter(a => a.autoApplyStatus === 'manual').length}
               </span>
-              <span style={styles.statLabel}>🖐 ממתינים להגשה ידנית</span>
+              <span style={styles.statLabel}><img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />ממתינים להגשה ידנית</span>
             </div>
           </div>
         )}
@@ -634,7 +638,7 @@ function ApplicationsPage() {
 
                   {tailoringJobs.has(app.jobId) && !app.tailoredResumeUrl && (
                     <div style={styles.tailoringBox}>
-                      <span style={styles.tailoringSpinner}>⏳</span>
+                      <img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
                       <div>
                         <p style={styles.tailoringTitle}>מתאים קורות חיים...</p>
                         <p style={styles.tailoringSub}>ה-AI עובד על זה, יעודכן אוטומטית</p>
@@ -649,13 +653,16 @@ function ApplicationsPage() {
                       disabled={tailoringJobId === app.jobId}
                       onClick={() => canTailorCV ? handleTailorCV(app) : setShowUpsell(true)}
                     >
-                      {tailoringJobId === app.jobId ? '⏳ מתאים...' : canTailorCV ? '🤖 התאמת קורות חיים למשרה' : '🔒 התאמת קורות חיים — פרימיום בלבד'}
+                      {tailoringJobId === app.jobId ? '⏳ מתאים...' : canTailorCV
+                        ? <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.tailorButton}px`, height: `${ICON_SIZES.tailorButton}px`, objectFit: 'contain' }} />התאמת קורות חיים למשרה</span>
+                        : '🔒 התאמת קורות חיים — פרימיום בלבד'}
                     </button>
                   )}
 
                   {app.tailoredResumeUrl && !clearedTailoring.has(app.jobId) && (
                     <div style={styles.tailoredBox}>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <img src="/icons/cv_icon.png" alt="" style={{ width: `${ICON_SIZES.tailoredCvHeader}px`, height: `${ICON_SIZES.tailoredCvHeader}px`, objectFit: 'contain', flexShrink: 0 }} />
                         <p style={styles.tailoredTitle}>קורות חיים מותאמים צורפו</p>
                         <p style={styles.tailoredSub}>
                           {app.tailoredResume ? 'ניתן לצפות בטיוטה או להוריד אותה כקובץ.' : 'הקובץ נשמר בענן.'}
@@ -663,8 +670,12 @@ function ApplicationsPage() {
                       </div>
                       <div style={styles.tailoredActions}>
                         {app.tailoredResume && (<>
-                          <button type="button" style={styles.tailoredButton} onClick={() => setPreviewApplication(app)}>צפייה</button>
-                          <button type="button" style={styles.tailoredButton} onClick={() => downloadCVAsPdf(app.tailoredResume, app.company, app.title)}>🖨️ PDF</button>
+                          <button type="button" style={styles.tailoredButton} onClick={() => setPreviewApplication(app)}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><img src="/icons/watch_cv_icon.png" alt="" style={{ width: `${ICON_SIZES.cvButton}px`, height: `${ICON_SIZES.cvButton}px`, objectFit: 'contain' }} />צפייה</span>
+                          </button>
+                          <button type="button" style={styles.tailoredButton} onClick={() => downloadCVAsPdf(app.tailoredResume, app.company, app.title)}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><img src="/icons/download_cv_icon.png" alt="" style={{ width: `${ICON_SIZES.cvButton}px`, height: `${ICON_SIZES.cvButton}px`, objectFit: 'contain' }} />PDF</span>
+                          </button>
                         </>)}
                         <button
                           type="button"
@@ -707,7 +718,12 @@ function ApplicationsPage() {
                         }}
                         onClick={() => handleStatusChange(app.jobId, s)}
                       >
-                        {isUpdating && app.status !== s ? '...' : STATUS_CONFIG[s]?.label}
+                        {isUpdating && app.status !== s ? '...' : (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
+                            {STATUS_CONFIG[s]?.icon && <img src={STATUS_CONFIG[s].icon} alt="" style={{ width: `${ICON_SIZES.statusButton}px`, height: `${ICON_SIZES.statusButton}px`, objectFit: 'contain' }} />}
+                            {STATUS_CONFIG[s]?.label}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -757,7 +773,7 @@ function ApplicationsPage() {
               style={styles.downloadPreview}
               onClick={() => downloadCVAsPdf(previewApplication.tailoredResume, previewApplication.company, previewApplication.title)}
             >
-              🖨️ הורד כ-PDF
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><img src="/icons/download_cv_icon.png" alt="" style={{ width: `${ICON_SIZES.downloadModal}px`, height: `${ICON_SIZES.downloadModal}px`, objectFit: 'contain' }} />הורד כ-PDF</span>
             </button>
           </div>
         </div>

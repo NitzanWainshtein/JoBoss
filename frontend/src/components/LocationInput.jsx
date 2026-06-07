@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ICON_SIZES from '../iconSizes';
 
 export default function LocationInput({ value, onChange, onCoordinates }) {
   const [inputVal, setInputVal] = useState(value || '');
@@ -50,7 +51,7 @@ export default function LocationInput({ value, onChange, onCoordinates }) {
               onMouseEnter={e => e.currentTarget.style.background = '#F0F2FF'}
               onMouseLeave={e => e.currentTarget.style.background = 'white'}
             >
-              📍 {s.description}
+              <img src="/icons/location_icon.png" alt="" style={{ width: `${ICON_SIZES.locationDropdown}px`, height: `${ICON_SIZES.locationDropdown}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />{s.description}
             </div>
           ))}
         </div>

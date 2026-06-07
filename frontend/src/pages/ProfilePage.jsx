@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ICON_SIZES from '../iconSizes';
 import { getCurrentUser } from 'aws-amplify/auth';
 import {
   getMyProfile,
@@ -15,29 +16,15 @@ import { JOB_CATEGORIES } from '../data/jobCategories';
 
 // ── Subscription badge for profile header ────────────────────────────────────
 function PlanBadge({ planKey }) {
-  const map = {
-    FREE: { label: 'חינמי', bg: '#F0F2FF', color: '#6C4FD4' },
-    PREMIUM: { label: '⭐ פרימיום', bg: '#6C4FD4', color: 'white' },
-    PREMIUM_PLUS: { label: '🔥 פרימיום+', bg: '#FF6B6B', color: 'white' },
+  const logoMap = {
+    FREE: '/icons/free_members_icon.png',
+    PREMIUM: '/icons/premium_member_icon.png',
+    PREMIUM_PLUS: '/icons/plus_members_icon.png',
   };
 
-  const p = map[planKey] || map.FREE;
+  const logo = logoMap[planKey] || logoMap.FREE;
 
-  return (
-    <span
-      style={{
-        background: p.bg,
-        color: p.color,
-        padding: '4px 12px',
-        borderRadius: '20px',
-        fontSize: '13px',
-        fontWeight: 700,
-        border: planKey === 'FREE' ? '1px solid #6C4FD4' : 'none',
-      }}
-    >
-      {p.label}
-    </span>
-  );
+  return <img src={logo} alt={planKey} style={{ height: `${ICON_SIZES.planBadge}px`, objectFit: 'contain' }} />;
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -368,7 +355,7 @@ function ProfilePage() {
             }}
             onClick={() => setTab('profile')}
           >
-            👤 פרופיל
+            <img src="/icons/profile_icon.png" alt="" style={{ width: `${ICON_SIZES.profileTab}px`, height: `${ICON_SIZES.profileTab}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />פרופיל
           </button>
 
           <button
@@ -378,7 +365,7 @@ function ProfilePage() {
             }}
             onClick={() => setTab('subscription')}
           >
-            ⭐ מנוי
+            <img src="/icons/premium_icon.png" alt="" style={{ width: `${ICON_SIZES.profileTab}px`, height: `${ICON_SIZES.profileTab}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />מנוי
           </button>
         </div>
 
@@ -387,7 +374,7 @@ function ProfilePage() {
           <>
             {/* Location */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}>📍 העדפות מיקום</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/location_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />העדפות מיקום</h3>
 
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={styles.settingLabel}>מיקום מועדף</p>
@@ -426,7 +413,7 @@ function ProfilePage() {
 
             {/* Auto apply */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}>⚙️ הגדרות הגשה</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/settings_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />הגדרות הגשה</h3>
 
               <div style={styles.settingRow}>
                 <div>
@@ -518,7 +505,7 @@ function ProfilePage() {
 
             {/* Resumes */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}>📄 קורות חיים</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/cv_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />קורות חיים</h3>
               <p style={styles.settingDesc}>העלה עד 3 קבצים — ה-AI יתאים את הפעיל לכל משרה</p>
 
               {planKey === 'FREE' && (
@@ -612,7 +599,7 @@ function ProfilePage() {
 
             {/* Experience & availability */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}>🎯 העדפות חיפוש</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/search_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />העדפות חיפוש</h3>
 
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={styles.settingLabel}>רמת ניסיון</p>
@@ -647,7 +634,7 @@ function ProfilePage() {
 
             {/* Preferred roles */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}>💼 תפקידים מועדפים</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/jobs_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />תפקידים מועדפים</h3>
 
               {preferredRoles.length > 0 ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%' }}>
@@ -728,7 +715,7 @@ function ProfilePage() {
             </div>
 
             <button style={styles.logoutBtn} onClick={handleLogout}>
-              🚪 התנתק
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><img src="/icons/logout_icon.png" alt="" style={{ width: `${ICON_SIZES.logout}px`, height: `${ICON_SIZES.logout}px`, objectFit: 'contain' }} />התנתק</span>
             </button>
           </>
         )}

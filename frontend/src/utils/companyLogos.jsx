@@ -58,11 +58,8 @@ export const getCompanyLogoUrls = (company, website = null) => {
   // 2. לוגו גנרי ב-S3 לפי שם החברה
   urls.push(`${S3_BASE_URL}/${normalizedCompany}.png`);
 
-  // 3. אם יש website - Google Favicon (גודל 128px)
-  if (website) {
-    const domain = website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-    urls.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
-  }
+  // 3. Google Favicon — מנסה את דומיין החברה (companyslug.com)
+  urls.push(`https://www.google.com/s2/favicons?domain=${companySlug}.com&sz=128`);
 
   // 4. Clearbit (טוב לחברות בינלאומיות)
   urls.push(`https://logo.clearbit.com/${companySlug}.com`);

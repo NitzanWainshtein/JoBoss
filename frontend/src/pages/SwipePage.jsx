@@ -154,7 +154,7 @@ function JobDetailModal({ job, onClose }) {
 }
 
 // ── Job card ─────────────────────────────────────────────────────────────────
-function JobCard({ job, onSwipe, onOpenDetail, locked }) {
+function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
   const [isDragging, setIsDragging] = useState(false);
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
@@ -191,6 +191,9 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       </div>
       <h3 style={styles.title}>{job.title}</h3>
       {job.distanceKm != null && <p style={styles.distance}>🗺 {job.distanceKm.toFixed(1)} ק"מ ממך</p>}
+      {locationFilter && (
+        <p style={styles.locationFilter}>📍 {shortenLocation(locationFilter.name)} · עד {locationFilter.radius} ק"מ</p>
+      )}
       <div style={styles.shortSummaryBlock}>
         <p style={styles.shortSummaryTitle}>Short Summary</p>
         <p style={styles.description}>{job.shortDescription || getJobSummary(job.description)}</p>
@@ -472,9 +475,8 @@ function SwipePage() {
       <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} />
 
       {locationFilter && (
-        <div style={styles.filterBanner}>
-          <span>📍 {shortenLocation(locationFilter.name)} · עד {locationFilter.radius} ק"מ</span>
-          <button style={styles.refreshBtn} onClick={loadJobs}>🔄</button>
+        <div style={styles.filterBannerCompact}>
+          <button style={styles.refreshBtn} onClick={loadJobs}>🔄 רענן</button>
         </div>
       )}
 
@@ -499,6 +501,7 @@ function SwipePage() {
                 onSwipe={handleSwipe}
                 onOpenDetail={() => !isBlocked && setSelectedJob(currentJob)}
                 locked={isBlocked}
+                locationFilter={locationFilter}
               />
             </AnimatePresence>
 
@@ -614,8 +617,9 @@ const styles = {
   quotaUpgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 },
   quotaBarBg: { height: '6px', borderRadius: '3px', background: '#eee', overflow: 'hidden' },
   quotaBarFill: { height: '100%', borderRadius: '3px', transition: 'width 0.5s ease' },
-  filterBanner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#E8F5E9', color: '#2E7D32', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, width: 'min(360px, 95vw)', marginBottom: '8px', gap: '8px' },
-  refreshBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' },
+  filterBannerCompact: { display: 'flex', justifyContent: 'flex-end', width: 'min(360px, 95vw)', marginBottom: '4px' },
+  refreshBtn: { background: 'white', border: '1.5px solid #C8E6C9', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#2E7D32' },
+  locationFilter: { fontSize: '12px', fontWeight: 600, color: '#2E7D32', margin: 0, direction: 'ltr', textAlign: 'left' },
   cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
   card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
   stamp: { position: 'absolute', top: '24px', zIndex: 10 },

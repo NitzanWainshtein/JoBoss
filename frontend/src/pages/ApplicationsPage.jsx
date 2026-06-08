@@ -578,7 +578,7 @@ function ApplicationsPage() {
               <span style={{ ...styles.statNumSmall, color: '#FF9800' }}>
                 {applications.filter(a => a.autoApplyStatus === 'manual').length}
               </span>
-              <span style={styles.statLabel}><img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />ממתינים להגשה ידנית</span>
+              <span style={styles.statLabel}><img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />ממתינים לידני</span>
             </div>
           </div>
         )}
@@ -806,10 +806,10 @@ const styles = {
   detailBtn: { border: '1.5px solid', borderRadius: '999px', background: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
   detailPanel: { overflow: 'hidden', transition: 'max-height 0.3s ease, opacity 0.3s ease' },
   detailInner: { paddingTop: '10px' },
-  filterRow: { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' },
+  filterRow: { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' },
   filterBtn: { flexShrink: 0, padding: '8px 16px', borderRadius: '20px', border: '1.5px solid #ddd', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#666', whiteSpace: 'nowrap' },
   filterActive: { background: '#6C4FD4', borderColor: '#6C4FD4', color: 'white' },
-  subFilterRow: { display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', marginTop: '-8px', paddingRight: '4px' },
+  subFilterRow: { display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', marginTop: '-8px', paddingRight: '4px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' },
   subFilterBtn: { flexShrink: 0, padding: '6px 14px', borderRadius: '16px', border: '1px solid #E5E0F5', background: '#F8F6FF', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#6C4FD4', whiteSpace: 'nowrap' },
   subFilterActive: { background: '#1E2A4A', borderColor: '#1E2A4A', color: 'white' },
   list: { display: 'flex', flexDirection: 'column', gap: '12px' },
@@ -820,7 +820,7 @@ const styles = {
   title: { fontSize: '13px', color: '#6C4FD4', fontWeight: 600, margin: 0 },
   date: { fontSize: '11px', color: '#bbb', margin: 0 },
   badge: { padding: '4px 12px', borderRadius: '20px', color: 'white', fontSize: '12px', fontWeight: 700, flexShrink: 0 },
-  tailoredBox: { background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', direction: 'rtl' },
+  tailoredBox: { background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', padding: '10px 12px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px', direction: 'rtl' },
   tailoredTitle: { margin: 0, fontSize: '12px', fontWeight: 800, color: '#166534' },
   tailoredSub: { margin: '4px 0 0', fontSize: '11px', color: '#15803D' },
   tailoredActions: { display: 'flex', gap: '8px', flexShrink: 0 },
@@ -831,8 +831,8 @@ const styles = {
   tailoringSub: { margin: '2px 0 0', fontSize: '11px', color: '#F9A825' },
   manualTailorBtn: { width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px dashed #6C4FD4', background: '#F8F6FF', color: '#6C4FD4', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
   manualTailorBtnLocked: { width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px dashed #ccc', background: '#F5F5F5', color: '#999', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  actions: { display: 'flex', gap: '6px', flexWrap: 'wrap' },
-  actionBtn: { padding: '5px 10px', borderRadius: '20px', border: '1.5px solid', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' },
+  actions: { display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' },
+  actionBtn: { padding: '7px 12px', borderRadius: '20px', border: '1.5px solid', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', minHeight: '36px' },
   actionActive: {},
   empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '48px 24px', background: 'white', borderRadius: '16px', textAlign: 'center' },
   emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },

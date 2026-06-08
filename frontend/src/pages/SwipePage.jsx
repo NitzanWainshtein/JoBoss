@@ -211,7 +211,7 @@ function QuotaBar({ quota, onUpgradeClick }) {
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#555' }}>
           {quota.remaining === 0
             ? '🔒 הגעת למגבלה'
-            : `📨 ${quota.used ?? 0} / ${quota.limit} החלקות היום`}
+            : <>📨 <span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> החלקות היום</>}
         </span>
         {/* Upgrade button only for FREE users — Premium users are already paying */}
         {plan === 'FREE' && (

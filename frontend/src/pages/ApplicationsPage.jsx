@@ -440,8 +440,15 @@ function ApplicationsPage() {
       });
 
       setApplications(apps);
-    } catch {
-      setError('אין חיבור לשרת. אנא נסה שוב.');
+    } catch (err) {
+      console.error('loadApplications failed:', err);
+      if (err?.status === 401 || err?.message?.includes('auth') || err?.message?.includes('token')) {
+        setError('פג תוקף ההתחברות. רענן את הדף.');
+      } else if (err?.status >= 500) {
+        setError('שגיאת שרת. אנא נסה שוב.');
+      } else {
+        setError('אין חיבור לשרת. אנא נסה שוב.');
+      }
     } finally {
       setLoading(false);
     }

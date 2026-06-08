@@ -10,23 +10,39 @@ JOBS_TABLE_NAME = os.environ.get('JOBS_TABLE_NAME', 'joboss-jobs')
 table = dynamodb.Table(TABLE_NAME)
 jobs_table = dynamodb.Table(JOBS_TABLE_NAME)
 
-# Small in-invocation cache so we don't re-fetch the same job's applyUrl.
-_apply_url_cache = {}
+def prefetch_apply_urls(job_ids):
+    """Fetch applyUrl for many jobs in one shot via batch_get_item.
 
+    Replaces the previous per-application get_item (an N+1 pattern that made
+    GET /applications time out for users with many applications). Returns a
+    {jobId: applyUrl} map; any job that can't be read maps to ''.
+    """
+    unique_ids = sorted({j for j in job_ids if j})
+    url_map = {jid: '' for jid in unique_ids}
+    if not unique_ids:
+        return url_map
 
-def get_job_apply_url(job_id):
-    if not job_id:
-        return ''
-    if job_id in _apply_url_cache:
-        return _apply_url_cache[job_id]
-    url = ''
-    try:
-        res = jobs_table.get_item(Key={'jobId': job_id}, ProjectionExpression='applyUrl')
-        url = (res.get('Item') or {}).get('applyUrl', '') or ''
-    except Exception as e:
-        print(f'JOB URL FETCH ERROR jobId={job_id}: {e}')
-    _apply_url_cache[job_id] = url
-    return url
+    # batch_get_item accepts at most 100 keys per request.
+    for start in range(0, len(unique_ids), 100):
+        chunk = unique_ids[start:start + 100]
+        keys = [{'jobId': jid} for jid in chunk]
+        try:
+            while keys:
+                res = dynamodb.batch_get_item(
+                    RequestItems={
+                        JOBS_TABLE_NAME: {
+                            'Keys': keys,
+                            'ProjectionExpression': 'jobId, applyUrl',
+                        }
+                    }
+                )
+                for item in res.get('Responses', {}).get(JOBS_TABLE_NAME, []):
+                    url_map[item['jobId']] = item.get('applyUrl', '') or ''
+                # DynamoDB may return unprocessed keys under throttling; retry them.
+                keys = res.get('UnprocessedKeys', {}).get(JOBS_TABLE_NAME, {}).get('Keys', [])
+        except Exception as e:
+            print(f'JOB URL BATCH FETCH ERROR chunk_start={start}: {e}')
+    return url_map
 
 CORS = {
     'Content-Type': 'application/json',
@@ -114,7 +130,7 @@ def heal_legacy_application(user_id, item):
     return item
 
 
-def normalize_application(user_id, item):
+def normalize_application(user_id, item, apply_url_map):
     """Ensure both tracks are present and sane for the frontend."""
     item = heal_legacy_application(user_id, item)
 
@@ -122,8 +138,10 @@ def normalize_application(user_id, item):
     if item.get('status') not in FUNNEL_STATUSES:
         item['status'] = 'SUBMITTED'
 
-    # Attach the job's real apply URL so the dashboard's "apply manually" button works.
-    item['jobApplyUrl'] = get_job_apply_url(item.get('jobId'))
+    # Attach the job's real apply URL so the dashboard's "apply manually" button
+    # works. Read from the prefetched map (single batch_get_item) to avoid an
+    # N+1 lookup per application.
+    item['jobApplyUrl'] = apply_url_map.get(item.get('jobId'), '')
 
     # Generate a 1-hour presigned URL for the tailored CV (s3:// → https://) so
     # the Chrome Extension can fetch and attach it directly.
@@ -170,7 +188,19 @@ def handler(event, context):
         status_filter = qs.get('status')
 
         result = table.query(KeyConditionExpression=Key('userId').eq(user_id))
-        applications = [normalize_application(user_id, a) for a in result['Items']]
+        items = result['Items']
+
+        # Page through the full result set so power users aren't silently truncated.
+        while 'LastEvaluatedKey' in result:
+            result = table.query(
+                KeyConditionExpression=Key('userId').eq(user_id),
+                ExclusiveStartKey=result['LastEvaluatedKey'],
+            )
+            items.extend(result['Items'])
+
+        # One batched lookup of all apply URLs instead of one get_item per app.
+        apply_url_map = prefetch_apply_urls([a.get('jobId') for a in items])
+        applications = [normalize_application(user_id, a, apply_url_map) for a in items]
 
         if status_filter:
             applications = [a for a in applications

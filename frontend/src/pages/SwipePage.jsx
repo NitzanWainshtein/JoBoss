@@ -622,7 +622,9 @@ const styles = {
   likeStamp: { right: '24px', transform: 'rotate(15deg)' },
   nopeStamp: { left: '24px', transform: 'rotate(-15deg)' },
   stampIcon: { height: '120px', objectFit: 'contain' },
-  cardHeader: { display: 'flex', alignItems: 'center', gap: '12px' },
+  // LTR + left-aligned so the logo sits on the left and the (Latin) company
+  // name + location align left, instead of being flipped right by the global RTL.
+  cardHeader: { display: 'flex', alignItems: 'center', gap: '12px', direction: 'ltr', textAlign: 'left' },
   logo_img: { width: '52px', height: '52px', borderRadius: '12px', objectFit: 'contain', border: '1px solid #eee' },
   logo_placeholder: { width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #6C4FD4, #4A90E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, color: 'white' },
   company: { fontSize: '18px', fontWeight: 700, color: 'var(--text-dark)', margin: 0 },

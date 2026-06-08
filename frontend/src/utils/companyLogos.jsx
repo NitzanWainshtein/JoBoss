@@ -1,73 +1,54 @@
-// src/utils/companyLogos.js
+// src/utils/companyLogos.jsx
 import React, { useState } from 'react';
-const S3_BUCKET = 'joboss-company-logos-171109860478';
-const S3_BASE_URL = `https://${S3_BUCKET}.s3.amazonaws.com`;
-
-// מיפוי ידני לחברות ישראליות מובילות (להוסיף לפי הצורך)
-const MANUAL_MAPPING = {
-  'google': 'google.png',
-  'microsoft': 'microsoft.png',
-  'apple': 'apple.png',
-  'amazon': 'amazon.png',
-  'meta': 'meta.png',
-  'facebook': 'meta.png',
-  'wix': 'wix.png',
-  'monday.com': 'monday.png',
-  'ironSource': 'ironsource.png',
-  'checkmarx': 'checkmarx.png',
-  'playtika': 'playtika.png',
-  'nvidia': 'nvidia.png',
-  'intel': 'intel.png',
-  'paypal': 'paypal.png',
-  'oracle': 'oracle.png',
-  'sap': 'sap.png',
-  'redis': 'redis.png',
-  'mobileye': 'mobileye.png',
-  'fiverr': 'fiverr.png',
-  'taboola': 'taboola.png',
-  'outbrain': 'outbrain.png',
-  'sisense': 'sisense.png',
-  'gett': 'gett.png',
-  'rapyd': 'rapyd.png',
-};
 
 /**
- * מחזיר URL של לוגו חברה עם fallback chain חכם
+ * מחזיר שרשרת URLs לטעינת לוגו חברה.
+ *
+ * רקע: בעבר השתמשנו ב-logo.dev (שה-token שלו פג ומחזיר 401 לכל בקשה) וב-Clearbit
+ * (שהשירות החינמי שלו נסגר אחרי הרכישה ע"י HubSpot ומחזיר connection error). לכן
+ * כל הלוגואים "נשברו". גם Google s2/favicons הישן בעייתי כי הוא מחזיר גלובוס גנרי
+ * (HTTP 200) לחברה לא מוכרת, מה שמונע fallback לאות הראשונה.
+ *
+ * שני המקורות כאן שניהם: (א) מחזירים לוגו אמיתי באיכות טובה, (ב) מחזירים 404 אמיתי
+ * כשאין לוגו — כך ש-onError של ה-<img> נורה ואפשר ליפול ל-fallback הבא ובסוף לאות.
+ *
  * @param {string} company - שם החברה
- * @param {string} website - אתר החברה (אופציונלי)
- * @returns {object} { primary, fallbacks }
+ * @param {string} website - אתר החברה (אופציונלי, גובר על ניחוש הדומיין)
+ * @returns {{ primary: string|null, fallbacks: string[] }}
  */
 export const getCompanyLogoUrls = (company, website = null) => {
   if (!company) {
-    return {
-      primary: null,
-      fallbacks: []
-    };
+    return { primary: null, fallbacks: [] };
   }
 
-  const normalizedCompany = company.toLowerCase().trim().replace(/\s+/g, '-');
-  const companySlug = company.toLowerCase().replace(/\s+/g, '');
+  // ניחוש דומיין: אם יש website משתמשים בו, אחרת company-slug + .com.
+  // מסירים כל תו שאינו אות/ספרה כדי ש-"Johnson&Johnson" → "johnsonjohnson"
+  // ו-"monday.com" → "mondaycom" לא ישברו את ה-URL.
+  let domain = '';
+  if (website) {
+    domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim();
+  }
+  if (!domain) {
+    const companySlug = company.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!companySlug) return { primary: null, fallbacks: [] };
+    domain = `${companySlug}.com`;
+  }
 
-  const urls = [];
+  const urls = [
+    // 1. DuckDuckGo — אייקונים ברזולוציה גבוהה, מהיר ומוכמן ב-CDN, ומחזיר 404 אמיתי.
+    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
 
-  // 1. logo.dev — איכות גבוהה, מחזיר 404 אמיתי
-  urls.push(`https://img.logo.dev/${companySlug}.com?token=pk_X-FzHLV7QemKeyVvoXFHAQ`);
+    // 2. Google faviconV2 — מכסה חברות ש-DDG מפספס. עם fallback_opts הוא מחזיר 404
+    //    אמיתי כשאין favicon (במקום הגלובוס הגנרי של ה-endpoint הישן s2/favicons).
+    `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
+  ];
 
-  // 2. Clearbit — fallback נוסף
-  urls.push(`https://logo.clearbit.com/${companySlug}.com`);
-
-  // 3. Google Favicon — עובד על כמעט כל חברה גדולה, מהיר ומוכמן בbrowser cache
-  // חסרון: עבור חברות לא מוכרות מחזיר גלובוס גנרי במקום 404
-  urls.push(`https://www.google.com/s2/favicons?domain=${companySlug}.com&sz=128`);
-
-  return {
-    primary: urls[0],
-    fallbacks: urls.slice(1)
-  };
+  return { primary: urls[0], fallbacks: urls.slice(1) };
 };
 
 /**
- * React component לטעינת לוגו עם fallback אוטומטי
+ * React component לטעינת לוגו עם fallback אוטומטי.
+ * עובר בין המקורות ב-onError, ובסוף מציג placeholder עם האות הראשונה של החברה.
  */
 export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
   const allUrls = React.useMemo(() => {
@@ -77,7 +58,13 @@ export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
 
   const [idx, setIdx] = useState(0);
 
-  const handleError = () => setIdx(i => i + 1);
+  // איפוס למקור הראשון (המהיר) כשהחברה משתנה — דפוס "התאמת state בזמן render"
+  // המומלץ ב-React, במקום useEffect (שגם מפעיל render נוסף מיותר).
+  const [prevKey, setPrevKey] = useState(company);
+  if (company !== prevKey) {
+    setPrevKey(company);
+    setIdx(0);
+  }
 
   const currentUrl = allUrls[idx] ?? null;
 
@@ -102,10 +89,11 @@ export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
 
   return (
     <img
+      key={currentUrl}
       src={currentUrl}
       alt={alt || company}
       style={style}
-      onError={handleError}
+      onError={() => setIdx(i => i + 1)}
     />
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ICON_SIZES from '../iconSizes';
+import { CompanyLogo } from '../utils/companyLogos';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
@@ -90,8 +91,6 @@ function JobDescription({ description }) {
 
 // ── Job detail modal (unchanged) ────────────────────────────────────────────
 function JobDetailModal({ job, onClose }) {
-  const [logoError, setLogoError] = useState(false);
-  const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(job.company)}.com&sz=128`;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={modal.overlay} onClick={onClose}>
@@ -101,10 +100,7 @@ function JobDetailModal({ job, onClose }) {
         style={modal.sheet} onClick={(e) => e.stopPropagation()}
       >
         <div style={modal.header}>
-          {!logoError
-            ? <img src={logoUrl} alt={job.company} style={modal.logo} onError={() => setLogoError(true)} />
-            : <div style={modal.logo_placeholder}>{job.company?.charAt(0).toUpperCase()}</div>
-          }
+          <CompanyLogo company={job.company} website={job.applyUrl} style={modal.logo} />
           <div style={{ flex: 1 }}>
             <h2 style={modal.title}>{job.title}</h2>
             <p style={modal.company}>{job.company}</p>
@@ -148,13 +144,11 @@ function JobDetailModal({ job, onClose }) {
 // ── Job card ─────────────────────────────────────────────────────────────────
 function JobCard({ job, onSwipe, onOpenDetail, locked }) {
   const [isDragging, setIsDragging] = useState(false);
-  const [logoError, setLogoError] = useState(false);
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-100, 0], [1, 0]);
-  const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(job.company)}.com&sz=128`;
 
   const handleDragEnd = (_, info) => {
     if (locked) return;
@@ -177,10 +171,7 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity }}><img src="/icons/nope_icon.png" alt="NOPE" style={{ height: `${ICON_SIZES.stampNope}px`, objectFit: 'contain' }} /></motion.div>}
 
       <div style={styles.cardHeader}>
-        {!logoError
-          ? <img src={logoUrl} alt={job.company} style={styles.logo_img} onError={() => setLogoError(true)} />
-          : <div style={styles.logo_placeholder}>{job.company?.charAt(0).toUpperCase()}</div>
-        }
+        <CompanyLogo company={job.company} website={job.applyUrl} style={styles.logo_img} />
         <div>
           <h2 style={styles.company}>{job.company}</h2>
           <p style={styles.location}>📍 {job.location}</p>

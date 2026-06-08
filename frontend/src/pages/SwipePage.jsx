@@ -201,20 +201,24 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
       <div style={styles.techContainer}>
         {(job.technologies || job.requirements || []).map(t => <span key={t} style={styles.techBadge}>{t}</span>)}
       </div>
-      {!locked && <p style={styles.tapHint}>לחץ לפרטים נוספים 👆</p>}
+      {!locked && (
+        <div style={styles.tapHint}>
+          <img src="/icons/clickHere_icon.png" alt="לחץ לפרטים נוספים" style={{ height: '36px', objectFit: 'contain' }} draggable="false" />
+        </div>
+      )}
     </motion.div>
   );
 }
 
 // ── Quota counter bar ────────────────────────────────────────────────────────
-function QuotaBar({ quota, onUpgradeClick }) {
+function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
   // PREMIUM_PLUS is unlimited — no counter needed.
   // FREE and PREMIUM both have a finite daily limit: show the bar for both.
   if (!quota || quota.unlimited) return null;
 
   const plan = quota.plan || 'FREE';
   const pct = Math.min(100, Math.round(((quota.used ?? 0) / quota.limit) * 100));
-  const color = pct >= 100 ? '#F44336' : pct >= 80 ? '#FF9800' : '#4CAF50';
+  const barColor = pct >= 100 ? '#F44336' : pct >= 80 ? '#FF9800' : '#6C4FD4';
 
   return (
     <motion.div
@@ -223,19 +227,21 @@ function QuotaBar({ quota, onUpgradeClick }) {
       animate={{ opacity: 1, y: 0 }}
     >
       <div style={styles.quotaBarTop}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#555' }}>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: '#6C4FD4' }}>
           {quota.remaining === 0
             ? '🔒 הגעת למגבלה'
-            : <>📨 <span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> החלקות היום</>}
+            : <><span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> החלקות היום</>}
         </span>
-        {/* Upgrade button only for FREE users — Premium users are already paying */}
-        {plan === 'FREE' && (
-          <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
-        )}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button style={styles.quotaRefreshBtn} onClick={onRefresh} title="רענן משרות">↻</button>
+          {plan === 'FREE' && (
+            <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
+          )}
+        </div>
       </div>
       <div style={styles.quotaBarBg}>
         <motion.div
-          style={{ ...styles.quotaBarFill, background: color }}
+          style={{ ...styles.quotaBarFill, background: barColor }}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.5 }}
@@ -472,13 +478,7 @@ function SwipePage() {
   return (
     <div style={styles.container}>
       {/* Quota bar */}
-      <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} />
-
-      {locationFilter && (
-        <div style={styles.filterBannerCompact}>
-          <button style={styles.refreshBtn} onClick={loadJobs}>🔄 רענן</button>
-        </div>
-      )}
+      <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} onRefresh={loadJobs} />
 
       <div style={styles.cardContainer}>
         {filteredJobs.length > 0 ? (
@@ -612,13 +612,12 @@ function SwipePage() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
   container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '16px', paddingBottom: '80px' },
-  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '8px', background: 'white', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '8px', background: 'white', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 8px rgba(108,79,212,0.12)', border: '1px solid #EDE9FE' },
   quotaBarTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
   quotaUpgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 },
-  quotaBarBg: { height: '6px', borderRadius: '3px', background: '#eee', overflow: 'hidden' },
+  quotaRefreshBtn: { width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #6C4FD4', background: 'white', color: '#6C4FD4', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 },
+  quotaBarBg: { height: '5px', borderRadius: '3px', background: '#EDE9FE', overflow: 'hidden' },
   quotaBarFill: { height: '100%', borderRadius: '3px', transition: 'width 0.5s ease' },
-  filterBannerCompact: { display: 'flex', justifyContent: 'flex-end', width: 'min(360px, 95vw)', marginBottom: '4px' },
-  refreshBtn: { background: 'white', border: '1.5px solid #C8E6C9', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#2E7D32' },
   locationFilter: { fontSize: '12px', fontWeight: 600, color: '#2E7D32', margin: 0, direction: 'ltr', textAlign: 'left' },
   cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
   card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
@@ -641,7 +640,7 @@ const styles = {
   description: { fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, margin: 0 },
   techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   techBadge: { background: 'var(--background)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid var(--primary)' },
-  tapHint: { fontSize: '11px', color: '#bbb', textAlign: 'center', margin: 0, marginTop: 'auto', paddingTop: '16px'},
+  tapHint: { display: 'flex', justifyContent: 'center', marginTop: 'auto', paddingTop: '12px' },
   lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
   lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '24px' },
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },

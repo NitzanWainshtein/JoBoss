@@ -221,12 +221,12 @@ async function downloadCVAsPdf(text, company, jobTitle) {
   const fileName = `CV-${company || 'Company'}-${jobTitle || 'Job'}`.replace(/[\\/:*?"<>|]/g, '-');
 
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'width:794px;font-family:Arial,Helvetica,sans-serif;direction:ltr;text-align:left;background:#fff;';
+  wrapper.style.cssText = 'width:210mm;padding:12mm 15mm;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;direction:ltr;text-align:left;background:#fff;';
   wrapper.innerHTML = buildCVHtml(text);
 
   await html2pdf()
     .set({
-      margin: [12, 15, 12, 15],
+      margin: 0,
       filename: `${fileName}.pdf`,
       html2canvas: { scale: 2, useCORS: false, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },

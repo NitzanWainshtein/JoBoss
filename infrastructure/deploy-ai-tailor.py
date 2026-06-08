@@ -15,7 +15,7 @@ API_STAGE = os.getenv("API_STAGE", "prod")
 ROLE_ARN = os.getenv("LAMBDA_ROLE_ARN", "")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
 JOBS_TABLE = os.getenv("JOBS_TABLE", "joboss-jobs")
-AI_MODE = os.getenv("AI_MODE", "mock")
+AI_MODE = os.getenv("AI_MODE", "bedrock")
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 HANDLER_PATH = ROOT_DIR / "backend" / "lambdas" / "ai" / "handler.py"

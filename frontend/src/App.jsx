@@ -129,19 +129,28 @@ export function isAdminUser(session) {
 }
 
 function SuspendedScreen() {
+  const handleSignOut = async () => {
+    const { signOut } = await import('aws-amplify/auth');
+    await signOut();
+    window.location.href = '/login';
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 32, textAlign: 'center', background: 'var(--background)' }}>
       <img src="/app_logo.png" alt="JoBoss" style={{ width: 90, marginBottom: 24 }} />
       <h2 style={{ color: '#1E2A4A', fontSize: 22, fontWeight: 800, margin: '0 0 12px' }}>חשבונך הושהה</h2>
-      <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6, margin: '0 0 8px' }}>
+      <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6, margin: '0 0 4px' }}>
         נחסמת על ידי צוות JoBoss.
       </p>
-      <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6 }}>
-        לפרטים ניתן לפנות לצוות:{' '}
-        <a href="mailto:joboss.appteam@gmail.com" style={{ color: '#6C4FD4', fontWeight: 600 }}>
-          joboss.appteam@gmail.com
-        </a>
+      <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6, margin: '0 0 4px' }}>
+        לפרטים ניתן לפנות לצוות:
       </p>
+      <a href="mailto:joboss.appteam@gmail.com" style={{ color: '#6C4FD4', fontWeight: 600, fontSize: 15, margin: '0 0 28px' }}>
+        joboss.appteam@gmail.com
+      </a>
+      <button onClick={handleSignOut} style={{ background: '#1E2A4A', color: 'white', border: 'none', borderRadius: 12, padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+        התנתק
+      </button>
     </div>
   );
 }

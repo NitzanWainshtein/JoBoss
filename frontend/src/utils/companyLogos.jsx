@@ -50,22 +50,14 @@ export const getCompanyLogoUrls = (company, website = null) => {
 
   const urls = [];
 
-  // 1. לוגו ידני ב-S3 (אם קיים במיפוי)
-  if (MANUAL_MAPPING[company.toLowerCase()]) {
-    urls.push(`${S3_BASE_URL}/${MANUAL_MAPPING[company.toLowerCase()]}`);
-  }
-
-  // 2. לוגו גנרי ב-S3 לפי שם החברה
-  urls.push(`${S3_BASE_URL}/${normalizedCompany}.png`);
-
-  // 3. Google Favicon — מנסה את דומיין החברה (companyslug.com)
-  urls.push(`https://www.google.com/s2/favicons?domain=${companySlug}.com&sz=128`);
-
-  // 4. Clearbit (טוב לחברות בינלאומיות)
+  // 1. Clearbit — איכות גבוהה, מחזיר 404 אמיתי כשלא מוצא
   urls.push(`https://logo.clearbit.com/${companySlug}.com`);
 
-  // 5. Brandfetch
+  // 2. logo.dev — fallback נוסף לחברות בינלאומיות
   urls.push(`https://img.logo.dev/${companySlug}.com?token=pk_X-FzHLV7QemKeyVvoXFHAQ`);
+
+  // 3. Google Favicon — קטן אבל כמעט תמיד מחזיר משהו
+  urls.push(`https://www.google.com/s2/favicons?domain=${companySlug}.com&sz=128`);
 
   return {
     primary: urls[0],
@@ -77,22 +69,16 @@ export const getCompanyLogoUrls = (company, website = null) => {
  * React component לטעינת לוגו עם fallback אוטומטי
  */
 export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
-  const { primary, fallbacks } = getCompanyLogoUrls(company, website);
-  const [currentUrl, setCurrentUrl] = useState(primary);
-  const [failedUrls, setFailedUrls] = useState([]);
+  const allUrls = React.useMemo(() => {
+    const { primary, fallbacks } = getCompanyLogoUrls(company, website);
+    return primary ? [primary, ...fallbacks] : fallbacks;
+  }, [company, website]);
 
-  const handleError = () => {
-    const remainingFallbacks = fallbacks.filter(url => !failedUrls.includes(url));
-    
-    if (remainingFallbacks.length > 0) {
-      const nextUrl = remainingFallbacks[0];
-      setFailedUrls([...failedUrls, currentUrl]);
-      setCurrentUrl(nextUrl);
-    } else {
-      // כל ה-URLs נכשלו - הצג placeholder
-      setCurrentUrl(null);
-    }
-  };
+  const [idx, setIdx] = useState(0);
+
+  const handleError = () => setIdx(i => i + 1);
+
+  const currentUrl = allUrls[idx] ?? null;
 
   if (!currentUrl) {
     // Placeholder - אות ראשונה של החברה

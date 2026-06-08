@@ -50,14 +50,14 @@ export const getCompanyLogoUrls = (company, website = null) => {
 
   const urls = [];
 
-  // 1. Clearbit — איכות גבוהה, מחזיר 404 אמיתי כשלא מוצא
+  // 1. Google Favicon — מהיר + browser מאחסן בcache, כמעט תמיד עובד
+  urls.push(`https://www.google.com/s2/favicons?domain=${companySlug}.com&sz=128`);
+
+  // 2. Clearbit — לוגו איכותי כשGoogle Favicon לא מוצא
   urls.push(`https://logo.clearbit.com/${companySlug}.com`);
 
-  // 2. logo.dev — fallback נוסף לחברות בינלאומיות
+  // 3. logo.dev — fallback אחרון
   urls.push(`https://img.logo.dev/${companySlug}.com?token=pk_X-FzHLV7QemKeyVvoXFHAQ`);
-
-  // 3. Google Favicon — קטן אבל כמעט תמיד מחזיר משהו
-  urls.push(`https://www.google.com/s2/favicons?domain=${companySlug}.com&sz=128`);
 
   return {
     primary: urls[0],

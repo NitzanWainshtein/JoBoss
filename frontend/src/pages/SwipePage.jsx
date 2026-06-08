@@ -282,6 +282,7 @@ function SwipePage() {
   const [quotaLoading, setQuotaLoading] = useState(true);
   const [limitModal, setLimitModal] = useState(false);
   const [tailorLimitToast, setTailorLimitToast] = useState(false);
+  const [activeTailorJobs, setActiveTailorJobs] = useState([]); // [{ jobId, company }]
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true' && quota?.plan !== 'FREE';
   const navigate = useNavigate();
 
@@ -398,9 +399,12 @@ function SwipePage() {
       }
 
       if (direction === 'right' && autoTailorCV) {
+        const tailorJob = { jobId: currentJob.jobId, company: currentJob.company };
+        setActiveTailorJobs(prev => [...prev, tailorJob]);
 
         tailorCVForJob(currentJob.jobId, true)
           .then(result => {
+            setActiveTailorJobs(prev => prev.filter(j => j.jobId !== currentJob.jobId));
             const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
             delete p[currentJob.jobId];
             localStorage.setItem('tailoringPending', JSON.stringify(p));
@@ -409,6 +413,7 @@ function SwipePage() {
             }));
           })
           .catch((err) => {
+            setActiveTailorJobs(prev => prev.filter(j => j.jobId !== currentJob.jobId));
             const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
             delete p[currentJob.jobId];
             localStorage.setItem('tailoringPending', JSON.stringify(p));
@@ -499,6 +504,40 @@ function SwipePage() {
     <div style={styles.container}>
       {/* Quota bar */}
       <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} onRefresh={loadJobs} />
+
+      {/* Auto-tailor progress indicator */}
+      <AnimatePresence>
+        {activeTailorJobs.length > 0 && (
+          <motion.div
+            key="tailor-progress"
+            initial={{ opacity: 0, y: -6, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -6, height: 0 }}
+            transition={{ duration: 0.2 }}
+            style={styles.tailorProgressBanner}
+          >
+            {activeTailorJobs.map(job => (
+              <div key={job.jobId} style={styles.tailorProgressRow}>
+                <motion.img
+                  src="/icons/robot_icon.png"
+                  alt=""
+                  style={styles.tailorProgressIcon}
+                  animate={{ opacity: [1, 0.4, 1] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <span style={styles.tailorProgressText}>מתאים CV ל-{job.company}...</span>
+                <motion.div
+                  style={styles.tailorProgressDots}
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  ●●●
+                </motion.div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div style={styles.cardContainer}>
         {filteredJobs.length > 0 ? (
@@ -599,7 +638,9 @@ function SwipePage() {
       {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
         <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
           {lastSwipe.direction === 'right'
-            ? autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
+            ? activeTailorJobs.some(j => j.jobId === lastSwipe.job.jobId)
+              ? `⏳ הגשה אוטומטית תתבצע לאחר סיום התאמת קורות החיים`
+              : autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
             : `👋 דולגה — ${lastSwipe.job.company}`}
         </motion.p>
       )}
@@ -687,6 +728,11 @@ const styles = {
   unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '24px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700 },
   undoBtn: { position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minWidth: '44px', minHeight: '44px', padding: '12px 28px', background: '#FF9800', color: 'white', border: 'none', borderRadius: '28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' },
   tailorLimitToast: { marginTop: '6px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#B45309', textAlign: 'center', maxWidth: 'min(360px, 95vw)' },
+  tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(108,79,212,0.10)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderRadius: '10px', padding: '7px 12px', border: '1px solid rgba(108,79,212,0.2)', overflow: 'hidden' },
+  tailorProgressRow: { display: 'flex', alignItems: 'center', gap: '7px', direction: 'rtl' },
+  tailorProgressIcon: { width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 },
+  tailorProgressText: { fontSize: '12px', fontWeight: 600, color: '#6C4FD4', flex: 1 },
+  tailorProgressDots: { fontSize: '8px', color: '#6C4FD4', letterSpacing: '2px', flexShrink: 0 },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '24px' },
   emptyTitle: { fontSize: '24px', fontWeight: 800, margin: 0 },

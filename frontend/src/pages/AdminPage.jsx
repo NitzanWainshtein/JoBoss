@@ -7,6 +7,7 @@ import {
 } from '../api';
 
 const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: 'פרימיום', PREMIUM_PLUS: 'פרימיום+' };
+const PLAN_ICONS  = { FREE: '/icons/free_members_icon.png', PREMIUM: '/icons/premium_member_icon.png', PREMIUM_PLUS: '/icons/plus_members_icon.png' };
 const PLAN_COLORS = { FREE: '#888', PREMIUM: '#6C4FD4', PREMIUM_PLUS: '#FF6B6B' };
 
 function Badge({ text, color }) {
@@ -127,7 +128,10 @@ export default function AdminPage() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1E2A4A', margin: 0 }}>🛠️ Admin Panel — JoBoss</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1E2A4A', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/icons/admin_edit_icon.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+            Admin Panel — JoBoss
+          </h1>
             <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>כל הפעולות נרשמות ב-CloudWatch</p>
           </div>
           <Badge text="ADMIN" color="#FF6B6B" />
@@ -135,16 +139,22 @@ export default function AdminPage() {
 
         <div style={{ display: 'flex', gap: 8, background: 'white', padding: 8,
           borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
-          {[['stats','📊 סטטיסטיקות'], ['users', null, 'משתמשים'], ['jobs','💼 משרות'], ['self','🔧 כלי Admin']].map(([key, label, imgLabel]) => (
+          {[
+            { key: 'stats', icon: '/icons/stats_logo.png',      label: 'סטטיסטיקות' },
+            { key: 'users', icon: '/icons/members_icon.png',    label: 'משתמשים'    },
+            { key: 'jobs',  icon: '/icons/jobs_icon.png',       label: 'משרות'      },
+            { key: 'self',  icon: '/icons/admin_edit_icon.png', label: 'כלי Admin'  },
+          ].map(({ key, icon, label }) => (
             <button key={key}
               style={{ flex: 1, padding: '10px 4px', border: 'none', borderRadius: 12, cursor: 'pointer',
-                fontWeight: 600, fontSize: 13,
+                fontWeight: 600, fontSize: 12,
                 background: tab === key ? 'linear-gradient(135deg,#6C4FD4,#1E2A4A)' : 'transparent',
-                color: tab === key ? 'white' : '#777' }}
+                color: tab === key ? 'white' : '#777',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
               onClick={() => setTab(key)}>
-              {imgLabel
-                ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><img src="/icons/members_icon.png" alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />{imgLabel}</span>
-                : label}
+              <img src={icon} alt="" style={{ width: 22, height: 22, objectFit: 'contain',
+                filter: tab === key ? 'brightness(0) invert(1)' : 'none' }} />
+              {label}
             </button>
           ))}
         </div>
@@ -152,8 +162,10 @@ export default function AdminPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
           <button onClick={load}
             style={{ background: 'white', border: '1.5px solid #ddd', borderRadius: 20,
-              padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#555' }}>
-            🔄 רענן
+              padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#555',
+              display: 'flex', alignItems: 'center', gap: 6 }}>
+            <img src="/icons/refresh_icon.png" alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+            רענן
           </button>
         </div>
 
@@ -181,9 +193,9 @@ export default function AdminPage() {
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {Object.entries(stats.planBreakdown || {}).map(([plan, count]) => (
                   <div key={plan} style={{ background: (PLAN_COLORS[plan] || '#888') + '15',
-                    borderRadius: 12, padding: '12px 24px', textAlign: 'center' }}>
-                    <p style={{ fontSize: 24, fontWeight: 800, color: PLAN_COLORS[plan] || '#888', margin: 0 }}>{count}</p>
-                    <p style={{ fontSize: 12, color: '#777', margin: '4px 0 0' }}>{PLAN_LABELS[plan] || plan}</p>
+                    borderRadius: 16, padding: '20px 32px', textAlign: 'center', flex: 1 }}>
+                    {PLAN_ICONS[plan] && <img src={PLAN_ICONS[plan]} alt={PLAN_LABELS[plan] || plan} style={{ width: 72, height: 72, objectFit: 'contain', display: 'block', margin: '0 auto 12px' }} />}
+                    <p style={{ fontSize: 36, fontWeight: 800, color: PLAN_COLORS[plan] || '#888', margin: 0 }}>{count}</p>
                   </div>
                 ))}
               </div>

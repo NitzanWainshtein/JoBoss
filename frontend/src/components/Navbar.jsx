@@ -17,7 +17,7 @@ function Navbar({ isAdmin = false }) {
   return (
     <>
       <div style={styles.header}>
-        <img src="/app_logo.png" alt="joBoss" style={styles.logo} />
+        <img src={isAdmin ? "/icons/admin_logo.png" : "/app_logo.png"} alt="joBoss" style={styles.logo} />
       </div>
       <div style={styles.navbar}>
         <button style={{ ...styles.navBtn, ...(isActive('/swipe') ? styles.active : {}) }} onClick={() => navigate('/swipe')}>
@@ -33,9 +33,9 @@ function Navbar({ isAdmin = false }) {
           <span style={styles.label}>פרופיל</span>
         </button>
         {isAdmin && (
-          <button style={{ ...styles.navBtn, ...(isActive('/admin') ? styles.active : {}), color: isActive('/admin') ? '#FF6B6B' : '#FF9800' }}
+          <button style={{ ...styles.navBtn, ...(isActive('/admin') ? styles.active : {}) }}
             onClick={() => navigate('/admin')}>
-            <span style={styles.icon}>🛠️</span>
+            <img src="/icons/admin_edit_icon.png" alt="Admin" style={styles.iconImg} />
             <span style={styles.label}>Admin</span>
           </button>
         )}
@@ -51,7 +51,7 @@ const styles = {
     backgroundSize: 'cover', backgroundPosition: 'center bottom',
     display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100,
   },
-  logo: { height: '36px', objectFit: 'contain', filter: 'drop-shadow(0 1px 3px rgba(255,255,255,0.4))' },
+  logo: { height: '44px', objectFit: 'contain', filter: 'drop-shadow(0 1px 3px rgba(255,255,255,0.4))' },
   navbar: {
     position: 'fixed', bottom: 0, left: 0, right: 0, height: '64px',
     background: 'white', boxShadow: '0 -2px 12px rgba(108,79,212,0.12)',

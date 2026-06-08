@@ -407,6 +407,7 @@ def step_6_lambdas(role_arn, resume_bucket):
                 "JOBS_TABLE": f"{APP}-jobs",
                 "RESUME_BUCKET_NAME": resume_bucket,
                 "AI_MODE": "bedrock",
+                "BEDROCK_MODEL_ID": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
             },
             "timeout": 60,
             "memory": 512,

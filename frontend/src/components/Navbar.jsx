@@ -21,22 +21,19 @@ function Navbar({ isAdmin = false }) {
   const activeIndex = navItems.findIndex(item => location.pathname === item.path);
 
   useEffect(() => {
-    const el = itemRefs.current[activeIndex];
     const nav = navRef.current;
-    if (!el || !nav) return;
+    if (!nav || activeIndex < 0) return;
 
-    const navRect = nav.getBoundingClientRect();
-    const elRect  = el.getBoundingClientRect();
+    const navW    = nav.getBoundingClientRect().width;
     const padding = 4;
-    const rawLeft = elRect.left - navRect.left - padding;
-    const rawWidth = elRect.width + padding * 2;
+    const n       = navItems.length;
+    const itemW   = (navW - padding * 2) / n;
+    const bubbleW = itemW - 4;
+    const bubbleLeft = padding + activeIndex * itemW + 2;
 
-    setBubble({
-      left:  Math.max(2, rawLeft),
-      width: Math.min(rawWidth, navRect.width - 4),
-    });
+    setBubble({ left: bubbleLeft, width: bubbleW });
     setReady(true);
-  }, [activeIndex, location.pathname]);
+  }, [activeIndex, navItems.length]);
 
   return (
     <>

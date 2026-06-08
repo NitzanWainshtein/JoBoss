@@ -12,6 +12,7 @@ import ApplicationsPage from './pages/ApplicationsPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import AuthExtensionPage from './pages/AuthExtensionPage.jsx';
 import SwipeMockupPage from './pages/SwipeMockupPage.jsx';
+import JobCardPreviewPage from './pages/JobCardPreviewPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile } from './api';
@@ -75,6 +76,9 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
       <Routes location={location} key={location.pathname}>
         <Route path="/auth-extension" element={<AuthExtensionPage />} />
         <Route path="/swipe-mockup" element={<SwipeMockupPage />} />
+        {import.meta.env.DEV && (
+          <Route path="/job-card-preview" element={<JobCardPreviewPage />} />
+        )}
         <Route path="/login" element={
           <PageTransition>
             {!isLoggedIn ? <LoginPage /> : <Navigate to={home} />}

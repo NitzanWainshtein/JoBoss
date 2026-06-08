@@ -252,11 +252,11 @@ if __name__ == "__main__":
     out2, s2 = run_test(JOB_DEVOPS, MODEL_OPUS, build_new_prompt, "OPUS+SKILL")
     results["opus_devops"] = s2
 
-    divider("TEST 3: Backend job — Haiku + SKILL prompt  ← NEW (production model)")
+    divider("TEST 3: Backend job — Haiku + SKILL prompt  [production model]")
     out3, s3 = run_test(JOB_BACKEND, MODEL_HAIKU, build_new_prompt, "HAIKU+SKILL")
     results["haiku_skill_backend"] = s3
 
-    divider("TEST 4: DevOps job — Haiku + SKILL prompt  ← NEW (production model)")
+    divider("TEST 4: DevOps job — Haiku + SKILL prompt  [production model]")
     out4, s4 = run_test(JOB_DEVOPS, MODEL_HAIKU, build_new_prompt, "HAIKU+SKILL")
     results["haiku_skill_devops"] = s4
 
@@ -266,20 +266,21 @@ if __name__ == "__main__":
 
     divider("SUMMARY")
     print()
-    print("  Model / Prompt          Backend   DevOps")
-    print("  " + "-"*42)
-    print(f"  Opus  + SKILL           {results['opus_backend']}/7       {results['opus_devops']}/7")
-    print(f"  Haiku + SKILL (prod)    {results['haiku_skill_backend']}/7       {results['haiku_skill_devops']}/7")
-    print(f"  Haiku + OLD  (baseline) {results['haiku_old_backend']}/7")
+    max_score = 9
+    print("  Model / Prompt          Backend      DevOps")
+    print("  " + "-"*44)
+    print(f"  Opus  + SKILL           {results['opus_backend']}/{max_score}          {results['opus_devops']}/{max_score}")
+    print(f"  Haiku + SKILL (prod)    {results['haiku_skill_backend']}/{max_score}          {results['haiku_skill_devops']}/{max_score}")
+    print(f"  Haiku + OLD  (baseline) {results['haiku_old_backend']}/{max_score}")
     print()
 
     opus_avg  = (results["opus_backend"]  + results["opus_devops"])  / 2
     haiku_avg = (results["haiku_skill_backend"] + results["haiku_skill_devops"]) / 2
     drop = opus_avg - haiku_avg
 
-    print(f"  Opus  avg: {opus_avg:.1f}/7")
-    print(f"  Haiku avg: {haiku_avg:.1f}/7")
-    print(f"  Quality drop (Opus → Haiku+SKILL): {drop:.1f} points")
+    print(f"  Opus  avg: {opus_avg:.1f}/9")
+    print(f"  Haiku avg: {haiku_avg:.1f}/9")
+    print(f"  Quality drop (Opus -> Haiku+SKILL): {drop:.1f} points")
     print()
     if drop <= 0.5:
         print("  VERDICT: Haiku+SKILL is on par with Opus — switch is safe.")

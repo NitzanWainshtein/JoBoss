@@ -51,6 +51,18 @@ function getJobSummary(description = '') {
   return summary?.items?.join(' ') || description;
 }
 
+// Trim a long Nominatim address ("street, neighborhood, city, district, ...,
+// postcode, country") down to "street, city". Keeps already-short values as-is.
+function shortenLocation(name = '') {
+  const NOISE = /נפ[הת]|מחוז|מועצה|אזורית|ישראל|israel/i;
+  const parts = name.split(',')
+    .map(p => p.trim())
+    .filter(p => p && !NOISE.test(p) && !/^\d{4,}$/.test(p));
+  if (parts.length <= 2) return parts.join(', ');
+  // First = street, last = city; drop the middle (neighborhood/county noise).
+  return `${parts[0]}, ${parts[parts.length - 1]}`;
+}
+
 function JobDescription({ description }) {
   const sections = parseJobDescription(description);
 
@@ -461,7 +473,7 @@ function SwipePage() {
 
       {locationFilter && (
         <div style={styles.filterBanner}>
-          <span>📍 {locationFilter.name} · עד {locationFilter.radius} ק"מ</span>
+          <span>📍 {shortenLocation(locationFilter.name)} · עד {locationFilter.radius} ק"מ</span>
           <button style={styles.refreshBtn} onClick={loadJobs}>🔄</button>
         </div>
       )}

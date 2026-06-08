@@ -55,7 +55,7 @@ const styles = {
     position: 'fixed', bottom: 0, left: 0, right: 0, height: '64px',
     background: 'white', boxShadow: '0 -2px 12px rgba(108,79,212,0.12)',
     display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-    zIndex: 100, boxSizing: 'border-box',
+    zIndex: 100, boxSizing: 'border-box', direction: 'ltr',
   },
   navBtn: {
     flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',

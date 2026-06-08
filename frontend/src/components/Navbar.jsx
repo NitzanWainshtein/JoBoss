@@ -27,11 +27,13 @@ function Navbar({ isAdmin = false }) {
 
     const navRect = nav.getBoundingClientRect();
     const elRect  = el.getBoundingClientRect();
-    const padding = 8;
+    const padding = 4;
+    const rawLeft = elRect.left - navRect.left - padding;
+    const rawWidth = elRect.width + padding * 2;
 
     setBubble({
-      left:  elRect.left - navRect.left - padding,
-      width: elRect.width + padding * 2,
+      left:  Math.max(2, rawLeft),
+      width: Math.min(rawWidth, navRect.width - 4),
     });
     setReady(true);
   }, [activeIndex, location.pathname]);
@@ -107,7 +109,7 @@ const styles = {
     boxShadow: '0 -6px 24px rgba(110,80,220,0.09)',
     display: 'flex', justifyContent: 'space-around', alignItems: 'center',
     zIndex: 100, direction: 'ltr', boxSizing: 'border-box',
-    padding: '0 4px',
+    padding: '0 4px', overflow: 'hidden',
   },
   bubble: {
     position: 'absolute',

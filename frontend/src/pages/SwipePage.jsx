@@ -247,6 +247,21 @@ function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
           transition={{ duration: 0.5 }}
         />
       </div>
+
+      {plan === 'PREMIUM' && quota.tailorLimit != null && (
+        <div style={styles.tailorQuotaRow}>
+          <span style={styles.tailorQuotaLabel}>
+            <img src="/icons/robot_icon.png" alt="" style={{ width: '13px', height: '13px', objectFit: 'contain', verticalAlign: 'middle' }} />
+            {' '}התאמות AI החודש
+          </span>
+          <span style={{
+            ...styles.tailorQuotaCount,
+            color: quota.tailorRemaining === 0 ? '#F44336' : quota.tailorRemaining <= 2 ? '#FF9800' : '#6C4FD4',
+          }}>
+            <span dir="ltr">{quota.tailorUsed} / {quota.tailorLimit}</span>
+          </span>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -266,6 +281,7 @@ function SwipePage() {
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
   const [quotaLoading, setQuotaLoading] = useState(true);
   const [limitModal, setLimitModal] = useState(false);
+  const [tailorLimitToast, setTailorLimitToast] = useState(false);
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true' && quota?.plan !== 'FREE';
   const navigate = useNavigate();
 
@@ -392,11 +408,15 @@ function SwipePage() {
               detail: { jobId: currentJob.jobId, tailoredResume: result.tailoredResume, tailoredResumeUrl: result.tailoredResumeUrl }
             }));
           })
-          .catch(() => {
+          .catch((err) => {
             const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
             delete p[currentJob.jobId];
             localStorage.setItem('tailoringPending', JSON.stringify(p));
             window.dispatchEvent(new CustomEvent('tailorError', { detail: { jobId: currentJob.jobId } }));
+            if (err?.code === 'AI_LIMIT_REACHED' || err?.status === 429) {
+              setTailorLimitToast(true);
+              setTimeout(() => setTailorLimitToast(false), 5000);
+            }
           });
       }
     } catch (err) {
@@ -565,6 +585,17 @@ function SwipePage() {
         </motion.button>
       )}
 
+      {tailorLimitToast && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          style={styles.tailorLimitToast}
+        >
+          ⚠️ הגעת למגבלת 10 ההתאמות החודשיות — ה-CV לא יותאם למשרה זו
+        </motion.div>
+      )}
+
       {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
         <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
           {lastSwipe.direction === 'right'
@@ -611,16 +642,19 @@ function SwipePage() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
-  container: { height: '100svh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '12px', paddingBottom: '80px', boxSizing: 'border-box', overflow: 'hidden' },
-  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'white', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 8px rgba(108,79,212,0.12)', border: '1px solid #EDE9FE' },
+  container: { height: '100svh', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '12px', paddingBottom: '80px', boxSizing: 'border-box', overflow: 'hidden' },
+  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 12px rgba(108,79,212,0.15)', border: '1px solid rgba(237,233,254,0.7)' },
   quotaBarTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
   quotaUpgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 },
   quotaRefreshBtn: { width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #6C4FD4', background: 'white', color: '#6C4FD4', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 },
   quotaBarBg: { height: '5px', borderRadius: '3px', background: '#EDE9FE', overflow: 'hidden' },
   quotaBarFill: { height: '100%', borderRadius: '3px', transition: 'width 0.5s ease' },
+  tailorQuotaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '7px', paddingTop: '6px', borderTop: '1px solid #EDE9FE' },
+  tailorQuotaLabel: { fontSize: '11px', fontWeight: 600, color: '#888', display: 'flex', alignItems: 'center', gap: '4px' },
+  tailorQuotaCount: { fontSize: '12px', fontWeight: 800 },
   locationFilter: { fontSize: '12px', fontWeight: 600, color: '#2E7D32', margin: 0, textAlign: 'right' },
   cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '280px', maxHeight: '520px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
-  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '16px 20px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
+  card: { width: 'min(360px, 95vw)', backgroundImage: 'url(/icons/swipes_icons/slider_background.png)', backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '20px', padding: '16px 20px', boxShadow: '0 8px 40px rgba(108,79,212,0.18)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
   stamp: { position: 'absolute', top: '24px', zIndex: 10 },
   likeStamp: { right: '24px', transform: 'rotate(15deg)' },
   nopeStamp: { left: '24px', transform: 'rotate(-15deg)' },
@@ -652,6 +686,7 @@ const styles = {
   swipeIcon: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
   unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '24px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700 },
   undoBtn: { position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minWidth: '44px', minHeight: '44px', padding: '12px 28px', background: '#FF9800', color: 'white', border: 'none', borderRadius: '28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' },
+  tailorLimitToast: { marginTop: '6px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#B45309', textAlign: 'center', maxWidth: 'min(360px, 95vw)' },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '24px' },
   emptyTitle: { fontSize: '24px', fontWeight: 800, margin: 0 },

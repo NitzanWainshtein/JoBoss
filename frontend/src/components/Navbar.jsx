@@ -47,10 +47,11 @@ function Navbar({ isAdmin = false }) {
 const styles = {
   header: {
     position: 'fixed', top: 0, left: 0, right: 0, height: '56px',
-    background: 'white', boxShadow: '0 2px 8px rgba(108,79,212,0.1)',
+    backgroundImage: 'url(/icons/swipes_icons/top_bar.png)',
+    backgroundSize: 'cover', backgroundPosition: 'center bottom',
     display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100,
   },
-  logo: { height: '36px', objectFit: 'contain' },
+  logo: { height: '36px', objectFit: 'contain', filter: 'drop-shadow(0 1px 3px rgba(255,255,255,0.4))' },
   navbar: {
     position: 'fixed', bottom: 0, left: 0, right: 0, height: '64px',
     background: 'white', boxShadow: '0 -2px 12px rgba(108,79,212,0.12)',

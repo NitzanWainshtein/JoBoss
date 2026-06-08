@@ -308,14 +308,28 @@ def get_quota_status(event):
     print(f"QUOTA CHECK: userId={user_id}, count={used}, plan={plan}, limit={daily_limit}")
     remaining = max(0, daily_limit - used)
 
-    return resp(200, {
+    result = {
         "plan": plan,
         "limit": daily_limit,
         "used": used,
         "remaining": remaining,
         "unlimited": False,
         "resetAt": get_reset_time(),
-    })
+    }
+
+    # For PREMIUM only: include monthly AI tailoring usage alongside the swipe quota.
+    # FREE has no tailoring; PREMIUM_PLUS is unlimited (no counter needed).
+    if plan == "PREMIUM":
+        AI_MONTHLY_LIMIT = 10
+        user = get_user_profile(user_id)
+        now_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        stored_month = user.get("aiTailoringsMonth", "")
+        tailor_used = int(user.get("aiTailoringsUsed", 0)) if stored_month == now_month else 0
+        result["tailorLimit"] = AI_MONTHLY_LIMIT
+        result["tailorUsed"] = tailor_used
+        result["tailorRemaining"] = max(0, AI_MONTHLY_LIMIT - tailor_used)
+
+    return resp(200, result)
 
 
 def handler(event, context):

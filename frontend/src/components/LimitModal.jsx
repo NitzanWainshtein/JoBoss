@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mode = 'swipe' }) {
+function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mode = 'swipe', premiumAtLimit = false }) {
   const isTailorMode = mode === 'tailor';
   const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState('');
@@ -50,11 +50,17 @@ function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mod
             </div>
 
             <h2 style={styles.title}>
-              {isTailorMode ? 'התאמת קורות חיים' : 'הגעת למגבלת ההחלקות היומית'}
+              {isTailorMode
+                ? premiumAtLimit ? 'הגעת למגבלת ה-AI החודשית' : 'התאמת קורות חיים'
+                : 'הגעת למגבלת ההחלקות היומית'}
             </h2>
             <p style={styles.sub}>
               {isTailorMode ? (
-                <>פיצ'ר התאמת קורות חיים חכמה על ידי AI זמין <strong>למנויי פרימיום בלבד</strong>.</>
+                premiumAtLimit ? (
+                  <>הגעת ל-<strong>10 התאמות AI</strong> הכלולות בחבילת הפרימיום שלך החודש.<br />שדרג לפרימיום+ וקבל התאמות AI ללא הגבלה.</>
+                ) : (
+                  <>פיצ'ר התאמת קורות חיים חכמה על ידי AI זמין <strong>למנויי פרימיום בלבד</strong>.</>
+                )
               ) : plan === 'FREE' ? (
                 <>השתמשת ב-<strong>{used}</strong> מתוך <strong>{limit}</strong> ההחלקות החינמיות שלך להיום.</>
               ) : (
@@ -69,8 +75,14 @@ function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mod
               </div>
             )}
 
+            {isTailorMode && premiumAtLimit && (
+              <div style={{ ...styles.countdownBox, background: '#FFF8E1' }}>
+                <p style={{ ...styles.countdownLabel, color: '#B45309' }}>מגבלת ה-AI מתאפסת ב-1 לחודש הבא</p>
+              </div>
+            )}
+
             <div style={styles.plansRow}>
-              {plan !== 'PREMIUM' && (
+              {!premiumAtLimit && plan !== 'PREMIUM' && (
                 <PlanCard
                   name="פרימיום"
                   price="₪36"

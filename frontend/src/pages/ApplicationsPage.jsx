@@ -16,11 +16,11 @@ const STATUS_CONFIG = {
 
 // ── Track A: system-set auto-apply result ────────────────────────────────────
 const AUTO_APPLY_CONFIG = {
-  manual:           { color: '#FF9800', label: '🖐 יש להגיש ידנית',              bg: '#FFF8E1', border: '#FFE082', text: '#B45309' },
-  pending_tailoring:{ color: '#7C3AED', label: '🤖 מתאים קורות חיים...',          bg: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
-  pending:          { color: '#7C3AED', label: '⏳ הגשה אוטומטית בתהליך',         bg: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
-  success:          { color: '#4CAF50', label: '✅ הוגש אוטומטית בהצלחה',         bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' },
-  failed:           { color: '#FF9800', label: '⚠️ נכשלה הגשה אוטומטית',          bg: '#FFF7ED', border: '#FED7AA', text: '#C2410C' },
+  manual:           { color: '#FF9800', label: 'יש להגיש ידנית',          bg: '#FFF8E1', border: '#FFE082', text: '#B45309' },
+  pending_tailoring:{ color: '#7C3AED', label: 'מתאים קורות חיים...',      bg: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
+  pending:          { color: '#7C3AED', label: 'הגשה אוטומטית בתהליך',    bg: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
+  success:          { color: '#4CAF50', label: 'הוגש אוטומטית בהצלחה',    bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' },
+  failed:           { color: '#FF9800', label: 'נכשלה הגשה אוטומטית',     bg: '#FFF7ED', border: '#FED7AA', text: '#C2410C' },
 };
 
 // Level-1 primary tabs (always visible).
@@ -237,7 +237,7 @@ async function downloadCVAsPdf(text, company, jobTitle) {
 }
 
 // ── Auto-apply result block (4 states: manual / pending / success / failed) ───
-function AutoApplyResult({ app, planKey, canExplain }) {
+function AutoApplyResult({ app, planKey, canExplain, isActiveTailoring }) {
   const cfg = AUTO_APPLY_CONFIG[app.autoApplyStatus];
   const [explanation, setExplanation] = useState(app.failExplanation || null);
   const [loadingExp, setLoadingExp] = useState(false);
@@ -269,7 +269,11 @@ function AutoApplyResult({ app, planKey, canExplain }) {
   }
 
   // ── pending_tailoring: AI tailoring in progress before Fargate launch ────────
+  // Only show this block if tailoring is genuinely active in the current session
+  // (tracked via localStorage). A stale server-side pending_tailoring is invisible.
   if (app.autoApplyStatus === 'pending_tailoring') {
+    if (app.tailoredResumeUrl) return null; // already completed
+    if (!isActiveTailoring) return null;    // stale / not tracked locally
     return (
       <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
         <img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
@@ -326,7 +330,7 @@ function AutoApplyResult({ app, planKey, canExplain }) {
   return (
     <div style={{ ...styles.autoBoxCol, background: cfg.bg, borderColor: cfg.border }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '18px' }}>⚠️</span>
+        <img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.manualBlock}px`, height: `${ICON_SIZES.manualBlock}px`, objectFit: 'contain' }} />
         <p style={{ ...styles.autoTitle, color: cfg.text }}>לא ניתן היה להגיש אוטומטית למשרה זו</p>
       </div>
 
@@ -383,6 +387,7 @@ function ApplicationsPage() {
   const [previewApplication, setPreviewApplication] = useState(null);
   const [tailoringJobId, setTailoringJobId] = useState(null);
   const [showUpsell, setShowUpsell] = useState(false);
+  const [premiumAtLimit, setPremiumAtLimit] = useState(false);
   const [clearedTailoring, setClearedTailoring] = useState(new Set());
   const [mismatchState, setMismatchState] = useState(null);
   const [planKey, setPlanKey] = useState('FREE');
@@ -502,7 +507,11 @@ function ApplicationsPage() {
       ));
     } catch (err) {
       if (err?.code === 'AI_LIMIT_REACHED' || err?.status === 429) {
-        setShowUpsell(true);
+        if (planKey !== 'FREE') {
+          setPremiumAtLimit(true);
+        } else {
+          setShowUpsell(true);
+        }
       } else if (err?.code === 'AI_NOT_AVAILABLE' || err?.status === 403) {
         setShowUpsell(true);
       } else {
@@ -630,8 +639,8 @@ function ApplicationsPage() {
               const isUpdating = updating === app.jobId;
               return (
                 <div key={app.jobId} style={styles.card}>
-                  <div style={styles.cardTop}>
-                    <div style={styles.cardInfo}>
+                  <div style={{ ...styles.cardTop, direction: 'ltr' }}>
+                    <div style={{ ...styles.cardInfo, direction: 'rtl' }}>
                       <p style={styles.company}>{app.company || app.jobId}</p>
                       <p style={styles.title}>{app.title || 'משרה'}</p>
                       <p style={styles.date}>
@@ -644,10 +653,15 @@ function ApplicationsPage() {
                   </div>
 
                   {app.autoApplyStatus && (
-                    <AutoApplyResult app={app} planKey={planKey} canExplain={canTailorCV} />
+                    <AutoApplyResult
+                      app={app}
+                      planKey={planKey}
+                      canExplain={canTailorCV}
+                      isActiveTailoring={tailoringJobs.has(app.jobId)}
+                    />
                   )}
 
-                  {tailoringJobs.has(app.jobId) && !app.tailoredResumeUrl && (
+                  {tailoringJobs.has(app.jobId) && !app.tailoredResumeUrl && app.autoApplyStatus !== 'pending_tailoring' && (
                     <div style={styles.tailoringBox}>
                       <img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
                       <div>
@@ -745,7 +759,13 @@ function ApplicationsPage() {
         )}
       </div>
 
-      <LimitModal visible={showUpsell} mode="tailor" plan={planKey} onClose={() => setShowUpsell(false)} />
+      <LimitModal
+        visible={showUpsell || premiumAtLimit}
+        mode="tailor"
+        plan={planKey}
+        premiumAtLimit={premiumAtLimit}
+        onClose={() => { setShowUpsell(false); setPremiumAtLimit(false); }}
+      />
 
       <MismatchWarningModal
         visible={!!mismatchState}
@@ -843,7 +863,7 @@ const styles = {
   tailoringSub: { margin: '2px 0 0', fontSize: '11px', color: '#F9A825' },
   manualTailorBtn: { width: '100%', padding: '9px', borderRadius: '10px', border: '1.5px dashed #6C4FD4', background: '#F8F6FF', color: '#6C4FD4', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
   manualTailorBtnLocked: { width: '100%', padding: '9px', borderRadius: '10px', border: '1.5px dashed #ccc', background: '#F5F5F5', color: '#999', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  actions: { display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-end' },
+  actions: { display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-start' },
   actionBtn: { padding: '5px 11px', borderRadius: '20px', border: '1.5px solid', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', minHeight: '30px' },
   actionActive: {},
   empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '48px 24px', background: 'white', borderRadius: '14px', textAlign: 'center' },

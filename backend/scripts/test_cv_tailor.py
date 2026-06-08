@@ -244,22 +244,47 @@ def run_test(job, model_id, prompt_fn, label):
 if __name__ == "__main__":
     results = {}
 
-    divider("TEST 1: Backend job — NEW Opus 4.6 + SKILL prompt")
+    divider("TEST 1: Backend job — Opus + SKILL prompt")
     out1, s1 = run_test(JOB_BACKEND, MODEL_OPUS, build_new_prompt, "OPUS+SKILL")
     results["opus_backend"] = s1
 
-    divider("TEST 2: DevOps job — NEW Opus 4.6 + SKILL prompt")
+    divider("TEST 2: DevOps job — Opus + SKILL prompt")
     out2, s2 = run_test(JOB_DEVOPS, MODEL_OPUS, build_new_prompt, "OPUS+SKILL")
     results["opus_devops"] = s2
 
-    divider("TEST 3: Backend job — OLD Haiku + simple prompt (baseline)")
-    out3, s3 = run_test(JOB_BACKEND, MODEL_HAIKU, build_old_prompt, "HAIKU+OLD")
-    results["haiku_backend"] = s3
+    divider("TEST 3: Backend job — Haiku + SKILL prompt  ← NEW (production model)")
+    out3, s3 = run_test(JOB_BACKEND, MODEL_HAIKU, build_new_prompt, "HAIKU+SKILL")
+    results["haiku_skill_backend"] = s3
+
+    divider("TEST 4: DevOps job — Haiku + SKILL prompt  ← NEW (production model)")
+    out4, s4 = run_test(JOB_DEVOPS, MODEL_HAIKU, build_new_prompt, "HAIKU+SKILL")
+    results["haiku_skill_devops"] = s4
+
+    divider("TEST 5: Backend job — Haiku + OLD prompt (original baseline)")
+    out5, s5 = run_test(JOB_BACKEND, MODEL_HAIKU, build_old_prompt, "HAIKU+OLD")
+    results["haiku_old_backend"] = s5
 
     divider("SUMMARY")
-    print(f"\n  Opus+SKILL vs Haiku+Old prompt:")
-    print(f"  Backend job:  Opus {results['opus_backend']}/7  vs  Haiku {results['haiku_backend']}/7")
-    print(f"  DevOps job:   Opus {results['opus_devops']}/7")
-    print("\n  Manual tailor  = same Lambda path (force=False, relevance check first)")
-    print("  Auto tailor    = same Lambda path (force=True, skip relevance check)")
-    print("  Both use generate_tailored_resume() → same build_prompt() → same Opus model")
+    print()
+    print("  Model / Prompt          Backend   DevOps")
+    print("  " + "-"*42)
+    print(f"  Opus  + SKILL           {results['opus_backend']}/7       {results['opus_devops']}/7")
+    print(f"  Haiku + SKILL (prod)    {results['haiku_skill_backend']}/7       {results['haiku_skill_devops']}/7")
+    print(f"  Haiku + OLD  (baseline) {results['haiku_old_backend']}/7")
+    print()
+
+    opus_avg  = (results["opus_backend"]  + results["opus_devops"])  / 2
+    haiku_avg = (results["haiku_skill_backend"] + results["haiku_skill_devops"]) / 2
+    drop = opus_avg - haiku_avg
+
+    print(f"  Opus  avg: {opus_avg:.1f}/7")
+    print(f"  Haiku avg: {haiku_avg:.1f}/7")
+    print(f"  Quality drop (Opus → Haiku+SKILL): {drop:.1f} points")
+    print()
+    if drop <= 0.5:
+        print("  VERDICT: Haiku+SKILL is on par with Opus — switch is safe.")
+    elif drop <= 1.5:
+        print("  VERDICT: Minor quality drop — acceptable trade-off for cost savings.")
+    else:
+        print("  VERDICT: Significant quality drop — consider keeping Opus or tuning the prompt.")
+    print()

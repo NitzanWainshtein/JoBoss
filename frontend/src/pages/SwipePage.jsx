@@ -100,7 +100,7 @@ function JobDetailModal({ job, onClose }) {
         style={modal.sheet} onClick={(e) => e.stopPropagation()}
       >
         <div style={modal.header}>
-          <CompanyLogo company={job.company} website={job.applyUrl} style={modal.logo} />
+          <CompanyLogo company={job.company} style={modal.logo} />
           <div style={{ flex: 1 }}>
             <h2 style={modal.title}>{job.title}</h2>
             <p style={modal.company}>{job.company}</p>
@@ -171,7 +171,7 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity }}><img src="/icons/nope_icon.png" alt="NOPE" style={{ height: `${ICON_SIZES.stampNope}px`, objectFit: 'contain' }} /></motion.div>}
 
       <div style={styles.cardHeader}>
-        <CompanyLogo company={job.company} website={job.applyUrl} style={styles.logo_img} />
+        <CompanyLogo company={job.company} style={styles.logo_img} />
         <div>
           <h2 style={styles.company}>{job.company}</h2>
           <p style={styles.location}>📍 {job.location}</p>

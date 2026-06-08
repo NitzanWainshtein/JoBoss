@@ -85,7 +85,10 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST \"https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/ai/explain-failure\" -H \"Content-Type: application/json\" -d '{\"jobId\":\"x\"}')",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X OPTIONS \"https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod/ai/explain-failure\")",
       "PowerShell($apps = \"C:\\\\Users\\\\NITZAN\\\\JoBoss\\\\backend\\\\lambdas\\\\applications\"; Compress-Archive -Path \"$apps\\\\handler.py\" -DestinationPath \"$apps\\\\handler.zip\" -Force; \"zip rebuilt\")",
-      "Bash(aws ecr *)"
+      "Bash(aws ecr *)",
+      "Bash(grep -n \"CV יישלח\\\\|אוטומטית\\\\|autoApply\" /c/Users/NITZAN/JoBoss/frontend/src/pages/ProfilePage.jsx | head -10)",
+      "Read(//c/Users/NITZAN/JoBoss/frontend/src/pages/**)",
+      "PowerShell(aws dynamodb describe-table --table-name joboss-jobs --region us-east-1 --query \"Table.KeySchema\" --output json)"
     ]
   }
 }

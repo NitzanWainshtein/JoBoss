@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ICON_SIZES from '../iconSizes';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**
@@ -96,12 +97,12 @@ const STATUS_MAP = {
 };
 
 const FEATURE_ROWS = [
-  { key: 'daily_swipes',       label: 'החלקות יומיות',   icon: '🔥' },
-  { key: 'daily_applications', label: 'הגשות יומיות',    icon: '📨' },
-  { key: 'ai_tailoring',       label: 'התאמת AI',        icon: '🤖' },
-  { key: 'auto_apply',         label: 'Auto Apply',      icon: '⚡' },
-  { key: 'analytics',          label: 'Analytics',       icon: '📊' },
-  { key: 'priority_matching',  label: 'Priority Match',  icon: '🎯' },
+  { key: 'daily_swipes',       label: 'החלקות יומיות',   icon: null, img: '/icons/jobs_icon.png' },
+  { key: 'daily_applications', label: 'הגשות יומיות',    icon: null, img: '/icons/applies_icon.png' },
+  { key: 'ai_tailoring',       label: 'התאמת AI',        icon: null, img: '/icons/robot_icon.png' },
+  { key: 'auto_apply',         label: 'Auto Apply',      icon: null, img: '/icons/waiting_to_apply_icon.png' },
+  { key: 'analytics',          label: 'Analytics',       icon: null, img: '/icons/process_icon.png' },
+  { key: 'priority_matching',  label: 'Priority Match',  icon: null, img: '/icons/search_icon.png' },
 ];
 
 export default function SubscriptionPage({ api }) {
@@ -264,7 +265,7 @@ export default function SubscriptionPage({ api }) {
               const hasFeature = currentPlan.featureFlags[row.key];
               return (
                 <div key={row.key} style={styles.featureRow}>
-                  <span style={styles.featureIcon}>{row.icon}</span>
+                  <span style={styles.featureIcon}>{row.img ? <img src={row.img} alt="" style={{ width: `${ICON_SIZES.featureRow}px`, height: `${ICON_SIZES.featureRow}px`, objectFit: 'contain' }} /> : row.icon}</span>
                   <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#bbb' }}>
                     {currentPlan.features[row.key]}
                   </span>
@@ -385,7 +386,10 @@ function UpgradeCard({ plan, loading, onCheckout }) {
       {plan.popular && (
         <div style={{ ...styles.popularBadge, background: plan.color }}>🔥 הכי פופולרי</div>
       )}
-      <p style={{ ...styles.upgradePlanName, color: plan.color }}>{plan.name}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+        <img src={plan.key === 'FREE' ? '/icons/free_members_icon.png' : plan.key === 'PREMIUM' ? '/icons/premium_member_icon.png' : '/icons/plus_members_icon.png'} alt="" style={{ width: `${ICON_SIZES.planLogoCard}px`, height: `${ICON_SIZES.planLogoCard}px`, objectFit: 'contain' }} />
+        <p style={{ ...styles.upgradePlanName, color: plan.color, margin: 0 }}>{plan.name}</p>
+      </div>
       <p style={styles.upgradePrice}>
         ${plan.price}
         <span style={styles.upgradePriceSub}> / חודש</span>
@@ -438,6 +442,7 @@ function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
                   🔥 הכי פופולרי
                 </div>
               )}
+              <img src={pk === 'FREE' ? '/icons/free_members_icon.png' : pk === 'PREMIUM' ? '/icons/premium_member_icon.png' : '/icons/plus_members_icon.png'} alt="" style={{ width: `${ICON_SIZES.planLogoTable}px`, height: `${ICON_SIZES.planLogoTable}px`, objectFit: 'contain', marginBottom: '4px' }} />
               <p style={{ ...styles.comparePlanName, color: plan.color }}>{plan.name}</p>
               <p style={styles.comparePlanPrice}>
                 {plan.price === 0 ? 'חינם' : `$${plan.price}/חודש`}

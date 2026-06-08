@@ -135,14 +135,16 @@ export default function AdminPage() {
 
         <div style={{ display: 'flex', gap: 8, background: 'white', padding: 8,
           borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
-          {[['stats','📊 סטטיסטיקות'], ['users','👥 משתמשים'], ['jobs','💼 משרות'], ['self','🔧 כלי Admin']].map(([key, label]) => (
+          {[['stats','📊 סטטיסטיקות'], ['users', null, 'משתמשים'], ['jobs','💼 משרות'], ['self','🔧 כלי Admin']].map(([key, label, imgLabel]) => (
             <button key={key}
               style={{ flex: 1, padding: '10px 4px', border: 'none', borderRadius: 12, cursor: 'pointer',
                 fontWeight: 600, fontSize: 13,
                 background: tab === key ? 'linear-gradient(135deg,#6C4FD4,#1E2A4A)' : 'transparent',
                 color: tab === key ? 'white' : '#777' }}
               onClick={() => setTab(key)}>
-              {label}
+              {imgLabel
+                ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><img src="/icons/members_icon.png" alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />{imgLabel}</span>
+                : label}
             </button>
           ))}
         </div>

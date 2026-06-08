@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8" />
+  <title>JoBoss — Icon Size Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #F0F2FF; padding: 24px; color: #1E2A4A; }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; color: #6C4FD4; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+    .section { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(108,79,212,0.08); }
+    .section-title { font-size: 14px; font-weight: 700; color: #6C4FD4; margin-bottom: 16px; border-bottom: 2px solid #F0F2FF; padding-bottom: 8px; }
+    .row { display: flex; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid #F5F5F5; flex-wrap: wrap; }
+    .row:last-child { border-bottom: none; }
+    .context { font-size: 12px; color: #666; width: 200px; flex-shrink: 0; }
+    .context strong { display: block; color: #333; font-size: 13px; }
+    .preview-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; background: #F8F8F8; border-radius: 10px; flex-shrink: 0; border: 1px solid #eee; }
+    .preview-box.dark { background: #1E2A4A; }
+    .preview-box.colored { background: #6C4FD4; }
+    .preview-box.red { background: #FF6B6B; }
+    .preview-box.yellow { background: #FFF8E1; border: 1px solid #FFE082; }
+    .preview-box.green { background: #F0FDF4; border: 1px solid #BBF7D0; }
+    .preview-icon { object-fit: contain; transition: width 0.1s, height 0.1s; }
+    .controls { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; }
+    .slider { flex: 1; accent-color: #6C4FD4; cursor: pointer; }
+    .size-display { font-size: 13px; font-weight: 700; color: #6C4FD4; width: 40px; text-align: center; }
+    .copy-btn { background: linear-gradient(135deg, #6C4FD4, #1E2A4A); color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; }
+    .copy-btn:hover { opacity: 0.9; }
+    .output { background: #1E2A4A; color: #A8F5A8; font-family: monospace; font-size: 12px; border-radius: 12px; padding: 16px; margin-top: 16px; white-space: pre-wrap; display: none; line-height: 1.7; }
+    .tag { display: inline-block; background: #F0F2FF; color: #6C4FD4; font-size: 11px; border-radius: 6px; padding: 2px 6px; margin-top: 2px; font-weight: 600; }
+    .inline-demo { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #1E2A4A; }
+  </style>
+</head>
+<body>
+
+<h1>🎨 JoBoss — Icon Size Tool</h1>
+<p class="subtitle">הזז את הסליידר — האפליקציה מתעדכנת בזמן אמת דרך Vite HMR.</p>
+<p id="server-status" style="font-size:13px;font-weight:700;margin-bottom:20px;">⏳ בודק חיבור לשרת...</p>
+
+<!-- NAVBAR -->
+<div class="section">
+  <div class="section-title">Navbar — תחתית</div>
+
+  <div class="row">
+    <div class="context"><strong>משרות</strong><span class="tag">Navbar.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="jobs_nav" src="/icons/jobs_icon.png" style="width:24px;height:24px" />
+        <span>משרות</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="24" oninput="update('jobs_nav', this.value)" />
+      <span class="size-display" id="jobs_nav_val">24px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>הגשות</strong><span class="tag">Navbar.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="applies_nav" src="/icons/applies_icon.png" style="width:24px;height:24px" />
+        <span>הגשות</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="24" oninput="update('applies_nav', this.value)" />
+      <span class="size-display" id="applies_nav_val">24px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>פרופיל</strong><span class="tag">Navbar.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="profile_nav" src="/icons/profile_icon.png" style="width:24px;height:24px" />
+        <span>פרופיל</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="24" oninput="update('profile_nav', this.value)" />
+      <span class="size-display" id="profile_nav_val">24px</span>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE PAGE -->
+<div class="section">
+  <div class="section-title">ProfilePage — כותרות קארדים</div>
+
+  <div class="row">
+    <div class="context"><strong>טאב "פרופיל"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="profile_tab" src="/icons/profile_icon.png" style="width:26px;height:26px" />
+        <span>פרופיל</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="26" oninput="update('profile_tab', this.value)" />
+      <span class="size-display" id="profile_tab_val">26px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>טאב "מנוי"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box colored">
+      <div class="inline-demo" style="color:white">
+        <img class="preview-icon" id="premium_tab" src="/icons/premium_icon.png" style="width:26px;height:26px" />
+        <span>מנוי</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="26" oninput="update('premium_tab', this.value)" />
+      <span class="size-display" id="premium_tab_val">26px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כותרת "העדפות מיקום"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="location_title" src="/icons/location_icon.png" style="width:28px;height:28px" />
+        <span>מיקום</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="28" oninput="update('location_title', this.value)" />
+      <span class="size-display" id="location_title_val">28px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כותרת "הגדרות הגשה"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="settings_title" src="/icons/settings_icon.png" style="width:28px;height:28px" />
+        <span>הגדרות</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="28" oninput="update('settings_title', this.value)" />
+      <span class="size-display" id="settings_title_val">28px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כותרת "קורות חיים"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="cv_title" src="/icons/cv_icon.png" style="width:28px;height:28px" />
+        <span>קורות חיים</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="28" oninput="update('cv_title', this.value)" />
+      <span class="size-display" id="cv_title_val">28px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כותרת "העדפות חיפוש"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="search_title" src="/icons/search_icon.png" style="width:28px;height:28px" />
+        <span>חיפוש</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="28" oninput="update('search_title', this.value)" />
+      <span class="size-display" id="search_title_val">28px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כותרת "תפקידים מועדפים"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="jobs_title" src="/icons/jobs_icon.png" style="width:28px;height:28px" />
+        <span>תפקידים</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="28" oninput="update('jobs_title', this.value)" />
+      <span class="size-display" id="jobs_title_val">28px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>תג מנוי (מתחת לשם משתמש)</strong><span class="tag">ProfilePage.jsx — PlanBadge</span></div>
+    <div class="preview-box">
+      <img class="preview-icon" id="plan_badge" src="/icons/premium_member_icon.png" style="height:36px;width:auto" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="20" max="80" value="36" oninput="updateHeight('plan_badge', this.value)" />
+      <span class="size-display" id="plan_badge_val">36px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור "התנתק"</strong><span class="tag">ProfilePage.jsx</span></div>
+    <div class="preview-box dark">
+      <div class="inline-demo" style="color:white">
+        <img class="preview-icon" id="logout_btn" src="/icons/logout_icon.png" style="width:28px;height:28px" />
+        <span>התנתק</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="28" oninput="update('logout_btn', this.value)" />
+      <span class="size-display" id="logout_btn_val">28px</span>
+    </div>
+  </div>
+</div>
+
+<!-- APPLICATIONS PAGE -->
+<div class="section">
+  <div class="section-title">ApplicationsPage — סטטיסטיקות</div>
+
+  <div class="row">
+    <div class="context"><strong>סה"כ</strong><span class="tag">ApplicationsPage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="stat_total" src="/icons/applies_icon.png" style="width:24px;height:24px" />
+        <span>סה"כ</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="48" value="24" oninput="update('stat_total', this.value)" />
+      <span class="size-display" id="stat_total_val">24px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>ראיונות</strong><span class="tag">ApplicationsPage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="stat_interview" src="/icons/interviews_icon.png" style="width:24px;height:24px" />
+        <span>ראיונות</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="48" value="24" oninput="update('stat_interview', this.value)" />
+      <span class="size-display" id="stat_interview_val">24px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>התקבלו</strong><span class="tag">ApplicationsPage.jsx</span></div>
+    <div class="preview-box green">
+      <div class="inline-demo">
+        <img class="preview-icon" id="stat_accepted" src="/icons/accepted_icon.png" style="width:24px;height:24px" />
+        <span>התקבלו</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="48" value="24" oninput="update('stat_accepted', this.value)" />
+      <span class="size-display" id="stat_accepted_val">24px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>הוגשו אוטומטית</strong><span class="tag">ApplicationsPage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="stat_robot" src="/icons/robot_icon.png" style="width:24px;height:24px" />
+        <span>אוטומטי</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="48" value="24" oninput="update('stat_robot', this.value)" />
+      <span class="size-display" id="stat_robot_val">24px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>בתהליך</strong><span class="tag">ApplicationsPage.jsx</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="stat_process" src="/icons/process_icon.png" style="width:24px;height:24px" />
+        <span>בתהליך</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="48" value="24" oninput="update('stat_process', this.value)" />
+      <span class="size-display" id="stat_process_val">24px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>ממתינים להגשה ידנית</strong><span class="tag">ApplicationsPage.jsx</span></div>
+    <div class="preview-box yellow">
+      <div class="inline-demo">
+        <img class="preview-icon" id="stat_waiting" src="/icons/waiting_to_apply_icon.png" style="width:24px;height:24px" />
+        <span>ממתין</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="48" value="24" oninput="update('stat_waiting', this.value)" />
+      <span class="size-display" id="stat_waiting_val">24px</span>
+    </div>
+  </div>
+</div>
+
+<!-- APPLICATIONS CARDS -->
+<div class="section">
+  <div class="section-title">ApplicationsPage — קלפי הגשה</div>
+
+  <div class="row">
+    <div class="context"><strong>בלוק "יש להגיש ידנית"</strong><span class="tag">AutoApplyResult — manual</span></div>
+    <div class="preview-box yellow" style="width:100px">
+      <img class="preview-icon" id="manual_icon" src="/icons/waiting_to_apply_icon.png" style="width:28px;height:28px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="16" max="64" value="28" oninput="update('manual_icon', this.value)" />
+      <span class="size-display" id="manual_icon_val">28px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>בלוק pending_tailoring (AI מתאים)</strong><span class="tag">AutoApplyResult</span></div>
+    <div class="preview-box" style="background:#F5F3FF">
+      <img class="preview-icon" id="tailoring_icon" src="/icons/robot_icon.png" style="width:36px;height:36px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="16" max="64" value="36" oninput="update('tailoring_icon', this.value)" />
+      <span class="size-display" id="tailoring_icon_val">36px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>בלוק pending (בוט מגיש)</strong><span class="tag">AutoApplyResult</span></div>
+    <div class="preview-box" style="background:#F5F3FF">
+      <img class="preview-icon" id="pending_icon" src="/icons/process_icon.png" style="width:36px;height:36px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="16" max="64" value="36" oninput="update('pending_icon', this.value)" />
+      <span class="size-display" id="pending_icon_val">36px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>בלוק success (הוגש בהצלחה)</strong><span class="tag">AutoApplyResult</span></div>
+    <div class="preview-box green">
+      <img class="preview-icon" id="success_icon" src="/icons/accepted_icon.png" style="width:36px;height:36px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="16" max="64" value="36" oninput="update('success_icon', this.value)" />
+      <span class="size-display" id="success_icon_val">36px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כותרת "קורות חיים מותאמים"</strong><span class="tag">tailoredBox</span></div>
+    <div class="preview-box">
+      <div class="inline-demo">
+        <img class="preview-icon" id="tailored_cv" src="/icons/cv_icon.png" style="width:28px;height:28px" />
+        <span style="font-size:11px">קורות חיים מותאמים</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="16" max="52" value="28" oninput="update('tailored_cv', this.value)" />
+      <span class="size-display" id="tailored_cv_val">28px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור "צפייה"</strong><span class="tag">tailoredButton</span></div>
+    <div class="preview-box colored">
+      <div class="inline-demo" style="color:white">
+        <img class="preview-icon" id="watch_btn" src="/icons/watch_cv_icon.png" style="width:22px;height:22px" />
+        <span>צפייה</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="40" value="22" oninput="update('watch_btn', this.value)" />
+      <span class="size-display" id="watch_btn_val">22px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור "PDF"</strong><span class="tag">tailoredButton</span></div>
+    <div class="preview-box colored">
+      <div class="inline-demo" style="color:white">
+        <img class="preview-icon" id="pdf_btn" src="/icons/download_cv_icon.png" style="width:22px;height:22px" />
+        <span>PDF</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="40" value="22" oninput="update('pdf_btn', this.value)" />
+      <span class="size-display" id="pdf_btn_val">22px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור "התאמת CV למשרה"</strong><span class="tag">manualTailorBtn</span></div>
+    <div class="preview-box colored">
+      <div class="inline-demo" style="color:white">
+        <img class="preview-icon" id="tailor_btn" src="/icons/robot_icon.png" style="width:26px;height:26px" />
+        <span style="font-size:11px">התאמת CV</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="26" oninput="update('tailor_btn', this.value)" />
+      <span class="size-display" id="tailor_btn_val">26px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור "הורד כ-PDF" (מודל)</strong><span class="tag">downloadPreview</span></div>
+    <div class="preview-box dark">
+      <div class="inline-demo" style="color:white">
+        <img class="preview-icon" id="dl_modal" src="/icons/download_cv_icon.png" style="width:26px;height:26px" />
+        <span style="font-size:11px">הורד PDF</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="26" oninput="update('dl_modal', this.value)" />
+      <span class="size-display" id="dl_modal_val">26px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור סטטוס "ראיון"</strong><span class="tag">STATUS_ACTIONS</span></div>
+    <div class="preview-box" style="border:2px solid #9C27B0">
+      <div class="inline-demo" style="color:#9C27B0">
+        <img class="preview-icon" id="status_interview" src="/icons/interviews_icon.png" style="width:22px;height:22px" />
+        <span>ראיון</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="40" value="22" oninput="update('status_interview', this.value)" />
+      <span class="size-display" id="status_interview_val">22px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור סטטוס "התקבלת"</strong><span class="tag">STATUS_ACTIONS</span></div>
+    <div class="preview-box" style="border:2px solid #4CAF50">
+      <div class="inline-demo" style="color:#4CAF50">
+        <img class="preview-icon" id="status_accepted" src="/icons/accepted_icon.png" style="width:22px;height:22px" />
+        <span>התקבלת</span>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="12" max="40" value="22" oninput="update('status_accepted', this.value)" />
+      <span class="size-display" id="status_accepted_val">22px</span>
+    </div>
+  </div>
+</div>
+
+<!-- SUBSCRIPTION PAGE -->
+<div class="section">
+  <div class="section-title">SubscriptionPage — תוכניות מנוי</div>
+
+  <div class="row">
+    <div class="context"><strong>לוגו FREE (כרטיס + טבלה)</strong><span class="tag">SubscriptionPage.jsx</span></div>
+    <div class="preview-box">
+      <img class="preview-icon" id="plan_free" src="/icons/free_members_icon.png" style="width:70px;height:70px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="30" max="120" value="70" oninput="update('plan_free', this.value)" />
+      <span class="size-display" id="plan_free_val">70px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>לוגו PREMIUM (כרטיס + טבלה)</strong><span class="tag">SubscriptionPage.jsx</span></div>
+    <div class="preview-box">
+      <img class="preview-icon" id="plan_premium" src="/icons/premium_member_icon.png" style="width:70px;height:70px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="30" max="120" value="70" oninput="update('plan_premium', this.value)" />
+      <span class="size-display" id="plan_premium_val">70px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>לוגו PREMIUM+ (כרטיס + טבלה)</strong><span class="tag">SubscriptionPage.jsx</span></div>
+    <div class="preview-box">
+      <img class="preview-icon" id="plan_plus" src="/icons/plus_members_icon.png" style="width:70px;height:70px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="30" max="120" value="70" oninput="update('plan_plus', this.value)" />
+      <span class="size-display" id="plan_plus_val">70px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>אייקוני פיצ'רים ברשימת מנוי</strong><span class="tag">FEATURE_ROWS</span></div>
+    <div class="preview-box" style="gap:4px;flex-direction:column">
+      <img class="preview-icon feature-icon" src="/icons/jobs_icon.png" style="width:24px;height:24px" />
+      <img class="preview-icon feature-icon" src="/icons/robot_icon.png" style="width:24px;height:24px" />
+      <img class="preview-icon feature-icon" src="/icons/search_icon.png" style="width:24px;height:24px" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="14" max="48" value="24" oninput="updateAll('feature-icon', this.value)" />
+      <span class="size-display" id="feature_icons_val">24px</span>
+    </div>
+  </div>
+</div>
+
+<!-- SWIPE PAGE -->
+<div class="section">
+  <div class="section-title">SwipePage — כפתורי swipe ו-stamp</div>
+
+  <div class="row">
+    <div class="context"><strong>כפתור ♥ (Like)</strong><span class="tag">SwipePage.jsx — acceptBtn</span></div>
+    <div class="preview-box" style="width:80px;height:80px;border-radius:50%;border:2px solid #4CAF50">
+      <img class="preview-icon" id="swipe_like" src="/icons/x_icon.png" style="width:64px;height:64px;border-radius:50%" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="32" max="80" value="64" oninput="update('swipe_like', this.value)" />
+      <span class="size-display" id="swipe_like_val">64px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>Stamp YES (גרירה ימין)</strong><span class="tag">SwipePage.jsx — likeStamp</span></div>
+    <div class="preview-box" style="background:#E8F5E9">
+      <img class="preview-icon" id="stamp_yes" src="/icons/yes_icon.png" style="height:120px;width:auto" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="40" max="200" value="120" oninput="updateHeight('stamp_yes', this.value)" />
+      <span class="size-display" id="stamp_yes_val">120px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="context"><strong>Stamp NOPE (גרירה שמאל)</strong><span class="tag">SwipePage.jsx — nopeStamp</span></div>
+    <div class="preview-box" style="background:#FFEBEE">
+      <img class="preview-icon" id="stamp_nope" src="/icons/nope_icon.png" style="height:120px;width:auto" />
+    </div>
+    <div class="controls">
+      <input type="range" class="slider" min="40" max="200" value="120" oninput="updateHeight('stamp_nope', this.value)" />
+      <span class="size-display" id="stamp_nope_val">120px</span>
+    </div>
+  </div>
+</div>
+
+<!-- COPY BUTTON -->
+<button class="copy-btn" onclick="generateOutput()">📋 העתק את כל הערכים לקוד</button>
+<pre class="output" id="output"></pre>
+
+<script>
+  const SERVER = 'http://localhost:3333';
+  const sizes = {};
+
+  // Map: slider-id → iconSizes.js key (null = no live update, just preview)
+  const KEY_MAP = {
+    jobs_nav:         'navbar',
+    applies_nav:      'navbar',
+    profile_nav:      'navbar',
+    profile_tab:      'profileTab',
+    premium_tab:      'profileTab',
+    plan_badge:       'planBadge',
+    location_title:   'profileCardTitle',
+    settings_title:   'profileCardTitle',
+    cv_title:         'profileCardTitle',
+    search_title:     'profileCardTitle',
+    jobs_title:       'profileCardTitle',
+    logout_btn:       'logout',
+    stat_total:       'statLabel',
+    stat_interview:   'statLabel',
+    stat_accepted:    'statLabel',
+    stat_robot:       'statLabel',
+    stat_process:     'statLabel',
+    stat_waiting:     'statLabel',
+    manual_icon:      'manualBlock',
+    tailoring_icon:   'autoApplyBlock',
+    pending_icon:     'autoApplyBlock',
+    success_icon:     'autoApplyBlock',
+    tailored_cv:      'tailoredCvHeader',
+    watch_btn:        'cvButton',
+    pdf_btn:          'cvButton',
+    tailor_btn:       'tailorButton',
+    dl_modal:         'downloadModal',
+    status_interview: 'statusButton',
+    status_accepted:  'statusButton',
+    plan_free:        'planLogoTable',
+    plan_premium:     'planLogoTable',
+    plan_plus:        'planLogoTable',
+    feature_icons:    'featureRow',
+    swipe_like:       'swipeButton',
+    stamp_yes:        'stampYes',
+    stamp_nope:       'stampNope',
+  };
+
+  let serverOk = null;
+
+  async function pingServer() {
+    try {
+      await fetch(SERVER + '/update', { method: 'OPTIONS' });
+      serverOk = true;
+      document.getElementById('server-status').textContent = '🟢 שרת פעיל — שינויים מתעדכנים בזמן אמת';
+      document.getElementById('server-status').style.color = '#4CAF50';
+    } catch {
+      serverOk = false;
+      document.getElementById('server-status').textContent = '🔴 שרת לא פעיל — הרץ: node icon-dev-server.js';
+      document.getElementById('server-status').style.color = '#F44336';
+    }
+  }
+  pingServer();
+
+  async function sendToServer(iconKey, value) {
+    if (!serverOk) return;
+    try {
+      await fetch(SERVER + '/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: iconKey, value }),
+      });
+    } catch { serverOk = false; pingServer(); }
+  }
+
+  function update(id, val) {
+    const el = document.getElementById(id);
+    if (el) { el.style.width = val + 'px'; el.style.height = val + 'px'; }
+    document.getElementById(id + '_val').textContent = val + 'px';
+    sizes[id] = parseInt(val);
+    const key = KEY_MAP[id];
+    if (key) sendToServer(key, parseInt(val));
+  }
+
+  function updateHeight(id, val) {
+    const el = document.getElementById(id);
+    if (el) { el.style.height = val + 'px'; el.style.width = 'auto'; }
+    document.getElementById(id + '_val').textContent = val + 'px';
+    sizes[id] = parseInt(val);
+    const key = KEY_MAP[id];
+    if (key) sendToServer(key, parseInt(val));
+  }
+
+  function updateAll(cls, val) {
+    document.querySelectorAll('.' + cls).forEach(el => {
+      el.style.width = val + 'px'; el.style.height = val + 'px';
+    });
+    document.getElementById('feature_icons_val').textContent = val + 'px';
+    sizes['feature_icons'] = parseInt(val);
+    sendToServer('featureRow', parseInt(val));
+  }
+
+  // init defaults
+  const defaults = {
+    jobs_nav: 24, applies_nav: 24, profile_nav: 24,
+    profile_tab: 26, premium_tab: 26,
+    location_title: 28, settings_title: 28, cv_title: 28, search_title: 28, jobs_title: 28,
+    plan_badge: 36, logout_btn: 28,
+    stat_total: 24, stat_interview: 24, stat_accepted: 24, stat_robot: 24, stat_process: 24, stat_waiting: 24,
+    manual_icon: 28, tailoring_icon: 36, pending_icon: 36, success_icon: 36,
+    tailored_cv: 28, watch_btn: 22, pdf_btn: 22, tailor_btn: 26, dl_modal: 26,
+    status_interview: 22, status_accepted: 22,
+    plan_free: 70, plan_premium: 70, plan_plus: 70, feature_icons: 24,
+    swipe_like: 64, stamp_yes: 120, stamp_nope: 120,
+  };
+  Object.assign(sizes, defaults);
+
+  function generateOutput() {
+    const lines = [
+      '/* ── Navbar ── */',
+      `jobs_icon / applies_icon / profile_icon  →  ${sizes.jobs_nav}px`,
+      '',
+      '/* ── ProfilePage tabs ── */',
+      `profile_tab  →  ${sizes.profile_tab}px`,
+      `premium_tab (מנוי)  →  ${sizes.premium_tab}px`,
+      '',
+      '/* ── ProfilePage card titles ── */',
+      `location_icon  →  ${sizes.location_title}px`,
+      `settings_icon  →  ${sizes.settings_title}px`,
+      `cv_icon  →  ${sizes.cv_title}px`,
+      `search_icon  →  ${sizes.search_title}px`,
+      `jobs_icon (תפקידים)  →  ${sizes.jobs_title}px`,
+      '',
+      '/* ── PlanBadge (מתחת לשם משתמש) ── */',
+      `plan_badge height  →  ${sizes.plan_badge}px`,
+      '',
+      '/* ── Logout button ── */',
+      `logout_icon  →  ${sizes.logout_btn}px`,
+      '',
+      '/* ── ApplicationsPage stats ── */',
+      `applies/interviews/accepted icons  →  ${sizes.stat_total}px`,
+      `robot_icon (אוטומטי)  →  ${sizes.stat_robot}px`,
+      `process_icon (בתהליך)  →  ${sizes.stat_process}px`,
+      `waiting_to_apply_icon  →  ${sizes.stat_waiting}px`,
+      '',
+      '/* ── ApplicationsPage cards ── */',
+      `manual block icon  →  ${sizes.manual_icon}px`,
+      `pending_tailoring icon  →  ${sizes.tailoring_icon}px`,
+      `pending icon  →  ${sizes.pending_icon}px`,
+      `success icon  →  ${sizes.success_icon}px`,
+      `tailored cv header icon  →  ${sizes.tailored_cv}px`,
+      `watch_cv button  →  ${sizes.watch_btn}px`,
+      `download_cv button  →  ${sizes.pdf_btn}px`,
+      `tailor CV button  →  ${sizes.tailor_btn}px`,
+      `download modal button  →  ${sizes.dl_modal}px`,
+      `status INTERVIEW button  →  ${sizes.status_interview}px`,
+      `status ACCEPTED button  →  ${sizes.status_accepted}px`,
+      '',
+      '/* ── SubscriptionPage ── */',
+      `plan logos (free/premium/plus)  →  ${sizes.plan_free}px`,
+      `feature row icons  →  ${sizes.feature_icons}px`,
+      '',
+      '/* ── SwipePage ── */',
+      `swipe buttons (like/pass)  →  ${sizes.swipe_like}px`,
+      `stamp YES height  →  ${sizes.stamp_yes}px`,
+      `stamp NOPE height  →  ${sizes.stamp_nope}px`,
+    ];
+    const out = document.getElementById('output');
+    out.style.display = 'block';
+    out.textContent = lines.join('\n');
+    navigator.clipboard?.writeText(lines.join('\n'));
+  }
+</script>
+</body>
+</html>

@@ -11,6 +11,7 @@ import AdminPage from './pages/AdminPage.jsx';
 import ApplicationsPage from './pages/ApplicationsPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import AuthExtensionPage from './pages/AuthExtensionPage.jsx';
+import SwipeMockupPage from './pages/SwipeMockupPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile } from './api';
@@ -73,6 +74,7 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/auth-extension" element={<AuthExtensionPage />} />
+        <Route path="/swipe-mockup" element={<SwipeMockupPage />} />
         <Route path="/login" element={
           <PageTransition>
             {!isLoggedIn ? <LoginPage /> : <Navigate to={home} />}

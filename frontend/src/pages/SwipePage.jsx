@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ICON_SIZES from '../iconSizes';
+import { CompanyLogo } from '../utils/companyLogos';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
@@ -49,6 +51,18 @@ function getJobSummary(description = '') {
   return summary?.items?.join(' ') || description;
 }
 
+// Trim a long Nominatim address ("street, neighborhood, city, district, ...,
+// postcode, country") down to "street, city". Keeps already-short values as-is.
+function shortenLocation(name = '') {
+  const NOISE = /נפ[הת]|מחוז|מועצה|אזורית|ישראל|israel/i;
+  const parts = name.split(',')
+    .map(p => p.trim())
+    .filter(p => p && !NOISE.test(p) && !/^\d{4,}$/.test(p));
+  if (parts.length <= 2) return parts.join(', ');
+  // First = street, last = city; drop the middle (neighborhood/county noise).
+  return `${parts[0]}, ${parts[parts.length - 1]}`;
+}
+
 function JobDescription({ description }) {
   const sections = parseJobDescription(description);
 
@@ -89,8 +103,6 @@ function JobDescription({ description }) {
 
 // ── Job detail modal (unchanged) ────────────────────────────────────────────
 function JobDetailModal({ job, onClose }) {
-  const [logoError, setLogoError] = useState(false);
-  const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(job.company)}.com&sz=128`;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={modal.overlay} onClick={onClose}>
@@ -100,10 +112,7 @@ function JobDetailModal({ job, onClose }) {
         style={modal.sheet} onClick={(e) => e.stopPropagation()}
       >
         <div style={modal.header}>
-          {!logoError
-            ? <img src={logoUrl} alt={job.company} style={modal.logo} onError={() => setLogoError(true)} />
-            : <div style={modal.logo_placeholder}>{job.company?.charAt(0).toUpperCase()}</div>
-          }
+          <CompanyLogo company={job.company} style={modal.logo} />
           <div style={{ flex: 1 }}>
             <h2 style={modal.title}>{job.title}</h2>
             <p style={modal.company}>{job.company}</p>
@@ -145,15 +154,13 @@ function JobDetailModal({ job, onClose }) {
 }
 
 // ── Job card ─────────────────────────────────────────────────────────────────
-function JobCard({ job, onSwipe, onOpenDetail, locked }) {
+function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
   const [isDragging, setIsDragging] = useState(false);
-  const [logoError, setLogoError] = useState(false);
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-100, 0], [1, 0]);
-  const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(job.company)}.com&sz=128`;
 
   const handleDragEnd = (_, info) => {
     if (locked) return;
@@ -172,14 +179,11 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       onTap={() => { if (!locked && !isDragging) onOpenDetail(); }}
       whileTap={locked ? {} : { cursor: 'grabbing' }}
     >
-      {!locked && <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity }}>✅ YES</motion.div>}
-      {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity }}>❌ NOPE</motion.div>}
+      {!locked && <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity, pointerEvents: 'none' }}><img src="/icons/yes_icon.png" alt="YES" draggable="false" style={{ height: `${ICON_SIZES.stampYes}px`, objectFit: 'contain' }} /></motion.div>}
+      {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity, pointerEvents: 'none' }}><img src="/icons/nope_icon.png" alt="NOPE" draggable="false" style={{ height: `${ICON_SIZES.stampNope}px`, objectFit: 'contain' }} /></motion.div>}
 
       <div style={styles.cardHeader}>
-        {!logoError
-          ? <img src={logoUrl} alt={job.company} style={styles.logo_img} onError={() => setLogoError(true)} />
-          : <div style={styles.logo_placeholder}>{job.company?.charAt(0).toUpperCase()}</div>
-        }
+        <CompanyLogo company={job.company} style={styles.logo_img} />
         <div>
           <h2 style={styles.company}>{job.company}</h2>
           <p style={styles.location}>📍 {job.location}</p>
@@ -187,6 +191,9 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       </div>
       <h3 style={styles.title}>{job.title}</h3>
       {job.distanceKm != null && <p style={styles.distance}>🗺 {job.distanceKm.toFixed(1)} ק"מ ממך</p>}
+      {locationFilter && (
+        <p style={styles.locationFilter}>📍 {shortenLocation(locationFilter.name)} · עד {locationFilter.radius} ק"מ</p>
+      )}
       <div style={styles.shortSummaryBlock}>
         <p style={styles.shortSummaryTitle}>Short Summary</p>
         <p style={styles.description}>{job.shortDescription || getJobSummary(job.description)}</p>
@@ -194,20 +201,24 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       <div style={styles.techContainer}>
         {(job.technologies || job.requirements || []).map(t => <span key={t} style={styles.techBadge}>{t}</span>)}
       </div>
-      {!locked && <p style={styles.tapHint}>לחץ לפרטים נוספים 👆</p>}
+      {!locked && (
+        <div style={styles.tapHint}>
+          <img src="/icons/clickHere_icon.png" alt="לחץ לפרטים נוספים" style={{ width: 'min(220px, 70%)', height: 'auto', objectFit: 'contain' }} draggable="false" />
+        </div>
+      )}
     </motion.div>
   );
 }
 
 // ── Quota counter bar ────────────────────────────────────────────────────────
-function QuotaBar({ quota, onUpgradeClick }) {
+function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
   // PREMIUM_PLUS is unlimited — no counter needed.
   // FREE and PREMIUM both have a finite daily limit: show the bar for both.
   if (!quota || quota.unlimited) return null;
 
   const plan = quota.plan || 'FREE';
   const pct = Math.min(100, Math.round(((quota.used ?? 0) / quota.limit) * 100));
-  const color = pct >= 100 ? '#F44336' : pct >= 80 ? '#FF9800' : '#4CAF50';
+  const barColor = pct >= 100 ? '#F44336' : pct >= 80 ? '#FF9800' : '#6C4FD4';
 
   return (
     <motion.div
@@ -216,19 +227,21 @@ function QuotaBar({ quota, onUpgradeClick }) {
       animate={{ opacity: 1, y: 0 }}
     >
       <div style={styles.quotaBarTop}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#555' }}>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: '#6C4FD4' }}>
           {quota.remaining === 0
             ? '🔒 הגעת למגבלה'
-            : `📨 ${quota.used ?? 0} / ${quota.limit} החלקות היום`}
+            : <><span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> החלקות היום</>}
         </span>
-        {/* Upgrade button only for FREE users — Premium users are already paying */}
-        {plan === 'FREE' && (
-          <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
-        )}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button style={styles.quotaRefreshBtn} onClick={onRefresh} title="רענן משרות">↻</button>
+          {plan === 'FREE' && (
+            <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
+          )}
+        </div>
       </div>
       <div style={styles.quotaBarBg}>
         <motion.div
-          style={{ ...styles.quotaBarFill, background: color }}
+          style={{ ...styles.quotaBarFill, background: barColor }}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.5 }}
@@ -465,14 +478,7 @@ function SwipePage() {
   return (
     <div style={styles.container}>
       {/* Quota bar */}
-      <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} />
-
-      {locationFilter && (
-        <div style={styles.filterBanner}>
-          <span>📍 {locationFilter.name} · עד {locationFilter.radius} ק"מ</span>
-          <button style={styles.refreshBtn} onClick={loadJobs}>🔄</button>
-        </div>
-      )}
+      <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} onRefresh={loadJobs} />
 
       <div style={styles.cardContainer}>
         {filteredJobs.length > 0 ? (
@@ -495,6 +501,7 @@ function SwipePage() {
                 onSwipe={handleSwipe}
                 onOpenDetail={() => !isBlocked && setSelectedJob(currentJob)}
                 locked={isBlocked}
+                locationFilter={locationFilter}
               />
             </AnimatePresence>
 
@@ -539,8 +546,8 @@ function SwipePage() {
       {/* Action buttons — hidden while loading quota or confirmed locked */}
       {filteredJobs.length > 0 && !isBlocked && (
         <div style={styles.buttons}>
-          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')}>✕</motion.button>
-          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')}>♥</motion.button>
+          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')}><img src="/icons/x_icon.png" alt="Pass" style={styles.swipeIcon} /></motion.button>
+          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')}><img src="/icons/heart_icon.png" alt="Like" style={styles.swipeIcon} /></motion.button>
         </div>
       )}
 
@@ -604,20 +611,23 @@ function SwipePage() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
-  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '16px', paddingBottom: '80px' },
-  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '8px', background: 'white', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  container: { height: '100svh', background: 'var(--background)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '12px', paddingBottom: '80px', boxSizing: 'border-box', overflow: 'hidden' },
+  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'white', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 8px rgba(108,79,212,0.12)', border: '1px solid #EDE9FE' },
   quotaBarTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
   quotaUpgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 },
-  quotaBarBg: { height: '6px', borderRadius: '3px', background: '#eee', overflow: 'hidden' },
+  quotaRefreshBtn: { width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #6C4FD4', background: 'white', color: '#6C4FD4', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 },
+  quotaBarBg: { height: '5px', borderRadius: '3px', background: '#EDE9FE', overflow: 'hidden' },
   quotaBarFill: { height: '100%', borderRadius: '3px', transition: 'width 0.5s ease' },
-  filterBanner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#E8F5E9', color: '#2E7D32', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, width: 'min(360px, 95vw)', marginBottom: '8px', gap: '8px' },
-  refreshBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' },
-  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
-  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', height: '480px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
-  stamp: { position: 'absolute', top: '24px', padding: '8px 16px', borderRadius: '12px', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', border: '4px solid', zIndex: 10 },
-  likeStamp: { right: '24px', color: '#4CAF50', borderColor: '#4CAF50', transform: 'rotate(15deg)' },
-  nopeStamp: { left: '24px', color: '#F44336', borderColor: '#F44336', transform: 'rotate(-15deg)' },
-  cardHeader: { display: 'flex', alignItems: 'center', gap: '12px' },
+  locationFilter: { fontSize: '12px', fontWeight: 600, color: '#2E7D32', margin: 0, textAlign: 'right' },
+  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '280px', maxHeight: '520px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
+  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: '16px 20px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
+  stamp: { position: 'absolute', top: '24px', zIndex: 10 },
+  likeStamp: { right: '24px', transform: 'rotate(15deg)' },
+  nopeStamp: { left: '24px', transform: 'rotate(-15deg)' },
+  stampIcon: { height: '120px', objectFit: 'contain' },
+  // LTR + left-aligned so the logo sits on the left and the (Latin) company
+  // name + location align left, instead of being flipped right by the global RTL.
+  cardHeader: { display: 'flex', alignItems: 'center', gap: '12px', direction: 'ltr', textAlign: 'left' },
   logo_img: { width: '52px', height: '52px', borderRadius: '12px', objectFit: 'contain', border: '1px solid #eee' },
   logo_placeholder: { width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #6C4FD4, #4A90E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, color: 'white' },
   company: { fontSize: '18px', fontWeight: 700, color: 'var(--text-dark)', margin: 0 },
@@ -625,20 +635,21 @@ const styles = {
   title: { fontSize: '20px', fontWeight: 700, color: 'var(--primary)', margin: 0 },
   salary: { fontSize: '15px', fontWeight: 600, color: 'var(--secondary)', margin: 0 },
   distance: { fontSize: '13px', fontWeight: 600, color: '#2E7D32', margin: 0 },
-  shortSummaryBlock: { marginTop: '8px' },
-  shortSummaryTitle: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 6px'},
+  shortSummaryBlock: { marginTop: '4px' },
+  shortSummaryTitle: { fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 4px'},
   description: { fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, margin: 0 },
   techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   techBadge: { background: 'var(--background)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid var(--primary)' },
-  tapHint: { fontSize: '11px', color: '#bbb', textAlign: 'center', margin: 0, marginTop: 'auto', paddingTop: '16px'},
+  tapHint: { display: 'flex', justifyContent: 'center', marginTop: 'auto', paddingTop: '12px' },
   lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
   lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '24px' },
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
   lockedSub: { fontSize: '13px', color: '#666', margin: 0 },
   lockedBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
-  buttons: { display: 'flex', gap: '40px', marginTop: '24px' },
-  rejectBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #F44336', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#F44336' },
-  acceptBtn: { width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #4CAF50', background: 'white', fontSize: '24px', cursor: 'pointer', color: '#4CAF50' },
+  buttons: { display: 'flex', gap: '40px', marginTop: '12px', flexShrink: 0 },
+  rejectBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
+  acceptBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
+  swipeIcon: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
   unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '24px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700 },
   undoBtn: { position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minWidth: '44px', minHeight: '44px', padding: '12px 28px', background: '#FF9800', color: 'white', border: 'none', borderRadius: '28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },

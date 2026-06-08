@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'aws-amplify/auth';
+import ICON_SIZES from '../iconSizes';
 
 function Navbar({ isAdmin = false }) {
   const navigate = useNavigate();
@@ -20,15 +21,15 @@ function Navbar({ isAdmin = false }) {
       </div>
       <div style={styles.navbar}>
         <button style={{ ...styles.navBtn, ...(isActive('/swipe') ? styles.active : {}) }} onClick={() => navigate('/swipe')}>
-          <span style={styles.icon}>🔥</span>
+          <img src="/icons/jobs_icon.png" alt="משרות" style={styles.iconImg} />
           <span style={styles.label}>משרות</span>
         </button>
         <button style={{ ...styles.navBtn, ...(isActive('/applications') ? styles.active : {}) }} onClick={() => navigate('/applications')}>
-          <span style={styles.icon}>📋</span>
+          <img src="/icons/applies_icon.png" alt="הגשות" style={styles.iconImg} />
           <span style={styles.label}>הגשות</span>
         </button>
         <button style={{ ...styles.navBtn, ...(isActive('/profile') ? styles.active : {}) }} onClick={() => navigate('/profile')}>
-          <span style={styles.icon}>👤</span>
+          <img src="/icons/profile_icon.png" alt="פרופיל" style={styles.iconImg} />
           <span style={styles.label}>פרופיל</span>
         </button>
         {isAdmin && (
@@ -45,50 +46,24 @@ function Navbar({ isAdmin = false }) {
 
 const styles = {
   header: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '56px',
-    background: 'white',
-    boxShadow: '0 2px 8px rgba(108,79,212,0.1)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 100,
+    position: 'fixed', top: 0, left: 0, right: 0, height: '56px',
+    background: 'white', boxShadow: '0 2px 8px rgba(108,79,212,0.1)',
+    display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100,
   },
-  logo: {
-    height: '36px',
-    objectFit: 'contain',
-  },
+  logo: { height: '36px', objectFit: 'contain' },
   navbar: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '64px',
-    background: 'white',
-    boxShadow: '0 -2px 12px rgba(108,79,212,0.12)',
-    display: 'flex',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    zIndex: 100,
-    boxSizing: 'border-box',
+    position: 'fixed', bottom: 0, left: 0, right: 0, height: '64px',
+    background: 'white', boxShadow: '0 -2px 12px rgba(108,79,212,0.12)',
+    display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+    zIndex: 100, boxSizing: 'border-box', direction: 'ltr',
   },
   navBtn: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '2px',
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '8px 0',
-    color: '#999',
+    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+    gap: '2px', background: 'transparent', border: 'none', cursor: 'pointer',
+    padding: '8px 0', color: '#999',
   },
   active: { color: '#6C4FD4' },
-  icon: { fontSize: '17px', minHeight: '22px', display: 'flex', alignItems: 'center' },
+  iconImg: { width: `${ICON_SIZES.navbar}px`, height: `${ICON_SIZES.navbar}px`, objectFit: 'contain' },
   label: { fontSize: '10px', fontWeight: 600 },
 };
 

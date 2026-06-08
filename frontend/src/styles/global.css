@@ -28,4 +28,14 @@ body {
   background: var(--background);
   color: var(--text-dark);
   min-height: 100vh;
+  direction: rtl;
+  text-align: right;
+}
+
+/* Mixed Hebrew/English: each text block picks its own direction & alignment.
+   Hebrew → RTL/right, English → LTR/left — automatically per element. */
+p, h1, h2, h3, h4, h5, h6, li, label, td, th, blockquote, figcaption,
+input, textarea, select, option {
+  unicode-bidi: plaintext;
+  text-align: start;
 }

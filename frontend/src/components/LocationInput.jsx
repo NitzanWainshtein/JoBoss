@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ICON_SIZES from '../iconSizes';
 
 export default function LocationInput({ value, onChange, onCoordinates }) {
   const [inputVal, setInputVal] = useState(value || '');
@@ -7,15 +8,26 @@ export default function LocationInput({ value, onChange, onCoordinates }) {
 
   useEffect(() => { setInputVal(value || ''); }, [value]);
 
+  const formatAddress = (item) => {
+    const a = item.address || {};
+    const parts = [];
+    if (a.road) {
+      parts.push(a.house_number ? `${a.road} ${a.house_number}` : a.road);
+    }
+    const city = a.city || a.town || a.village || a.municipality || a.suburb || a.county;
+    if (city && city !== a.road) parts.push(city);
+    return parts.length ? parts.join(', ') : (item.display_name || '');
+  };
+
   const fetchSuggestions = async (input) => {
     if (!input || input.length < 2) { setSuggestions([]); return; }
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=5&countrycodes=il`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=5&countrycodes=il&addressdetails=1`,
         { headers: { 'Accept-Language': 'he', 'User-Agent': 'joBoss-app' } }
       );
       const data = await res.json();
-      setSuggestions(data.map(i => ({ place_id: i.place_id, description: i.display_name, latitude: i.lat, longitude: i.lon })));
+      setSuggestions(data.map(i => ({ place_id: i.place_id, description: formatAddress(i), latitude: i.lat, longitude: i.lon })));
     } catch { setSuggestions([]); }
   };
 
@@ -50,7 +62,7 @@ export default function LocationInput({ value, onChange, onCoordinates }) {
               onMouseEnter={e => e.currentTarget.style.background = '#F0F2FF'}
               onMouseLeave={e => e.currentTarget.style.background = 'white'}
             >
-              📍 {s.description}
+              <img src="/icons/location_icon.png" alt="" style={{ width: `${ICON_SIZES.locationDropdown}px`, height: `${ICON_SIZES.locationDropdown}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />{s.description}
             </div>
           ))}
         </div>

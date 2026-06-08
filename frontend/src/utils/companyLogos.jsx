@@ -50,14 +50,14 @@ export const getCompanyLogoUrls = (company, website = null) => {
 
   const urls = [];
 
-  // 1. Google Favicon — מהיר + browser מאחסן בcache, כמעט תמיד עובד
-  urls.push(`https://www.google.com/s2/favicons?domain=${companySlug}.com&sz=128`);
-
-  // 2. Clearbit — לוגו איכותי כשGoogle Favicon לא מוצא
+  // 1. Clearbit — לוגו איכותי, מחזיר 404 אמיתי כשלא מוצא
   urls.push(`https://logo.clearbit.com/${companySlug}.com`);
 
-  // 3. logo.dev — fallback אחרון
+  // 2. logo.dev — fallback, גם מחזיר 404 אמיתי
   urls.push(`https://img.logo.dev/${companySlug}.com?token=pk_X-FzHLV7QemKeyVvoXFHAQ`);
+
+  // Google Favicon מוסר בכוונה: מחזיר גלובוס גנרי (לא 404) לדומיינים לא מוכרים,
+  // כך שה-onError לא מופעל ונתקעים על הגלובוס במקום האות הראשונה.
 
   return {
     primary: urls[0],

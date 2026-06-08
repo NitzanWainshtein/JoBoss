@@ -50,11 +50,11 @@ export const getCompanyLogoUrls = (company, website = null) => {
 
   const urls = [];
 
-  // 1. Clearbit — לוגו איכותי, מחזיר 404 אמיתי כשלא מוצא
-  urls.push(`https://logo.clearbit.com/${companySlug}.com`);
-
-  // 2. logo.dev — fallback, גם מחזיר 404 אמיתי
+  // 1. logo.dev — אמין, מחזיר 404 אמיתי כשלא מוצא
   urls.push(`https://img.logo.dev/${companySlug}.com?token=pk_X-FzHLV7QemKeyVvoXFHAQ`);
+
+  // 2. Clearbit — fallback (לפעמים לא זמין אחרי הרכישה ע"י HubSpot)
+  urls.push(`https://logo.clearbit.com/${companySlug}.com`);
 
   // Google Favicon מוסר בכוונה: מחזיר גלובוס גנרי (לא 404) לדומיינים לא מוכרים,
   // כך שה-onError לא מופעל ונתקעים על הגלובוס במקום האות הראשונה.

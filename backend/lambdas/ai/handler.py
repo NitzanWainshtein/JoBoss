@@ -429,6 +429,35 @@ def check_job_relevance(user, job, resume_text, pdf_bytes=None):
     return {"isRelevant": True, "reason": ""}
 
 
+def extract_text_from_pdf_bytes(pdf_bytes):
+    """Step 1: extract plain text from binary PDF using the document API."""
+    pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+    messages = [{
+        "role": "user",
+        "content": [
+            {
+                "type": "document",
+                "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_b64},
+            },
+            {
+                "type": "text",
+                "text": (
+                    "Extract ALL text from this resume PDF exactly as written. "
+                    "Preserve every section header, bullet point, date, skill, job title, "
+                    "company name, project name, and contact detail. "
+                    "Output ONLY the resume text — no commentary, no formatting changes."
+                ),
+            },
+        ],
+    }]
+    try:
+        extracted = invoke_bedrock_claude(messages, max_tokens=3000)
+        return extracted if extracted and len(extracted) > 100 else None
+    except Exception as e:
+        print(f"[PDF_EXTRACT_ERROR] {e}")
+        return None
+
+
 def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
     job_description = build_job_description(job)
 
@@ -436,30 +465,24 @@ def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
         return build_mock_tailored_resume(user, job, resume_text), "mock"
 
     try:
+        effective_resume_text = resume_text
+
+        # For binary PDFs: extract text first, then use the text-based SKILL prompt.
+        # Two-step approach is more reliable than passing the raw PDF to the tailoring prompt.
         if pdf_bytes and len(pdf_bytes) > 100:
-            # PDF path: pass the actual PDF as a document + job context
-            pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
-            pdf_instruction = build_prompt("[SEE ATTACHED PDF RESUME]", job_description)
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "application/pdf",
-                                "data": pdf_b64,
-                            },
-                        },
-                        {"type": "text", "text": pdf_instruction},
-                    ],
-                }
-            ]
-            return invoke_bedrock_claude(messages, max_tokens=2500), "bedrock-pdf"
-        else:
-            prompt = build_prompt(resume_text, job_description)
-            return invoke_bedrock_nova(prompt), "bedrock"
+            extracted = extract_text_from_pdf_bytes(pdf_bytes)
+            if extracted:
+                effective_resume_text = extracted
+                print(f"[PDF_EXTRACT] extracted {len(extracted)} chars from PDF")
+
+        prompt = build_prompt(effective_resume_text, job_description)
+        result = invoke_bedrock_claude(
+            [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+            max_tokens=4000,
+        )
+        mode = "bedrock-pdf-extracted" if (pdf_bytes and effective_resume_text != resume_text) else "bedrock"
+        return result, mode
+
     except Exception as e:
         print(f"[AI_ERROR] {type(e).__name__}: {e}")
         return build_mock_tailored_resume(user, job, resume_text), "mock"
@@ -508,7 +531,7 @@ def escape_pdf_text(text):
     )
 
 
-def wrap_text(text, max_chars=75):
+def wrap_text(text, max_chars=70):
     lines = []
     for raw_line in text.splitlines():
         words = raw_line.split()
@@ -527,8 +550,8 @@ def wrap_text(text, max_chars=75):
     return lines
 
 
-def _make_page_content(lines, start_y=780):
-    parts = ["BT", "/F1 11 Tf", f"72 {start_y} Td", "14 TL"]
+def _make_page_content(lines, start_y=760):
+    parts = ["BT", "/F1 11 Tf", f"90 {start_y} Td", "14 TL"]
     for i, line in enumerate(lines):
         if i > 0:
             parts.append("T*")

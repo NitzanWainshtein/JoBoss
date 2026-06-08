@@ -17,6 +17,8 @@ IMPORTER_FN   = os.getenv("IMPORTER_FN",  "joboss-jobs-importer")
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 lam      = boto3.client("lambda",    region_name=REGION)
+ses      = boto3.client("ses",       region_name=REGION)
+SES_SENDER = os.getenv("SES_SENDER", "joboss.appteam@gmail.com")
 
 users_table  = dynamodb.Table(USERS_TABLE)
 apps_table   = dynamodb.Table(APPS_TABLE)
@@ -242,14 +244,49 @@ def handle_reset_user_quota(admin_id, user_id):
     return resp(200, {"success": True})
 
 
+def _send_block_email(user_email, blocked):
+    if not user_email:
+        return
+    if blocked:
+        subject = "הודעה חשובה מ-JoBoss - חשבונך הושהה"
+        body = (
+            "שלום,\n\n"
+            "חשבונך ב-JoBoss הושהה על ידי צוות האדמין.\n\n"
+            "לפרטים נוספים ולבירור ניתן לפנות לצוות JoBoss:\n"
+            "joboss.appteam@gmail.com\n\n"
+            "בברכה,\nצוות JoBoss"
+        )
+    else:
+        subject = "הודעה מ-JoBoss - חשבונך שוחרר"
+        body = (
+            "שלום,\n\n"
+            "חשבונך ב-JoBoss שוחרר והינו פעיל מחדש.\n\n"
+            "כעת ניתן להתחבר ולהמשיך להשתמש בשירות.\n\n"
+            "בברכה,\nצוות JoBoss"
+        )
+    try:
+        ses.send_email(
+            Source=SES_SENDER,
+            Destination={"ToAddresses": [user_email]},
+            Message={
+                "Subject": {"Data": subject, "Charset": "UTF-8"},
+                "Body":    {"Text": {"Data": body,    "Charset": "UTF-8"}},
+            },
+        )
+    except Exception as e:
+        print(f"SES send failed: {e}")
+
+
 def handle_block_user(admin_id, user_id, body):
     blocked = body.get("blocked", True)
     log_action(admin_id, "BLOCK_USER" if blocked else "UNBLOCK_USER", f"userId={user_id}")
+    user_record = users_table.get_item(Key={"userId": user_id}).get("Item", {})
     users_table.update_item(
         Key={"userId": user_id},
         UpdateExpression="SET blocked = :b",
         ExpressionAttributeValues={":b": blocked},
     )
+    _send_block_email(user_record.get("email", ""), blocked)
     return resp(200, {"success": True, "blocked": blocked})
 
 

@@ -7,8 +7,10 @@ from boto3.dynamodb.conditions import Key
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 TABLE_NAME = os.environ.get('APPLICATIONS_TABLE_NAME', 'joboss-applications')
 JOBS_TABLE_NAME = os.environ.get('JOBS_TABLE_NAME', 'joboss-jobs')
+USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'joboss-users')
 table = dynamodb.Table(TABLE_NAME)
 jobs_table = dynamodb.Table(JOBS_TABLE_NAME)
+users_table = dynamodb.Table(USERS_TABLE_NAME)
 
 def prefetch_apply_urls(job_ids):
     """Fetch applyUrl for many jobs in one shot via batch_get_item.
@@ -181,6 +183,10 @@ def handler(event, context):
         user_id = event['requestContext']['authorizer']['claims']['sub']
     except (KeyError, TypeError):
         return resp(401, {'error': 'Unauthorized'})
+
+    user_record = users_table.get_item(Key={'userId': user_id}).get('Item', {})
+    if user_record.get('blocked'):
+        return resp(403, {'error': 'Account suspended', 'code': 'ACCOUNT_SUSPENDED'})
 
     # ── GET /applications ──────────────────────────────────────────────────
     if method == 'GET':

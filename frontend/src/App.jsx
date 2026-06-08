@@ -128,9 +128,28 @@ export function isAdminUser(session) {
   } catch { return false; }
 }
 
+function SuspendedScreen() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 32, textAlign: 'center', background: 'var(--background)' }}>
+      <img src="/app_logo.png" alt="JoBoss" style={{ width: 90, marginBottom: 24 }} />
+      <h2 style={{ color: '#1E2A4A', fontSize: 22, fontWeight: 800, margin: '0 0 12px' }}>חשבונך הושהה</h2>
+      <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6, margin: '0 0 8px' }}>
+        נחסמת על ידי צוות JoBoss.
+      </p>
+      <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6 }}>
+        לפרטים ניתן לפנות לצוות:{' '}
+        <a href="mailto:joboss.appteam@gmail.com" style={{ color: '#6C4FD4', fontWeight: 600 }}>
+          joboss.appteam@gmail.com
+        </a>
+      </p>
+    </div>
+  );
+}
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin]       = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
   const [loading, setLoading] = useState(true);
   // Skip the splash for the extension auth bridge so it resolves instantly.
   const isAuthExtRoute = typeof window !== 'undefined' && window.location.pathname === '/auth-extension';
@@ -149,6 +168,11 @@ function App() {
         const data = await getMyProfile();
         setOnboardingCompleted(data?.user?.onboardingCompleted === true);
       } catch (e) {
+        if (e?.status === 403 && e?.data?.code === 'ACCOUNT_SUSPENDED') {
+          setIsSuspended(true);
+          setIsLoggedIn(false);
+          return;
+        }
         // 404 = new user, no profile yet → must go through onboarding
         // Any other error (network, 500) → assume done to not block returning users
         setOnboardingCompleted(e?.status !== 404);
@@ -189,7 +213,9 @@ function App() {
         {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       </AnimatePresence>
 
-      {!showSplash && (
+      {!showSplash && isSuspended && <SuspendedScreen />}
+
+      {!showSplash && !isSuspended && (
         loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--background)' }}>
             <div style={{ textAlign: 'center' }}>
@@ -211,6 +237,7 @@ function App() {
           </Router>
         )
       )}
+
     </>
   );
 }

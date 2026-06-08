@@ -416,6 +416,13 @@ def handler(event, context):
     try:
         method = get_http_method(event)
 
+        if method != "OPTIONS":
+            user_id = get_user_id_from_event(event)
+            if user_id:
+                record = users_table.get_item(Key={"userId": user_id}).get("Item", {})
+                if record.get("blocked"):
+                    return build_response(403, {"error": "Account suspended", "code": "ACCOUNT_SUSPENDED"})
+
         if method == "GET":
             return get_user_profile(event)
 

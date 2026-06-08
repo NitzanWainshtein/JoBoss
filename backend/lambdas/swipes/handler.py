@@ -342,6 +342,12 @@ def handler(event, context):
     if method == "OPTIONS":
         return resp(200, {})
 
+    user_id = get_user_id(event)
+    if user_id:
+        profile = get_user_profile(user_id)
+        if profile.get("blocked"):
+            return resp(403, {"error": "Account suspended", "code": "ACCOUNT_SUSPENDED"})
+
     if method == "GET" and "/quota" in path:
         return get_quota_status(event)
 

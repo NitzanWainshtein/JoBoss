@@ -20,12 +20,14 @@ function Badge({ text, color }) {
 }
 
 function StatCard({ label, value, color = '#6C4FD4', sub }) {
+  const isHebrew = /[֐-׿]/.test(label);
   return (
     <div style={{ background: 'white', borderRadius: 16, padding: '16px 20px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flex: 1, minWidth: 120 }}>
-      <p style={{ fontSize: 26, fontWeight: 800, color, margin: 0 }}>{value ?? '--'}</p>
-      <p style={{ fontSize: 12, color: '#777', margin: '4px 0 0', fontWeight: 600 }}>{label}</p>
-      {sub && <p style={{ fontSize: 11, color: '#aaa', margin: '2px 0 0' }}>{sub}</p>}
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flex: 1, minWidth: 120,
+      direction: isHebrew ? 'rtl' : 'ltr', textAlign: isHebrew ? 'right' : 'left' }}>
+      <p style={{ fontSize: 26, fontWeight: 800, color, margin: 0, unicodeBidi: 'embed' }}>{value ?? '--'}</p>
+      <p style={{ fontSize: 12, color: '#777', margin: '4px 0 0', fontWeight: 600, unicodeBidi: 'embed' }}>{label}</p>
+      {sub && <p style={{ fontSize: 11, color: '#aaa', margin: '2px 0 0', unicodeBidi: 'embed' }}>{sub}</p>}
     </div>
   );
 }
@@ -181,9 +183,9 @@ export default function AdminPage() {
               <StatCard label="סה״כ Swipes"   value={stats.totalSwipes}   color="#FF9800" />
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <StatCard label="Likes כלל הזמן"   value={stats.totalLikes}           color="#6C4FD4" />
-              <StatCard label="Conversion Rate"   value={`${stats.conversionRate}%`}  color="#2196F3" sub="הגשות / Likes" />
-              <StatCard label="AI Tailorings"     value={stats.aiTailoringsTotal}     color="#9C27B0" />
+              <StatCard label="Likes כלל הזמן"        value={stats.totalLikes}        color="#6C4FD4" />
+              <StatCard label="משתמשים חדשים השבוע" value={stats.newUsersThisWeek}  color="#00BCD4" />
+              <StatCard label="AI Tailorings"        value={stats.aiTailoringsTotal} color="#9C27B0" />
               <StatCard label="Bedrock"
                 value={stats.bedrockAvailable ? '✓ זמין' : '✗ לא זמין'}
                 color={stats.bedrockAvailable ? '#4CAF50' : '#F44336'} />
@@ -209,22 +211,9 @@ export default function AdminPage() {
             {users.map(u => (
               <div key={u.userId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: u.blocked ? 0.65 : 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <p style={{ fontWeight: 700, fontSize: 14, color: '#1E2A4A', margin: 0 }}>
-                        {u.fullName || u.email}
-                      </p>
-                      {u.blocked && <Badge text="חסום" color="#F44336" />}
-                      <Badge text={PLAN_LABELS[u.plan] || u.plan} color={PLAN_COLORS[u.plan] || '#888'} />
-                    </div>
-                    <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>{u.email}</p>
-                    <p style={{ fontSize: 11, color: '#bbb', margin: '2px 0 0' }}>
-                      הגשות: {u.appCount} | התקבל: {u.acceptedCount} | נדחה: {u.rejectedCount}
-                      {u.aiTailoringsUsed ? ` | AI: ${u.aiTailoringsUsed}` : ''}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, direction: 'rtl' }}>
+                  {/* buttons first in RTL flow = right side */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', direction: 'ltr', flexShrink: 0 }}>
                     <select
                       defaultValue={u.plan}
                       onChange={e => doUpdatePlan(u.userId, e.target.value)}
@@ -237,6 +226,21 @@ export default function AdminPage() {
                     <ActionBtn label={u.blocked ? '🔓 שחרר' : '🔒 חסום'} color={u.blocked ? '#4CAF50' : '#FF9800'}
                       onClick={() => doBlock(u.userId, !u.blocked)} />
                     <ActionBtn label="🗑" color="#F44336" onClick={() => doDelete(u.userId, u.email)} />
+                  </div>
+                  {/* info second in RTL flow = left side */}
+                  <div style={{ flex: 1, minWidth: 0, direction: 'ltr', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <p style={{ fontWeight: 700, fontSize: 14, color: '#1E2A4A', margin: 0 }}>
+                        {u.fullName || u.email}
+                      </p>
+                      {u.blocked && <Badge text="חסום" color="#F44336" />}
+                      <Badge text={PLAN_LABELS[u.plan] || u.plan} color={PLAN_COLORS[u.plan] || '#888'} />
+                    </div>
+                    <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>{u.email}</p>
+                    <p style={{ fontSize: 11, color: '#bbb', margin: '2px 0 0', direction: 'ltr', unicodeBidi: 'embed' }}>
+                      הגשות: {u.appCount} | התקבל: {u.acceptedCount} | נדחה: {u.rejectedCount}
+                      {u.aiTailoringsUsed ? ` | AI: ${u.aiTailoringsUsed}` : ''}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -258,8 +262,14 @@ export default function AdminPage() {
             {jobs.map(j => (
               <div key={j.jobId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: j.active === false ? 0.55 : 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, direction: 'rtl' }}>
+                  {/* button first in RTL flow = right side */}
+                  <ActionBtn
+                    label={j.active === false ? '▶ הפעל' : '⏸ השבת'}
+                    color={j.active === false ? '#4CAF50' : '#FF9800'}
+                    onClick={() => doToggleJob(j.jobId, j.active !== false)} />
+                  {/* info second in RTL flow = left side, all LTR */}
+                  <div style={{ flex: 1, minWidth: 0, direction: 'ltr', textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <p style={{ fontWeight: 700, fontSize: 14, color: '#1E2A4A', margin: 0 }}>{j.company}</p>
                       <Badge text={j.active === false ? 'לא פעיל' : 'פעיל'}
@@ -270,10 +280,6 @@ export default function AdminPage() {
                       👍 {j.likes || 0} · 👎 {j.passes || 0} · 📍 {j.location || ''}
                     </p>
                   </div>
-                  <ActionBtn
-                    label={j.active === false ? '▶ הפעל' : '⏸ השבת'}
-                    color={j.active === false ? '#4CAF50' : '#FF9800'}
-                    onClick={() => doToggleJob(j.jobId, j.active !== false)} />
                 </div>
               </div>
             ))}
@@ -284,16 +290,6 @@ export default function AdminPage() {
         {/* SELF */}
         {tab === 'self' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* What is Quota */}
-            <div style={{ background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 16, padding: '14px 18px' }}>
-              <p style={{ fontWeight: 700, color: '#F57F17', margin: '0 0 4px' }}>💡 מה זה Quota?</p>
-              <p style={{ fontSize: 13, color: '#795548', margin: 0, lineHeight: 1.6 }}>
-                Quota = המונה של כמה פעולות השתמשת היום/החודש.
-                למשל: 5 swipes מתוך 5 = Quota מלא = לא ניתן להחליק יותר.
-                <strong> איפוס Quota</strong> = האפס את המונה כדי שתוכל לבדוק שוב מההתחלה — ללא תשלום.
-              </p>
-            </div>
 
             {/* Switch Plan */}
             <div style={{ background: 'white', borderRadius: 20, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>

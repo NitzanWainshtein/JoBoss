@@ -116,7 +116,8 @@ def handle_stats(admin_id):
     this_week = (now.replace(day=now.day - now.weekday())).strftime("%Y-%m-%d")
     this_month= now.strftime("%Y-%m")
 
-    users = scan_all(users_table, ProjectionExpression="userId, #p, createdAt, lastActiveAt",
+    users = scan_all(users_table,
+                     ProjectionExpression="userId, #p, createdAt, lastActiveAt, aiTailoringsUsed",
                      ExpressionAttributeNames={"#p": "plan"})
 
     apps  = scan_all(apps_table, ProjectionExpression="userId, jobId, createdAt, #s",
@@ -135,13 +136,12 @@ def handle_stats(admin_id):
     likes_total = sum(1 for s in swipes if s.get("decision") == "LIKE")
 
     ai_tailorings = sum(int(u.get("aiTailoringsUsed", 0) or 0) for u in users)
+    new_users_this_week = sum(1 for u in users if date_of(u) >= this_week)
 
     plan_counts = {}
     for u in users:
         p = u.get("plan", "FREE")
         plan_counts[p] = plan_counts.get(p, 0) + 1
-
-    conversion = round(len(apps) / likes_total * 100, 1) if likes_total else 0
 
     # Bedrock availability check
     try:
@@ -160,7 +160,7 @@ def handle_stats(admin_id):
         "totalSwipes": swipes_total,
         "totalLikes": likes_total,
         "aiTailoringsTotal": ai_tailorings,
-        "conversionRate": conversion,
+        "newUsersThisWeek": new_users_this_week,
         "bedrockAvailable": bedrock_ok,
         "generatedAt": now.isoformat(),
     })

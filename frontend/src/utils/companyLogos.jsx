@@ -35,11 +35,8 @@ export const getCompanyLogoUrls = (company, website = null) => {
   }
 
   const urls = [
-    // 1. DuckDuckGo — אייקונים ברזולוציה גבוהה, מהיר ומוכמן ב-CDN, ומחזיר 404 אמיתי.
-    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-
-    // 2. Google faviconV2 — מכסה חברות ש-DDG מפספס. עם fallback_opts הוא מחזיר 404
-    //    אמיתי כשאין favicon (במקום הגלובוס הגנרי של ה-endpoint הישן s2/favicons).
+    // Google faviconV2 — מחזיר 404 אמיתי כשאין favicon, כך ה-onError נורה ונפול לפלייסהולדר.
+    // DDG הוצא: הוא מחזיר אייקון ברירת-מחדל אפור (">" ) במקום 404 לדומיינים לא מוכרים.
     `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
   ];
 

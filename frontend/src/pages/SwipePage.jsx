@@ -203,7 +203,7 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
       </div>
       {!locked && (
         <div style={styles.tapHint}>
-          <img src="/icons/clickHere_icon.png" alt="לחץ לפרטים נוספים" style={{ height: '36px', objectFit: 'contain' }} draggable="false" />
+          <img src="/icons/clickHere_icon.png" alt="לחץ לפרטים נוספים" style={{ width: 'min(220px, 70%)', height: 'auto', objectFit: 'contain' }} draggable="false" />
         </div>
       )}
     </motion.div>

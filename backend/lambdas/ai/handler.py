@@ -11,7 +11,7 @@ from botocore.exceptions import ClientError
 
 
 REGION = os.getenv("AWS_REGION", "us-east-1")
-MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-opus-4-6-v1")
+MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
 AI_MODE = os.getenv("AI_MODE", "auto")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
 JOBS_TABLE = os.getenv("JOBS_TABLE", "joboss-jobs")
@@ -429,6 +429,35 @@ def check_job_relevance(user, job, resume_text, pdf_bytes=None):
     return {"isRelevant": True, "reason": ""}
 
 
+def extract_text_from_pdf_bytes(pdf_bytes):
+    """Step 1: extract plain text from binary PDF using the document API."""
+    pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+    messages = [{
+        "role": "user",
+        "content": [
+            {
+                "type": "document",
+                "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_b64},
+            },
+            {
+                "type": "text",
+                "text": (
+                    "Extract ALL text from this resume PDF exactly as written. "
+                    "Preserve every section header, bullet point, date, skill, job title, "
+                    "company name, project name, and contact detail. "
+                    "Output ONLY the resume text — no commentary, no formatting changes."
+                ),
+            },
+        ],
+    }]
+    try:
+        extracted = invoke_bedrock_claude(messages, max_tokens=3000)
+        return extracted if extracted and len(extracted) > 100 else None
+    except Exception as e:
+        print(f"[PDF_EXTRACT_ERROR] {e}")
+        return None
+
+
 def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
     job_description = build_job_description(job)
 
@@ -436,30 +465,24 @@ def generate_tailored_resume(user, job, resume_text, pdf_bytes=None):
         return build_mock_tailored_resume(user, job, resume_text), "mock"
 
     try:
+        effective_resume_text = resume_text
+
+        # For binary PDFs: extract text first, then use the text-based SKILL prompt.
+        # Two-step approach is more reliable than passing the raw PDF to the tailoring prompt.
         if pdf_bytes and len(pdf_bytes) > 100:
-            # PDF path: pass the actual PDF as a document + job context
-            pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
-            pdf_instruction = build_prompt("[SEE ATTACHED PDF RESUME]", job_description)
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "application/pdf",
-                                "data": pdf_b64,
-                            },
-                        },
-                        {"type": "text", "text": pdf_instruction},
-                    ],
-                }
-            ]
-            return invoke_bedrock_claude(messages, max_tokens=2500), "bedrock-pdf"
-        else:
-            prompt = build_prompt(resume_text, job_description)
-            return invoke_bedrock_nova(prompt), "bedrock"
+            extracted = extract_text_from_pdf_bytes(pdf_bytes)
+            if extracted:
+                effective_resume_text = extracted
+                print(f"[PDF_EXTRACT] extracted {len(extracted)} chars from PDF")
+
+        prompt = build_prompt(effective_resume_text, job_description)
+        result = invoke_bedrock_claude(
+            [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+            max_tokens=4000,
+        )
+        mode = "bedrock-pdf-extracted" if (pdf_bytes and effective_resume_text != resume_text) else "bedrock"
+        return result, mode
+
     except Exception as e:
         print(f"[AI_ERROR] {type(e).__name__}: {e}")
         return build_mock_tailored_resume(user, job, resume_text), "mock"
@@ -485,22 +508,36 @@ def save_tailored_resume(user_id, job_id, tailored_text):
     }
 
 
+_UNICODE_MAP = str.maketrans({
+    "–": "-", "—": "-", "‒": "-",  # dashes
+    "‘": "'", "’": "'",                   # curly single quotes
+    "“": '"', "”": '"',                   # curly double quotes
+    "•": "-", "‣": "-", "◦": "-",    # bullets
+    "→": "->", "←": "<-", "…": "...",# arrows / ellipsis
+    " ": " ",                                  # non-breaking space
+})
+
+
+def _sanitize(text):
+    return text.translate(_UNICODE_MAP)
+
+
 def escape_pdf_text(text):
     return (
-        text.replace("\\", "\\\\")
+        _sanitize(text)
+        .replace("\\", "\\\\")
         .replace("(", "\\(")
         .replace(")", "\\)")
     )
 
 
-def wrap_text(text, max_chars=86):
+def wrap_text(text, max_chars=70):
     lines = []
     for raw_line in text.splitlines():
         words = raw_line.split()
         if not words:
             lines.append("")
             continue
-
         current = ""
         for word in words:
             if len(current) + len(word) + 1 > max_chars:
@@ -508,51 +545,85 @@ def wrap_text(text, max_chars=86):
                 current = word
             else:
                 current = f"{current} {word}".strip()
-
         if current:
             lines.append(current)
-
     return lines
 
 
+def _make_page_content(lines, start_y=760):
+    parts = ["BT", "/F1 11 Tf", f"90 {start_y} Td", "14 TL"]
+    for i, line in enumerate(lines):
+        if i > 0:
+            parts.append("T*")
+        parts.append(f"({escape_pdf_text(line)}) Tj")
+    parts.append("ET")
+    return "\n".join(parts).encode("latin-1", errors="replace")
+
+
 def build_simple_pdf(text):
-    lines = wrap_text(text)
-    content_lines = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"]
+    all_lines = wrap_text(text)
+    lines_per_page = 52
+    pages = [all_lines[i:i + lines_per_page] for i in range(0, len(all_lines), lines_per_page)]
+    if not pages:
+        pages = [[]]
 
-    for index, line in enumerate(lines[:52]):
-        if index > 0:
-            content_lines.append("T*")
-        content_lines.append(f"({escape_pdf_text(line)}) Tj")
+    objects = []
+    page_content_refs = []
 
-    content_lines.append("ET")
-    content = "\n".join(content_lines).encode("latin-1", errors="replace")
+    # object 1: catalog (placeholder, filled after)
+    # object 2: pages dict (placeholder)
+    # pages and content streams follow
 
-    objects = [
-        b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        b"<< /Length " + str(len(content)).encode("ascii") + b" >>\nstream\n" + content + b"\nendstream",
-    ]
+    base_obj = 3  # first real object index (1-based, but we'll assign below)
 
+    contents = []
+    for page_lines in pages:
+        contents.append(_make_page_content(page_lines))
+
+    # Build object list:
+    # 1 = Catalog
+    # 2 = Pages
+    # For each page N (0-indexed): object 3+2N = Page, object 4+2N = content stream
+    n = len(pages)
+    page_obj_ids = [3 + 2 * i for i in range(n)]
+    content_obj_ids = [4 + 2 * i for i in range(n)]
+    font_obj_id = 3 + 2 * n
+
+    kids = " ".join(f"{oid} 0 R" for oid in page_obj_ids)
+    page_objects = {}
+    page_objects[1] = f"<< /Type /Catalog /Pages 2 0 R >>".encode("ascii")
+    page_objects[2] = f"<< /Type /Pages /Kids [{kids}] /Count {n} >>".encode("ascii")
+
+    for i, (pid, cid, cnt) in enumerate(zip(page_obj_ids, content_obj_ids, contents)):
+        page_objects[pid] = (
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"/Resources << /Font << /F1 {font_obj_id} 0 R >> >> "
+            f"/Contents {cid} 0 R >>".encode("ascii")
+        )
+        page_objects[cid] = (
+            b"<< /Length " + str(len(cnt)).encode("ascii") + b" >>\nstream\n" + cnt + b"\nendstream"
+        )
+
+    page_objects[font_obj_id] = b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+
+    max_id = font_obj_id
     pdf = bytearray(b"%PDF-1.4\n")
-    offsets = []
+    offsets = {}
 
-    for index, obj in enumerate(objects, start=1):
-        offsets.append(len(pdf))
-        pdf.extend(f"{index} 0 obj\n".encode("ascii"))
-        pdf.extend(obj)
+    for oid in range(1, max_id + 1):
+        offsets[oid] = len(pdf)
+        pdf.extend(f"{oid} 0 obj\n".encode("ascii"))
+        pdf.extend(page_objects[oid])
         pdf.extend(b"\nendobj\n")
 
     xref_start = len(pdf)
-    pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    pdf.extend(f"xref\n0 {max_id + 1}\n".encode("ascii"))
     pdf.extend(b"0000000000 65535 f \n")
-
-    for offset in offsets:
-        pdf.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    for oid in range(1, max_id + 1):
+        pdf.extend(f"{offsets[oid]:010d} 00000 n \n".encode("ascii"))
 
     pdf.extend(
-        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF".encode("ascii")
+        f"trailer\n<< /Size {max_id + 1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF".encode("ascii")
     )
 
     return bytes(pdf)

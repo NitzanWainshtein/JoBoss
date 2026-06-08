@@ -719,7 +719,7 @@ const modal = {
   descriptionSection: { background: '#F8FAFC', border: '1px solid #EEF2F7', borderRadius: '14px', padding: '14px' },
   descriptionHeading: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 8px' },
   descriptionText: { fontSize: '14px', color: '#5F6675', lineHeight: 1.65, margin: 0 },
-  bulletList: { margin: 0, paddingInlineStart: '18px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  bulletList: { margin: 0, paddingInlineStart: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px', direction: 'ltr', textAlign: 'left' },
   bulletItem: { fontSize: '14px', color: '#5F6675', lineHeight: 1.55 },
   techList: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   techPill: { background: 'white', color: '#6C4FD4', border: '1px solid #DDD6FE', borderRadius: '999px', padding: '5px 10px', fontSize: '12px', fontWeight: 700 },  applyLink: { color: '#6C4FD4', fontSize: '14px', fontWeight: 600 },

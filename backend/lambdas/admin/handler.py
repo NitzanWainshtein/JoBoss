@@ -14,10 +14,12 @@ SWIPES_TABLE  = os.getenv("SWIPES_TABLE",  "joboss-swipes")
 JOBS_TABLE    = os.getenv("JOBS_TABLE",    "joboss-jobs")
 SUBS_TABLE    = os.getenv("SUBS_TABLE",    "joboss-subscriptions")
 IMPORTER_FN   = os.getenv("IMPORTER_FN",  "joboss-jobs-importer")
+USER_POOL_ID  = os.getenv("USER_POOL_ID",  "us-east-1_a8enAwcyl")
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 lam      = boto3.client("lambda",    region_name=REGION)
 ses      = boto3.client("ses",       region_name=REGION)
+cognito  = boto3.client("cognito-idp", region_name=REGION)
 SES_SENDER = os.getenv("SES_SENDER", "joboss.appteam@gmail.com")
 
 users_table  = dynamodb.Table(USERS_TABLE)
@@ -236,10 +238,11 @@ def handle_update_user_plan(admin_id, user_id, body):
 
 def handle_reset_user_quota(admin_id, user_id):
     log_action(admin_id, "RESET_QUOTA", f"userId={user_id}")
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     users_table.update_item(
         Key={"userId": user_id},
-        UpdateExpression="SET dailySwipesUsed = :z, aiTailoringsUsed = :z, aiTailoringsMonth = :m",
-        ExpressionAttributeValues={":z": 0, ":m": ""},
+        UpdateExpression="SET dailySwipesUsed = :z, aiTailoringsUsed = :z, aiTailoringsMonth = :m, quotaResetAt = :now",
+        ExpressionAttributeValues={":z": 0, ":m": "", ":now": now},
     )
     return resp(200, {"success": True})
 
@@ -247,30 +250,41 @@ def handle_reset_user_quota(admin_id, user_id):
 def _send_block_email(user_email, blocked):
     if not user_email:
         return
+
     if blocked:
         subject = "הודעה חשובה מ-JoBoss - חשבונך הושהה"
-        body = (
-            "שלום,\n\n"
-            "חשבונך ב-JoBoss הושהה על ידי צוות האדמין.\n\n"
-            "לפרטים נוספים ולבירור ניתן לפנות לצוות JoBoss:\n"
-            "joboss.appteam@gmail.com\n\n"
-            "בברכה,\nצוות JoBoss"
-        )
+        html = """
+<div dir="rtl" style="font-family:Arial,sans-serif;font-size:15px;color:#1E2A4A;line-height:1.8;max-width:480px;margin:0 auto;text-align:right;">
+  <p>שלום,</p>
+  <p>חשבונך ב-JoBoss <strong>הושהה</strong> על ידי צוות האדמין.</p>
+  <p>לפרטים נוספים ולבירור ניתן לפנות לצוות JoBoss:</p>
+  <p><a href="mailto:joboss.appteam@gmail.com" style="color:#6C4FD4;">joboss.appteam@gmail.com</a></p>
+  <br/>
+  <p>בברכה,<br/>צוות JoBoss</p>
+</div>"""
+        text = "שלום,\n\nחשבונך ב-JoBoss הושהה על ידי צוות האדמין.\n\nלפרטים: joboss.appteam@gmail.com\n\nבברכה,\nצוות JoBoss"
     else:
         subject = "הודעה מ-JoBoss - חשבונך שוחרר"
-        body = (
-            "שלום,\n\n"
-            "חשבונך ב-JoBoss שוחרר והינו פעיל מחדש.\n\n"
-            "כעת ניתן להתחבר ולהמשיך להשתמש בשירות.\n\n"
-            "בברכה,\nצוות JoBoss"
-        )
+        html = """
+<div dir="rtl" style="font-family:Arial,sans-serif;font-size:15px;color:#1E2A4A;line-height:1.8;max-width:480px;margin:0 auto;text-align:right;">
+  <p>שלום,</p>
+  <p>חשבונך ב-JoBoss <strong>שוחרר</strong> והינו פעיל מחדש.</p>
+  <p>כעת ניתן להתחבר ולהמשיך להשתמש בשירות.</p>
+  <br/>
+  <p>בברכה,<br/>צוות JoBoss</p>
+</div>"""
+        text = "שלום,\n\nחשבונך ב-JoBoss שוחרר והינו פעיל מחדש.\n\nבברכה,\nצוות JoBoss"
+
     try:
         ses.send_email(
             Source=SES_SENDER,
             Destination={"ToAddresses": [user_email]},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body":    {"Text": {"Data": body,    "Charset": "UTF-8"}},
+                "Body": {
+                    "Text": {"Data": text, "Charset": "UTF-8"},
+                    "Html": {"Data": html, "Charset": "UTF-8"},
+                },
             },
         )
     except Exception as e:
@@ -292,6 +306,20 @@ def handle_block_user(admin_id, user_id, body):
 
 def handle_delete_user(admin_id, user_id):
     log_action(admin_id, "DELETE_USER", f"userId={user_id}")
+
+    user_record = users_table.get_item(Key={"userId": user_id}).get("Item", {})
+    email = user_record.get("email", "")
+
+    # Delete from Cognito so the user can no longer log in
+    if email:
+        try:
+            cognito.admin_delete_user(UserPoolId=USER_POOL_ID, Username=email)
+            print(f"Deleted Cognito user: {email}")
+        except cognito.exceptions.UserNotFoundException:
+            print(f"Cognito user not found (already deleted?): {email}")
+        except Exception as e:
+            print(f"Cognito delete failed: {e}")
+
     users_table.delete_item(Key={"userId": user_id})
     return resp(200, {"success": True})
 

@@ -139,17 +139,29 @@ def count_today_applications(user_id):
     today_iso = today.isoformat()
     tomorrow_iso = (today + timedelta(days=1)).isoformat()
 
-    # Fetch items (not just COUNT) so we can log the matched dates
+    # If admin reset quota today, count only from that reset point
+    try:
+        user_record = users_table.get_item(
+            Key={"userId": user_id},
+            ProjectionExpression="quotaResetAt",
+        ).get("Item", {})
+        reset_at = user_record.get("quotaResetAt", "")
+        if reset_at and reset_at > today_iso:
+            count_from = reset_at
+        else:
+            count_from = today_iso
+    except Exception:
+        count_from = today_iso
+
     result = applications_table.scan(
         FilterExpression=boto3.dynamodb.conditions.Attr("userId").eq(user_id)
-        & boto3.dynamodb.conditions.Attr("createdAt").between(today_iso, tomorrow_iso),
+        & boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso),
         ConsistentRead=True,
         ProjectionExpression="createdAt",
     )
     items = result.get("Items", [])
     count = len(items)
-    matched = sorted([item.get("createdAt", "?") for item in items])
-    print(f"SCAN RESULT: today={today_iso}, tomorrow={tomorrow_iso}, count={count}, matched={matched}")
+    print(f"QUOTA COUNT: userId={user_id}, from={count_from}, count={count}")
     return count
 
 

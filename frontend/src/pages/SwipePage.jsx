@@ -167,8 +167,8 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       onTap={() => { if (!locked && !isDragging) onOpenDetail(); }}
       whileTap={locked ? {} : { cursor: 'grabbing' }}
     >
-      {!locked && <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity }}><img src="/icons/yes_icon.png" alt="YES" style={{ height: `${ICON_SIZES.stampYes}px`, objectFit: 'contain' }} /></motion.div>}
-      {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity }}><img src="/icons/nope_icon.png" alt="NOPE" style={{ height: `${ICON_SIZES.stampNope}px`, objectFit: 'contain' }} /></motion.div>}
+      {!locked && <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity, pointerEvents: 'none' }}><img src="/icons/yes_icon.png" alt="YES" draggable="false" style={{ height: `${ICON_SIZES.stampYes}px`, objectFit: 'contain' }} /></motion.div>}
+      {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity, pointerEvents: 'none' }}><img src="/icons/nope_icon.png" alt="NOPE" draggable="false" style={{ height: `${ICON_SIZES.stampNope}px`, objectFit: 'contain' }} /></motion.div>}
 
       <div style={styles.cardHeader}>
         <CompanyLogo company={job.company} style={styles.logo_img} />

@@ -537,51 +537,55 @@ function ApplicationsPage() {
     <div style={styles.container}>
       <div style={styles.content}>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-8px' }}>
-          <button style={styles.refreshBtn} onClick={loadApplications}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><img src="/icons/refresh_icon.png" alt="" style={{ width: `${ICON_SIZES.cvButton}px`, height: `${ICON_SIZES.cvButton}px`, objectFit: 'contain' }} />רענן</span></button>
+        {/* Page header: title + refresh */}
+        <div style={styles.pageHeader}>
+          <span style={styles.pageTitle}>הגשות שלי</span>
+          <button style={styles.refreshBtn} onClick={loadApplications}>
+            <img src="/icons/refresh_icon.png" alt="" style={{ width: `${ICON_SIZES.cvButton}px`, height: `${ICON_SIZES.cvButton}px`, objectFit: 'contain' }} />
+            רענן
+          </button>
         </div>
 
-        <div style={styles.statsRow}>
-          <div style={styles.stat}>
-            <span style={styles.statNum}>{applications.length}</span>
-            <span style={styles.statLabel}><img src="/icons/applies_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />סה"כ</span>
+        {/* Compact stats strip */}
+        <div style={styles.statsStrip}>
+          <div style={styles.statChip}>
+            <span style={{ ...styles.statChipNum, color: '#6C4FD4' }}>{applications.length}</span>
+            <img src="/icons/applies_icon.png" alt="" style={styles.statChipIcon} />
+            <span style={styles.statChipLabel}>סה"כ</span>
           </div>
-          <div style={styles.stat}>
-            <span style={{ ...styles.statNum, color: '#9C27B0' }}>
-              {applications.filter(a => a.status === 'INTERVIEW').length}
-            </span>
-            <span style={styles.statLabel}><img src="/icons/interviews_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />ראיונות</span>
+          <div style={styles.statChipDiv} />
+          <div style={styles.statChip}>
+            <span style={{ ...styles.statChipNum, color: '#9C27B0' }}>{applications.filter(a => a.status === 'INTERVIEW').length}</span>
+            <img src="/icons/interviews_icon.png" alt="" style={styles.statChipIcon} />
+            <span style={styles.statChipLabel}>ראיונות</span>
           </div>
-          <div style={styles.stat}>
-            <span style={{ ...styles.statNum, color: '#4CAF50' }}>
-              {applications.filter(a => a.status === 'ACCEPTED').length}
-            </span>
-            <span style={styles.statLabel}><img src="/icons/accepted_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />התקבלו</span>
+          <div style={styles.statChipDiv} />
+          <div style={styles.statChip}>
+            <span style={{ ...styles.statChipNum, color: '#4CAF50' }}>{applications.filter(a => a.status === 'ACCEPTED').length}</span>
+            <img src="/icons/accepted_icon.png" alt="" style={styles.statChipIcon} />
+            <span style={styles.statChipLabel}>התקבלו</span>
           </div>
+          {canTailorCV && applications.some(a => a.autoApplyStatus) && (<>
+            <div style={styles.statChipDiv} />
+            <div style={styles.statChip}>
+              <span style={{ ...styles.statChipNum, color: '#4CAF50' }}>{applications.filter(a => a.autoApplyStatus === 'success').length}</span>
+              <img src="/icons/robot_icon.png" alt="" style={styles.statChipIcon} />
+              <span style={styles.statChipLabel}>אוטו'</span>
+            </div>
+            <div style={styles.statChipDiv} />
+            <div style={styles.statChip}>
+              <span style={{ ...styles.statChipNum, color: '#7C3AED' }}>{applications.filter(a => a.autoApplyStatus === 'pending').length}</span>
+              <img src="/icons/process_icon.png" alt="" style={styles.statChipIcon} />
+              <span style={styles.statChipLabel}>בתהליך</span>
+            </div>
+            <div style={styles.statChipDiv} />
+            <div style={styles.statChip}>
+              <span style={{ ...styles.statChipNum, color: '#FF9800' }}>{applications.filter(a => a.autoApplyStatus === 'manual').length}</span>
+              <img src="/icons/waiting_to_apply_icon.png" alt="" style={styles.statChipIcon} />
+              <span style={styles.statChipLabel}>ממתינים</span>
+            </div>
+          </>)}
         </div>
-
-        {canTailorCV && applications.some(a => a.autoApplyStatus) && (
-          <div style={styles.statsRow}>
-            <div style={styles.statSmall}>
-              <span style={{ ...styles.statNumSmall, color: '#4CAF50' }}>
-                {applications.filter(a => a.autoApplyStatus === 'success').length}
-              </span>
-              <span style={styles.statLabel}><img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />הוגשו אוטומטית</span>
-            </div>
-            <div style={styles.statSmall}>
-              <span style={{ ...styles.statNumSmall, color: '#7C3AED' }}>
-                {applications.filter(a => a.autoApplyStatus === 'pending').length}
-              </span>
-              <span style={styles.statLabel}><img src="/icons/process_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />בתהליך</span>
-            </div>
-            <div style={styles.statSmall}>
-              <span style={{ ...styles.statNumSmall, color: '#FF9800' }}>
-                {applications.filter(a => a.autoApplyStatus === 'manual').length}
-              </span>
-              <span style={styles.statLabel}><img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.statLabel}px`, height: `${ICON_SIZES.statLabel}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />ממתינים לידני</span>
-            </div>
-          </div>
-        )}
 
         {/* Level 1 — primary tabs */}
         <div style={styles.filterRow}>
@@ -791,13 +795,21 @@ function ApplicationsPage() {
 
 const styles = {
   container: { minHeight: '100vh', background: 'var(--background)' },
-  content: { padding: '16px', maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' },
-  statsRow: { display: 'flex', gap: '12px', justifyContent: 'center' },
-  stat: { background: 'white', borderRadius: '16px', padding: '16px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  statNum: { fontSize: '28px', fontWeight: 800, color: '#6C4FD4' },
-  statLabel: { fontSize: '12px', color: '#777' },
-  statSmall: { background: 'white', borderRadius: '14px', padding: '10px 12px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
-  statNumSmall: { fontSize: '22px', fontWeight: 800 },
+  content: { padding: '12px 16px', maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' },
+
+  /* Page header */
+  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  pageTitle: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A' },
+  refreshBtn: { display: 'flex', alignItems: 'center', gap: '5px', background: 'white', border: '1.5px solid #e0e0e0', borderRadius: '20px', padding: '6px 14px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#555', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+
+  /* Compact stats strip */
+  statsStrip: { display: 'flex', background: 'white', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.07)' },
+  statChip: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', gap: '3px' },
+  statChipNum: { fontSize: '20px', fontWeight: 800, lineHeight: 1.1 },
+  statChipIcon: { width: '13px', height: '13px', objectFit: 'contain' },
+  statChipLabel: { fontSize: '9px', color: '#aaa', fontWeight: 600, textAlign: 'center' },
+  statChipDiv: { width: '1px', background: '#F0F0F0', alignSelf: 'stretch', flexShrink: 0 },
+
   autoBox: { borderRadius: '12px', border: '1px solid', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', direction: 'rtl' },
   autoBoxCol: { borderRadius: '12px', border: '1px solid', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '2px', direction: 'rtl' },
   autoTitle: { margin: 0, fontSize: '13px', fontWeight: 800 },
@@ -806,39 +818,38 @@ const styles = {
   detailBtn: { border: '1.5px solid', borderRadius: '999px', background: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
   detailPanel: { overflow: 'hidden', transition: 'max-height 0.3s ease, opacity 0.3s ease' },
   detailInner: { paddingTop: '10px' },
-  filterRow: { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' },
-  filterBtn: { flexShrink: 0, padding: '8px 16px', borderRadius: '20px', border: '1.5px solid #ddd', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#666', whiteSpace: 'nowrap' },
+  filterRow: { display: 'flex', gap: '7px', overflowX: 'auto', paddingBottom: '3px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' },
+  filterBtn: { flexShrink: 0, padding: '7px 15px', borderRadius: '20px', border: '1.5px solid #e0e0e0', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#666', whiteSpace: 'nowrap' },
   filterActive: { background: '#6C4FD4', borderColor: '#6C4FD4', color: 'white' },
-  subFilterRow: { display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', marginTop: '-8px', paddingRight: '4px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' },
-  subFilterBtn: { flexShrink: 0, padding: '6px 14px', borderRadius: '16px', border: '1px solid #E5E0F5', background: '#F8F6FF', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#6C4FD4', whiteSpace: 'nowrap' },
+  subFilterRow: { display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', marginTop: '-4px', paddingRight: '4px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' },
+  subFilterBtn: { flexShrink: 0, padding: '5px 13px', borderRadius: '16px', border: '1px solid #E5E0F5', background: '#F8F6FF', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#6C4FD4', whiteSpace: 'nowrap' },
   subFilterActive: { background: '#1E2A4A', borderColor: '#1E2A4A', color: 'white' },
-  list: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  card: { background: 'white', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: '12px' },
-  cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardInfo: { display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 },
-  company: { fontSize: '16px', fontWeight: 700, margin: 0, color: '#1E2A4A' },
-  title: { fontSize: '13px', color: '#6C4FD4', fontWeight: 600, margin: 0 },
-  date: { fontSize: '11px', color: '#bbb', margin: 0 },
-  badge: { padding: '4px 12px', borderRadius: '20px', color: 'white', fontSize: '12px', fontWeight: 700, flexShrink: 0 },
-  tailoredBox: { background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', padding: '10px 12px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px', direction: 'rtl' },
+  list: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  card: { background: 'white', borderRadius: '14px', padding: '14px', boxShadow: '0 1px 5px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: '10px' },
+  cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' },
+  cardInfo: { display: 'flex', flexDirection: 'column', gap: '1px', flex: 1, minWidth: 0 },
+  company: { fontSize: '15px', fontWeight: 700, margin: 0, color: '#1E2A4A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  title: { fontSize: '12px', color: '#6C4FD4', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  date: { fontSize: '10px', color: '#ccc', margin: 0 },
+  badge: { padding: '3px 10px', borderRadius: '20px', color: 'white', fontSize: '11px', fontWeight: 700, flexShrink: 0, marginTop: '1px' },
+  tailoredBox: { background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '9px 11px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px', direction: 'rtl' },
   tailoredTitle: { margin: 0, fontSize: '12px', fontWeight: 800, color: '#166534' },
-  tailoredSub: { margin: '4px 0 0', fontSize: '11px', color: '#15803D' },
-  tailoredActions: { display: 'flex', gap: '8px', flexShrink: 0 },
-  tailoredButton: { border: '1px solid #86EFAC', borderRadius: '999px', background: 'white', color: '#166534', padding: '7px 12px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
-  tailoringBox: { background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' },
+  tailoredSub: { margin: '3px 0 0', fontSize: '11px', color: '#15803D' },
+  tailoredActions: { display: 'flex', gap: '6px', flexShrink: 0 },
+  tailoredButton: { border: '1px solid #86EFAC', borderRadius: '999px', background: 'white', color: '#166534', padding: '5px 11px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
+  tailoringBox: { background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '10px', padding: '9px 12px', display: 'flex', alignItems: 'center', gap: '10px' },
   tailoringSpinner: { fontSize: '20px', animation: 'spin 1.5s linear infinite' },
   tailoringTitle: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#F57F17' },
   tailoringSub: { margin: '2px 0 0', fontSize: '11px', color: '#F9A825' },
-  manualTailorBtn: { width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px dashed #6C4FD4', background: '#F8F6FF', color: '#6C4FD4', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  manualTailorBtnLocked: { width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px dashed #ccc', background: '#F5F5F5', color: '#999', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  actions: { display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' },
-  actionBtn: { padding: '7px 12px', borderRadius: '20px', border: '1.5px solid', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', minHeight: '36px' },
+  manualTailorBtn: { width: '100%', padding: '9px', borderRadius: '10px', border: '1.5px dashed #6C4FD4', background: '#F8F6FF', color: '#6C4FD4', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
+  manualTailorBtnLocked: { width: '100%', padding: '9px', borderRadius: '10px', border: '1.5px dashed #ccc', background: '#F5F5F5', color: '#999', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
+  actions: { display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-end' },
+  actionBtn: { padding: '5px 11px', borderRadius: '20px', border: '1.5px solid', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', minHeight: '30px' },
   actionActive: {},
-  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '48px 24px', background: 'white', borderRadius: '16px', textAlign: 'center' },
+  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '48px 24px', background: 'white', borderRadius: '14px', textAlign: 'center' },
   emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
   emptySub: { fontSize: '14px', color: '#777', margin: 0 },
   retryBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 },
-  refreshBtn: { background: 'white', border: '1.5px solid #ddd', borderRadius: '20px', padding: '6px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#555' },
   previewOverlay: { position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 },
   previewModal: { width: 'min(760px, 96vw)', maxHeight: '86vh', background: 'white', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 24px 80px rgba(15, 23, 42, 0.25)', direction: 'rtl' },
   previewHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },

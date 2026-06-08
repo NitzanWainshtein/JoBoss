@@ -6,7 +6,7 @@ import {
   adminToggleJob, adminTriggerImport, adminResetMyQuota, adminResetMySwipes,
 } from '../api';
 
-const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: '⭐ פרימיום', PREMIUM_PLUS: '🔥 פרימיום+' };
+const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: 'פרימיום', PREMIUM_PLUS: 'פרימיום+' };
 const PLAN_COLORS = { FREE: '#888', PREMIUM: '#6C4FD4', PREMIUM_PLUS: '#FF6B6B' };
 
 function Badge({ text, color }) {
@@ -291,10 +291,10 @@ export default function AdminPage() {
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
-                  { plan: 'FREE',         label: 'FREE',      sub: '5 swipes ביום · 0 AI',        color: '#888' },
-                  { plan: 'PREMIUM',      label: '⭐ PREMIUM', sub: '30 swipes ביום · 10 AI/חודש', color: '#6C4FD4' },
-                  { plan: 'PREMIUM_PLUS', label: '🔥 PREMIUM+',sub: 'ללא הגבלה בכל מה',            color: '#FF6B6B' },
-                ].map(({ plan, label, sub, color }) => (
+                  { plan: 'FREE',         icon: '/icons/free_members_icon.png',    label: 'FREE',     sub: '5 swipes ביום · 0 AI',        color: '#888' },
+                  { plan: 'PREMIUM',      icon: '/icons/premium_member_icon.png',  label: 'PREMIUM',  sub: '30 swipes ביום · 10 AI/חודש', color: '#6C4FD4' },
+                  { plan: 'PREMIUM_PLUS', icon: '/icons/plus_members_icon.png',    label: 'PREMIUM+', sub: 'ללא הגבלה בכל מה',            color: '#FF6B6B' },
+                ].map(({ plan, icon, label, sub, color }) => (
                   <button key={plan}
                     onClick={async () => {
                       setMyPlan(plan);
@@ -303,11 +303,14 @@ export default function AdminPage() {
                         showToast(`עברת ל-${plan} + Quota אופס`);
                       } catch { showToast('שגיאה', false); }
                     }}
-                    style={{ flex: 1, minWidth: 130, padding: '14px 10px', borderRadius: 14,
+                    style={{ flex: 1, minWidth: 150, padding: '14px 14px', borderRadius: 14,
                       border: `2px solid ${color}`, background: color + '10',
-                      cursor: 'pointer', textAlign: 'center' }}>
-                    <p style={{ fontWeight: 800, fontSize: 14, color, margin: '0 0 4px' }}>{label}</p>
-                    <p style={{ fontSize: 11, color: '#777', margin: 0 }}>{sub}</p>
+                      cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, direction: 'ltr' }}>
+                      <p style={{ fontWeight: 800, fontSize: 15, color, margin: 0 }}>{label}</p>
+                      <img src={icon} alt={label} style={{ height: 64, width: 'auto', maxWidth: 110, objectFit: 'contain', flexShrink: 0 }} />
+                    </div>
+                    <p style={{ fontSize: 11, color: '#777', margin: 0, textAlign: 'center' }}>{sub}</p>
                   </button>
                 ))}
               </div>

@@ -640,13 +640,13 @@ function SwipePage() {
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       style={{ rotate: -90, transformOrigin: '50% 50%' }}
-                      strokeDasharray={`${2 * Math.PI * 23}`}
+                      strokeDasharray={`${2 * Math.PI * 35}`}
                       initial={{ strokeDashoffset: 0 }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * 23 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 35 }}
                       transition={{ duration: 5, ease: 'linear' }}
                     />
                   </svg>
-                  <img src="/icons/undo_icon.png" alt="undo" style={{ width: '36px', height: '36px', objectFit: 'contain', position: 'relative', zIndex: 1 }} />
+                  <img src="/icons/undo_icon.png" alt="undo" style={{ width: '54px', height: '54px', objectFit: 'contain', position: 'relative', zIndex: 1 }} />
                 </motion.button>
               )}
             </AnimatePresence>
@@ -752,10 +752,9 @@ const styles = {
   rejectBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   acceptBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   swipeIcon: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
-  undoBtnSlot: { width: '46px', height: '46px', flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  undoBtn: { width: '46px', height: '46px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  undoBtnSlot: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  undoBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' },
   unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '24px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700 },
-  undoBtn: { width: '46px', height: '46px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(108,79,212,0.18)', borderRadius: '50%', cursor: 'pointer', padding: 0, boxShadow: '0 4px 16px rgba(108,79,212,0.15)', marginBottom: '4px' },
   tailorLimitToast: { marginTop: '6px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#B45309', textAlign: 'center', maxWidth: 'min(360px, 95vw)' },
   tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(108,79,212,0.10)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderRadius: '10px', padding: '7px 12px', border: '1px solid rgba(108,79,212,0.2)', overflow: 'hidden' },
   tailorProgressRow: { display: 'flex', alignItems: 'center', gap: '7px', direction: 'rtl' },

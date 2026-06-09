@@ -424,6 +424,8 @@ function UpgradeCard({ plan, loading, onCheckout }) {
   );
 }
 
+const PLAN_RANK = { FREE: 0, PREMIUM: 1, PREMIUM_PLUS: 2 };
+
 function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
   const planKeys = ['FREE', 'PREMIUM', 'PREMIUM_PLUS'];
 
@@ -437,10 +439,12 @@ function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
           const isCurrent = pk === currentPlanKey;
           return (
             <div key={pk} style={{ ...styles.comparePlanCol, borderColor: plan.color }}>
-              {plan.popular && (
+              {plan.popular ? (
                 <div style={{ ...styles.popularBadge, background: plan.color, position: 'static', marginBottom: '4px' }}>
                   🔥 הכי פופולרי
                 </div>
+              ) : (
+                <div style={{ height: '26px' }} />
               )}
               <img src={pk === 'FREE' ? '/icons/free_members_icon.png' : pk === 'PREMIUM' ? '/icons/premium_member_icon.png' : '/icons/plus_members_icon.png'} alt="" style={{ width: `${ICON_SIZES.planLogoTable}px`, height: `${ICON_SIZES.planLogoTable}px`, objectFit: 'contain', marginBottom: '4px' }} />
               <p style={{ ...styles.comparePlanName, color: plan.color }}>{plan.name}</p>
@@ -456,7 +460,11 @@ function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
                   onClick={() => onCheckout(pk)}
                   disabled={checkoutLoading === pk}
                 >
-                  {checkoutLoading === pk ? '...' : 'שדרג'}
+                  {checkoutLoading === pk
+                    ? '...'
+                    : PLAN_RANK[pk] > PLAN_RANK[currentPlanKey]
+                      ? 'שדרג'
+                      : 'שנה תוכנית'}
                 </motion.button>
               ) : null}
             </div>

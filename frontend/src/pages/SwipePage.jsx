@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
@@ -275,6 +275,8 @@ function SwipePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastSwipe, setLastSwipe] = useState(null);
+  const [showUndo, setShowUndo] = useState(false);
+  const undoTimerRef = useRef(null);
   const [swipedRight, setSwipedRight] = useState(0);
   const [selectedJob, setSelectedJob] = useState(null);
   const [locationFilter, setLocationFilter] = useState(null);
@@ -381,6 +383,9 @@ function SwipePage() {
     setLastSwipe({ direction, job: currentJob });
     setSwipedJobs(prev => new Set([...prev, currentJob.jobId]));
     if (direction === 'right') setSwipedRight(p => p + 1);
+    setShowUndo(true);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = setTimeout(() => setShowUndo(false), 5000);
     setJobs(prev => prev.slice(0, -1));
 
     if (direction === 'right' && autoTailorCV) {
@@ -451,6 +456,8 @@ function SwipePage() {
 
   const handleUndo = async () => {
     if (!lastSwipe) return;
+    setShowUndo(false);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     try {
       await undoSwipe(lastSwipe.job.jobId);
       setSwipedJobs(prev => { const s = new Set(prev); s.delete(lastSwipe.job.jobId); return s; });
@@ -608,6 +615,43 @@ function SwipePage() {
       {filteredJobs.length > 0 && !isBlocked && (
         <div style={styles.buttons}>
           <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')}><img src="/icons/x_icon.png" alt="Pass" style={styles.swipeIcon} /></motion.button>
+
+          {/* Undo — always takes the same space so X/heart never shift */}
+          <div style={styles.undoBtnSlot}>
+            <AnimatePresence>
+              {showUndo && lastSwipe && (
+                <motion.button
+                  style={styles.undoBtn}
+                  initial={{ opacity: 0, scale: 0.4 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.4 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+                  whileTap={{ scale: 0.85 }}
+                  onClick={handleUndo}
+                  aria-label="בטל Swipe"
+                >
+                  {/* Countdown ring */}
+                  <svg style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', overflow: 'visible', pointerEvents: 'none' }}>
+                    <motion.circle
+                      key={lastSwipe.job.jobId}
+                      cx="50%" cy="50%" r="50%"
+                      fill="none"
+                      stroke="#6C4FD4"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      style={{ rotate: -90, transformOrigin: '50% 50%' }}
+                      strokeDasharray={`${2 * Math.PI * 23}`}
+                      initial={{ strokeDashoffset: 0 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 23 }}
+                      transition={{ duration: 5, ease: 'linear' }}
+                    />
+                  </svg>
+                  <img src="/icons/undo_icon.png" alt="undo" style={{ width: '36px', height: '36px', objectFit: 'contain', position: 'relative', zIndex: 1 }} />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
           <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')}><img src="/icons/heart_icon.png" alt="Like" style={styles.swipeIcon} /></motion.button>
         </div>
       )}
@@ -645,25 +689,6 @@ function SwipePage() {
               : autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
             : `👋 דולגה — ${lastSwipe.job.company}`}
         </motion.p>
-      )}
-
-      {/* Undo button — fixed at bottom of screen, above navbar, never hidden behind cards.
-          Only shown when there is a previous swipe to undo. */}
-      {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
-        <motion.button
-          style={styles.undoBtn}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleUndo}
-          aria-label="בטל את ה-Swipe האחרון"
-          title="בטל"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <span style={{ fontSize: '20px', lineHeight: 1 }}>↩</span>
-          <span>Undo</span>
-        </motion.button>
       )}
 
       {/* Limit modal */}
@@ -723,12 +748,14 @@ const styles = {
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
   lockedSub: { fontSize: '13px', color: '#666', margin: 0 },
   lockedBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
-  buttons: { display: 'flex', gap: '40px', marginTop: '12px', flexShrink: 0 },
+  buttons: { display: 'flex', gap: '24px', marginTop: '12px', flexShrink: 0, alignItems: 'center' },
   rejectBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   acceptBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   swipeIcon: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
+  undoBtnSlot: { width: '46px', height: '46px', flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  undoBtn: { width: '46px', height: '46px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' },
   unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '24px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700 },
-  undoBtn: { position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minWidth: '44px', minHeight: '44px', padding: '12px 28px', background: '#FF9800', color: 'white', border: 'none', borderRadius: '28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' },
+  undoBtn: { width: '46px', height: '46px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(108,79,212,0.18)', borderRadius: '50%', cursor: 'pointer', padding: 0, boxShadow: '0 4px 16px rgba(108,79,212,0.15)', marginBottom: '4px' },
   tailorLimitToast: { marginTop: '6px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#B45309', textAlign: 'center', maxWidth: 'min(360px, 95vw)' },
   tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(108,79,212,0.10)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderRadius: '10px', padding: '7px 12px', border: '1px solid rgba(108,79,212,0.2)', overflow: 'hidden' },
   tailorProgressRow: { display: 'flex', alignItems: 'center', gap: '7px', direction: 'rtl' },

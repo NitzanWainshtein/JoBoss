@@ -15,6 +15,7 @@ JOBS_TABLE    = os.getenv("JOBS_TABLE",    "joboss-jobs")
 SUBS_TABLE    = os.getenv("SUBS_TABLE",    "joboss-subscriptions")
 IMPORTER_FN   = os.getenv("IMPORTER_FN",  "joboss-jobs-importer")
 USER_POOL_ID  = os.getenv("USER_POOL_ID",  "us-east-1_a8enAwcyl")
+APP_CLIENT_ID = os.getenv("APP_CLIENT_ID", "5o1mg9dtkh7kjuvqu145oafv00")
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 lam      = boto3.client("lambda",    region_name=REGION)
@@ -182,9 +183,29 @@ def safe_user(u):
     return base
 
 
+def get_admin_emails():
+    admin_emails = set()
+    kwargs = {"UserPoolId": USER_POOL_ID, "GroupName": "ADMIN"}
+    while True:
+        try:
+            r = cognito.list_users_in_group(**kwargs)
+        except Exception:
+            break
+        for u in r.get("Users", []):
+            for attr in u.get("Attributes", []):
+                if attr["Name"] == "email":
+                    admin_emails.add(attr["Value"].lower())
+        next_token = r.get("NextToken")
+        if not next_token:
+            break
+        kwargs["NextToken"] = next_token
+    return admin_emails
+
+
 def handle_list_users(admin_id):
     log_action(admin_id, "LIST_USERS")
     users = scan_all(users_table)
+    admin_emails = get_admin_emails()
 
     app_counts = {}
     all_apps = scan_all(apps_table, ProjectionExpression="userId, #s",
@@ -204,6 +225,7 @@ def handle_list_users(admin_id):
         safe["appCount"]      = app_counts.get(uid, {}).get("total", 0)
         safe["acceptedCount"] = app_counts.get(uid, {}).get("ACCEPTED", 0)
         safe["rejectedCount"] = app_counts.get(uid, {}).get("REJECTED", 0)
+        safe["isAdmin"]       = (safe.get("email", "").lower() in admin_emails)
         result.append(safe)
 
     result.sort(key=lambda u: u.get("createdAt", ""), reverse=True)
@@ -302,6 +324,87 @@ def handle_block_user(admin_id, user_id, body):
     )
     _send_block_email(user_record.get("email", ""), blocked)
     return resp(200, {"success": True, "blocked": blocked})
+
+
+def handle_grant_admin(admin_id, user_id, body):
+    password = body.get("password", "")
+    if not password:
+        return resp(400, {"error": "Password required"})
+
+    # Verify the requesting admin's own password via Cognito
+    admin_record = users_table.get_item(Key={"userId": admin_id}).get("Item", {})
+    admin_email = admin_record.get("email", "")
+    if not admin_email:
+        return resp(400, {"error": "Admin email not found"})
+    try:
+        cognito.initiate_auth(
+            ClientId=APP_CLIENT_ID,
+            AuthFlow="USER_PASSWORD_AUTH",
+            AuthParameters={"USERNAME": admin_email, "PASSWORD": password},
+        )
+    except cognito.exceptions.NotAuthorizedException:
+        return resp(401, {"error": "סיסמה שגויה"})
+    except Exception as e:
+        return resp(500, {"error": f"Password verification failed: {str(e)}"})
+
+    # Add target user to ADMIN Cognito group
+    user_record = users_table.get_item(Key={"userId": user_id}).get("Item", {})
+    target_email = user_record.get("email", "")
+    if not target_email:
+        return resp(404, {"error": "User not found"})
+    try:
+        cognito.admin_add_user_to_group(
+            UserPoolId=USER_POOL_ID,
+            Username=target_email,
+            GroupName="ADMIN",
+        )
+    except Exception as e:
+        return resp(500, {"error": f"Failed to grant admin: {str(e)}"})
+
+    log_action(admin_id, "GRANT_ADMIN", f"targetUserId={user_id} targetEmail={target_email}")
+    return resp(200, {"success": True, "email": target_email})
+
+
+def handle_revoke_admin(admin_id, user_id, body):
+    password = body.get("password", "")
+    if not password:
+        return resp(400, {"error": "Password required"})
+
+    admin_record = users_table.get_item(Key={"userId": admin_id}).get("Item", {})
+    admin_email = admin_record.get("email", "")
+    if not admin_email:
+        return resp(400, {"error": "Admin email not found"})
+    try:
+        cognito.initiate_auth(
+            ClientId=APP_CLIENT_ID,
+            AuthFlow="USER_PASSWORD_AUTH",
+            AuthParameters={"USERNAME": admin_email, "PASSWORD": password},
+        )
+    except cognito.exceptions.NotAuthorizedException:
+        return resp(401, {"error": "סיסמה שגויה"})
+    except Exception as e:
+        return resp(500, {"error": f"Password verification failed: {str(e)}"})
+
+    # Prevent removing the last admin
+    admin_emails = get_admin_emails()
+    if len(admin_emails) <= 1:
+        return resp(409, {"error": "לא ניתן להסיר את האדמין האחרון במערכת"})
+
+    user_record = users_table.get_item(Key={"userId": user_id}).get("Item", {})
+    target_email = user_record.get("email", "")
+    if not target_email:
+        return resp(404, {"error": "User not found"})
+    try:
+        cognito.admin_remove_user_from_group(
+            UserPoolId=USER_POOL_ID,
+            Username=target_email,
+            GroupName="ADMIN",
+        )
+    except Exception as e:
+        return resp(500, {"error": f"Failed to revoke admin: {str(e)}"})
+
+    log_action(admin_id, "REVOKE_ADMIN", f"targetUserId={user_id} targetEmail={target_email}")
+    return resp(200, {"success": True, "email": target_email})
 
 
 def handle_delete_user(admin_id, user_id):
@@ -475,6 +578,10 @@ def lambda_handler(event, context):
                 return handle_block_user(admin_id, user_id, body)
             if "plan" in path and method == "PUT":
                 return handle_update_user_plan(admin_id, user_id, body)
+            if "grant-admin" in path and method == "POST":
+                return handle_grant_admin(admin_id, user_id, body)
+            if "revoke-admin" in path and method == "POST":
+                return handle_revoke_admin(admin_id, user_id, body)
             if method == "DELETE":
                 return handle_delete_user(admin_id, user_id)
 

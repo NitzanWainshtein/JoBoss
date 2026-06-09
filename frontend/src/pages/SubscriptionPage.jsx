@@ -432,8 +432,8 @@ function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
   return (
     <div style={styles.compareTable}>
       {/* Headers */}
-      <div style={styles.compareHeader}>
-        <div style={styles.compareFeatureCol} />
+      <div style={{ ...styles.compareHeader, justifyContent: 'center' }}>
+        <div style={{ ...styles.compareFeatureCol, visibility: 'hidden' }} />
         {planKeys.map((pk) => {
           const plan = plans[pk];
           const isCurrent = pk === currentPlanKey;

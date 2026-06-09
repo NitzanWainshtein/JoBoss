@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   adminGetStats, adminGetUsers, adminGetJobs,
   adminUpdateUserPlan, adminResetUserQuota, adminBlockUser, adminDeleteUser,
-  adminToggleJob, adminTriggerImport, adminResetMyQuota, adminResetMySwipes,
+  adminGrantAdmin, adminRevokeAdmin, adminToggleJob, adminTriggerImport, adminResetMyQuota, adminResetMySwipes,
 } from '../api';
 
 const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: 'פרימיום', PREMIUM_PLUS: 'פרימיום+' };
@@ -51,6 +51,13 @@ export default function AdminPage() {
   const [toast, setToast] = useState(null);
   const [myPlan, setMyPlan] = useState('');
   const [confirm, setConfirm] = useState(null);
+  const [userSort, setUserSort] = useState('date_desc');
+  const [grantAdminTarget, setGrantAdminTarget] = useState(null); // { userId, email }
+  const [grantAdminPass, setGrantAdminPass] = useState('');
+  const [grantAdminLoading, setGrantAdminLoading] = useState(false);
+  const [revokeAdminTarget, setRevokeAdminTarget] = useState(null); // { userId, email }
+  const [revokeAdminPass, setRevokeAdminPass] = useState('');
+  const [revokeAdminLoading, setRevokeAdminLoading] = useState(false);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -96,6 +103,47 @@ export default function AdminPage() {
 
   const doDelete = (uid, email) => {
     setConfirm({ type: 'delete-user', id: uid, label: `מחיקת ${email} — לא ניתן לשחזר!` });
+  };
+
+  const openRevokeAdmin = (uid, email) => {
+    setRevokeAdminTarget({ userId: uid, email });
+    setRevokeAdminPass('');
+  };
+
+  const submitRevokeAdmin = async () => {
+    if (!revokeAdminTarget || !revokeAdminPass) return;
+    setRevokeAdminLoading(true);
+    try {
+      await adminRevokeAdmin(revokeAdminTarget.userId, revokeAdminPass);
+      showToast(`הרשאות אדמין הוסרו מ-${revokeAdminTarget.email}`);
+      setRevokeAdminTarget(null);
+      setRevokeAdminPass('');
+      load();
+    } catch (e) {
+      showToast(e?.data?.error || 'שגיאה', false);
+    } finally {
+      setRevokeAdminLoading(false);
+    }
+  };
+
+  const openGrantAdmin = (uid, email) => {
+    setGrantAdminTarget({ userId: uid, email });
+    setGrantAdminPass('');
+  };
+
+  const submitGrantAdmin = async () => {
+    if (!grantAdminTarget || !grantAdminPass) return;
+    setGrantAdminLoading(true);
+    try {
+      await adminGrantAdmin(grantAdminTarget.userId, grantAdminPass);
+      showToast(`${grantAdminTarget.email} הוגדר כאדמין`);
+      setGrantAdminTarget(null);
+      setGrantAdminPass('');
+    } catch (e) {
+      showToast(e?.data?.error || 'שגיאה', false);
+    } finally {
+      setGrantAdminLoading(false);
+    }
   };
 
   const doToggleJob = async (jid, cur) => {
@@ -208,7 +256,30 @@ export default function AdminPage() {
         {/* USERS */}
         {!loading && tab === 'users' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {users.map(u => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#777' }}>מיין לפי:</span>
+              <select value={userSort} onChange={e => setUserSort(e.target.value)}
+                style={{ fontSize: 12, fontWeight: 600, borderRadius: 10, border: '1.5px solid #ddd',
+                  padding: '6px 10px', cursor: 'pointer', background: 'white', color: '#1E2A4A',
+                  outline: 'none' }}>
+                <option value="date_desc">הרשמה — חדש ראשון</option>
+                <option value="date_asc">הרשמה — ישן ראשון</option>
+                <option value="plan">סוג מנוי</option>
+                <option value="apps_desc">הגשות — הכי הרבה</option>
+                <option value="admin">👑 אדמינים קודם</option>
+              </select>
+            </div>
+            {[...users].sort((a, b) => {
+              if (userSort === 'date_desc') return (b.createdAt || '') > (a.createdAt || '') ? 1 : -1;
+              if (userSort === 'date_asc')  return (a.createdAt || '') > (b.createdAt || '') ? 1 : -1;
+              if (userSort === 'plan') {
+                const rank = { PREMIUM_PLUS: 0, PREMIUM: 1, FREE: 2 };
+                return (rank[a.plan] ?? 3) - (rank[b.plan] ?? 3);
+              }
+              if (userSort === 'apps_desc') return (b.appCount || 0) - (a.appCount || 0);
+              if (userSort === 'admin') return (b.isAdmin ? 1 : 0) - (a.isAdmin ? 1 : 0);
+              return 0;
+            }).map(u => (
               <div key={u.userId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: u.blocked ? 0.65 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, direction: 'rtl' }}>
@@ -225,6 +296,10 @@ export default function AdminPage() {
                     <ActionBtn label="⟳ Quota" color="#2196F3" onClick={() => doResetQuota(u.userId)} />
                     <ActionBtn label={u.blocked ? '🔓 שחרר' : '🔒 חסום'} color={u.blocked ? '#4CAF50' : '#FF9800'}
                       onClick={() => doBlock(u.userId, !u.blocked)} />
+                    {u.isAdmin
+                      ? <ActionBtn label="👑 הסר הרשאות" color="#E91E63" onClick={() => openRevokeAdmin(u.userId, u.email)} />
+                      : <ActionBtn label="👑 הפוך לאדמין" color="#9C27B0" onClick={() => openGrantAdmin(u.userId, u.email)} />
+                    }
                     <ActionBtn label="🗑" color="#F44336" onClick={() => doDelete(u.userId, u.email)} />
                   </div>
                   {/* info second in RTL flow = left side */}
@@ -234,6 +309,7 @@ export default function AdminPage() {
                         {u.fullName || u.email}
                       </p>
                       {u.blocked && <Badge text="חסום" color="#F44336" />}
+                      {u.isAdmin && <Badge text="👑 ADMIN" color="#9C27B0" />}
                       <Badge text={PLAN_LABELS[u.plan] || u.plan} color={PLAN_COLORS[u.plan] || '#888'} />
                     </div>
                     <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>{u.email}</p>
@@ -384,6 +460,87 @@ export default function AdminPage() {
                 style={{ flex: 1, background: '#F44336', color: 'white', border: 'none',
                   borderRadius: 12, padding: 12, cursor: 'pointer', fontWeight: 700 }}>אשר</button>
               <button onClick={() => setConfirm(null)}
+                style={{ flex: 1, background: '#f5f5f5', color: '#333', border: 'none',
+                  borderRadius: 12, padding: 12, cursor: 'pointer', fontWeight: 600 }}>בטל</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Admin */}
+      {revokeAdminTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
+          onClick={() => setRevokeAdminTarget(null)}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 340, width: '90%', direction: 'rtl' }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ fontWeight: 800, fontSize: 17, color: '#1E2A4A', margin: '0 0 8px' }}>🚫 הסרת הרשאות אדמין</p>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 4px' }}>
+              האם אתה בטוח שאתה רוצה להסיר הרשאות אדמין מ-
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#E91E63', margin: '0 0 16px', wordBreak: 'break-all' }}>
+              {revokeAdminTarget.email}
+            </p>
+            <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 14px' }}>להמשיך, הכנס את סיסמת האדמין שלך:</p>
+            <input
+              type="password"
+              placeholder="סיסמה"
+              value={revokeAdminPass}
+              onChange={e => setRevokeAdminPass(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submitRevokeAdmin()}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 12,
+                border: '1.5px solid #ddd', fontSize: 14, marginBottom: 16, direction: 'ltr',
+                outline: 'none', fontFamily: 'inherit' }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={submitRevokeAdmin} disabled={!revokeAdminPass || revokeAdminLoading}
+                style={{ flex: 1, background: revokeAdminPass ? '#E91E63' : '#ddd', color: 'white', border: 'none',
+                  borderRadius: 12, padding: 12, cursor: revokeAdminPass ? 'pointer' : 'not-allowed',
+                  fontWeight: 700, fontSize: 14 }}>
+                {revokeAdminLoading ? '...' : 'הסר הרשאות'}
+              </button>
+              <button onClick={() => setRevokeAdminTarget(null)}
+                style={{ flex: 1, background: '#f5f5f5', color: '#333', border: 'none',
+                  borderRadius: 12, padding: 12, cursor: 'pointer', fontWeight: 600 }}>בטל</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grant Admin */}
+      {grantAdminTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
+          onClick={() => setGrantAdminTarget(null)}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 340, width: '90%', direction: 'rtl' }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ fontWeight: 800, fontSize: 17, color: '#1E2A4A', margin: '0 0 8px' }}>👑 הגדרת אדמין</p>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 4px' }}>
+              האם אתה בטוח שאתה רוצה להגדיר את
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#9C27B0', margin: '0 0 16px', wordBreak: 'break-all' }}>
+              {grantAdminTarget.email}
+            </p>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 6px' }}>כאדמין? פעולה זו תעניק לו גישה מלאה למערכת.</p>
+            <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 14px' }}>להמשיך, הכנס את סיסמת האדמין שלך:</p>
+            <input
+              type="password"
+              placeholder="סיסמה"
+              value={grantAdminPass}
+              onChange={e => setGrantAdminPass(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submitGrantAdmin()}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 12,
+                border: '1.5px solid #ddd', fontSize: 14, marginBottom: 16, direction: 'ltr',
+                outline: 'none', fontFamily: 'inherit' }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={submitGrantAdmin} disabled={!grantAdminPass || grantAdminLoading}
+                style={{ flex: 1, background: grantAdminPass ? '#9C27B0' : '#ddd', color: 'white', border: 'none',
+                  borderRadius: 12, padding: 12, cursor: grantAdminPass ? 'pointer' : 'not-allowed',
+                  fontWeight: 700, fontSize: 14 }}>
+                {grantAdminLoading ? '...' : 'אשר'}
+              </button>
+              <button onClick={() => setGrantAdminTarget(null)}
                 style={{ flex: 1, background: '#f5f5f5', color: '#333', border: 'none',
                   borderRadius: 12, padding: 12, cursor: 'pointer', fontWeight: 600 }}>בטל</button>
             </div>

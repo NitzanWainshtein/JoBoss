@@ -581,7 +581,7 @@ function ProfilePage() {
 
               {planKey === 'FREE' && (
                 <div style={styles.aiLockBanner}>
-                  🤖 התאמת AI זמינה רק במנוי פרימיום
+                  התאמת AI זמינה רק במנוי פרימיום 🤖
                   <button style={styles.aiUpgradeBtn} onClick={() => setTab('subscription')}>
                     שדרג
                   </button>
@@ -662,7 +662,7 @@ function ProfilePage() {
 
               {(!profile?.resumes || profile.resumes.length < 3) && (
                 <label style={styles.uploadBtn}>
-                  {cvFile ? `✅ ${cvFile.name}` : '📎 העלה קורות חיים (PDF)'}
+                  {cvFile ? `${cvFile.name} ✅` : 'העלה קורות חיים (PDF) 📎'}
                   <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCvUpload} />
                 </label>
               )}
@@ -813,7 +813,7 @@ function ProfilePage() {
             </div>
 
             <button style={styles.logoutBtn} onClick={handleLogout}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><img src="/icons/logout_icon.png" alt="" style={{ width: `${ICON_SIZES.logout}px`, height: `${ICON_SIZES.logout}px`, objectFit: 'contain' }} />התנתק</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>התנתק<img src="/icons/logout_icon.png" alt="" style={{ width: `${ICON_SIZES.logout}px`, height: `${ICON_SIZES.logout}px`, objectFit: 'contain' }} /></span>
             </button>
           </>
         )}

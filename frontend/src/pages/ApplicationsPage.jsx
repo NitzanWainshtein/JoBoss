@@ -261,6 +261,9 @@ function AutoApplyResult({ app, planKey, canExplain, isActiveTailoring }) {
             <img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.manualBlock}px`, height: `${ICON_SIZES.manualBlock}px`, objectFit: 'contain' }} />
             <p style={{ ...styles.autoTitle, color: '#999', margin: 0 }}>הגשת משרה אוטומטית — פרימיום בלבד 🔒</p>
           </div>
+          {jobUrl && (
+            <button type="button" style={{ ...styles.failActionBtn, alignSelf: 'flex-start', marginTop: '10px' }} onClick={openJob}>{manualLabel}</button>
+          )}
         </div>
       );
     }

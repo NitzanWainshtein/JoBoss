@@ -175,7 +175,18 @@ function App() {
       await getCurrentUser();
       const session = await fetchAuthSession({ forceRefresh: true });
       setIsLoggedIn(true);
-      setIsAdmin(isAdminUser(session));
+      // Primary: read from JWT. Fallback: probe the backend (handles cases where
+      // group membership was updated after the last token was issued).
+      const jwtAdmin = isAdminUser(session);
+      let adminStatus = jwtAdmin;
+      if (!jwtAdmin) {
+        try {
+          const { adminGetStats } = await import('./api');
+          await adminGetStats();
+          adminStatus = true;
+        } catch { /* 403 = not admin, any other error = ignore */ }
+      }
+      setIsAdmin(adminStatus);
       // Check onboarding status — keep loading=true until we know
       try {
         const { getMyProfile } = await import('./api');

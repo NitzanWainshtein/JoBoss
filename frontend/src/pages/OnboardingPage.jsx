@@ -54,6 +54,7 @@ export default function OnboardingPage({ onComplete }) {
   const [currentLocation, setCurrentLocation] = useState('');
   const [currentCompany, setCurrentCompany] = useState('');
   const [gender, setGender] = useState('');
+  const [showAllJobs, setShowAllJobs] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export default function OnboardingPage({ onComplete }) {
         ...(gender && { gender }),
         ...(location && { preferredLocation: location, searchRadius: radius }),
         ...(lat && lng && { latitude: parseFloat(lat), longitude: parseFloat(lng) }),
+        showAllJobs,
       }).catch(() => {});
     }
   };
@@ -113,7 +115,9 @@ export default function OnboardingPage({ onComplete }) {
         ...(radius && { searchRadius: radius }),
         ...(lat && { latitude: parseFloat(lat) }),
         ...(lng && { longitude: parseFloat(lng) }),
+        showAllJobs,
       });
+      localStorage.setItem('showAllJobs', showAllJobs);
       onComplete?.();
       if (!forceFree && plan !== 'FREE') {
         const { checkoutUrl } = await createCheckoutSession(plan);
@@ -242,6 +246,8 @@ export default function OnboardingPage({ onComplete }) {
                 setCurrentCompany={setCurrentCompany}
                 gender={gender}
                 setGender={setGender}
+                showAllJobs={showAllJobs}
+                setShowAllJobs={setShowAllJobs}
               />
             )}
             {step === 5 && (
@@ -444,7 +450,7 @@ function roleTag(isSelected, isSuggested) {
 
 // ── Step 4: Settings ────────────────────────────────────────────────────────
 
-function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expLevel, setExpLevel, availability, setAvailability, phone, setPhone, currentLocation, setCurrentLocation, currentCompany, setCurrentCompany, gender, setGender }) {
+function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expLevel, setExpLevel, availability, setAvailability, phone, setPhone, currentLocation, setCurrentLocation, currentCompany, setCurrentCompany, gender, setGender, showAllJobs, setShowAllJobs }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
@@ -538,6 +544,33 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
           {AVAILABILITY.map(a => (
             <button key={a} onClick={() => setAvailability(a)} style={chipBtn(availability === a)}>{a}</button>
           ))}
+        </div>
+      </div>
+
+      <div style={{ background: '#F8F7FF', borderRadius: 16, padding: '16px', border: '1px solid #E0D9FF' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...T.label, marginBottom: 4 }}>🌐 הצג את כל המשרות תמיד</div>
+            <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5 }}>
+              {showAllJobs
+                ? 'תראה את כל המשרות גם אם אינן מתחום שהגדרת.'
+                : 'תראה קודם משרות מהתחום שלך. משרות אחרות זמינות זמנית בלחיצה (30 דקות).'}
+            </div>
+            {showAllJobs && (
+              <div style={{ fontSize: 11, color: '#FF9800', marginTop: 4 }}>
+                ⚠️ ייתכן שתראה משרות פחות רלוונטיות לפרופיל שלך
+              </div>
+            )}
+          </div>
+          <div
+            onClick={() => setShowAllJobs(v => !v)}
+            style={{ width: 46, height: 26, borderRadius: 13, flexShrink: 0, cursor: 'pointer', position: 'relative',
+                     background: showAllJobs ? '#6C4FD4' : '#ccc', transition: 'background 0.2s', marginTop: 2 }}
+          >
+            <div style={{ position: 'absolute', top: 3, width: 20, height: 20, borderRadius: '50%', background: 'white',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+                          left: showAllJobs ? 23 : 3 }} />
+          </div>
         </div>
       </div>
     </div>

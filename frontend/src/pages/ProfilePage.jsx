@@ -45,6 +45,7 @@ function ProfilePage() {
   const [showRoleEditor, setShowRoleEditor] = useState(false);
   const [experienceLevel, setExperienceLevel] = useState('');
   const [availability, setAvailability] = useState('');
+  const [showAllJobs, setShowAllJobs] = useState(() => localStorage.getItem('showAllJobs') === 'true');
   const profileLoaded = useRef(false); // true after first successful load
   const pendingSaveRef = useRef(null); // latest unsaved payload (for unmount flush)
 
@@ -80,6 +81,7 @@ function ProfilePage() {
         if (user?.searchRadius) setRadius(Number(user.searchRadius));
         if (user?.autoApply !== undefined) setAutoApply(user.autoApply);
         if (user?.autoTailorCV !== undefined) setAutoTailorCV(user.autoTailorCV);
+        if (user?.showAllJobs !== undefined) { setShowAllJobs(user.showAllJobs); localStorage.setItem('showAllJobs', user.showAllJobs); }
         if (user?.profileImageUrl) setProfileImage(user.profileImageUrl);
         if (user?.latitude) localStorage.setItem('jobLatitude', user.latitude);
         if (user?.longitude) localStorage.setItem('jobLongitude', user.longitude);
@@ -135,6 +137,7 @@ function ProfilePage() {
     const profileUpdate = {
       autoApply,
       autoTailorCV,
+      showAllJobs,
       preferredRoles,
       experienceLevel,
       availability,
@@ -181,6 +184,7 @@ function ProfilePage() {
     radius,
     autoApply,
     autoTailorCV,
+    showAllJobs,
     preferredRoles,
     experienceLevel,
     availability,
@@ -629,6 +633,33 @@ function ProfilePage() {
                   <option value="תוך חודש">תוך חודש</option>
                   <option value="סתם מסתכל">סתם מסתכל</option>
                 </select>
+              </div>
+
+              <div style={{ ...styles.settingRow, marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #F0F0F0' }}>
+                <div style={{ flex: 1 }}>
+                  <p style={styles.settingLabel}>הצג את כל המשרות תמיד</p>
+                  <p style={styles.settingDesc}>
+                    {showAllJobs
+                      ? 'מוצגות כל המשרות, כולל מחוץ לתחום שהגדרת'
+                      : 'מוצגות קודם משרות מהתחום שלך — שאר המשרות זמינות בלחיצה'}
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#888', margin: '3px 0 0 0', lineHeight: 1.4 }}>
+                    {showAllJobs
+                      ? '⚠️ ייתכן שתראה משרות פחות רלוונטיות לפרופיל שלך'
+                      : '💡 ניתן להציג משרות נוספות זמנית (30 דקות) מהמסך הראשי'}
+                  </p>
+                </div>
+                <div
+                  style={{ ...styles.toggle, background: showAllJobs ? '#6C4FD4' : '#ccc', flexShrink: 0 }}
+                  onClick={() => {
+                    const next = !showAllJobs;
+                    setShowAllJobs(next);
+                    localStorage.setItem('showAllJobs', next);
+                    if (!next) localStorage.removeItem('discoveryUntil');
+                  }}
+                >
+                  <div style={{ ...styles.toggleCircle, transform: showAllJobs ? 'translateX(24px)' : 'translateX(0)' }} />
+                </div>
               </div>
             </div>
 

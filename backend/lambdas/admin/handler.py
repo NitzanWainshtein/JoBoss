@@ -77,13 +77,47 @@ def get_user_id_from_token(event):
         return None
 
 
+def get_cognito_username_by_sub(sub):
+    """Return the actual Cognito Username for a given sub (UUID)."""
+    try:
+        r = cognito.list_users(
+            UserPoolId=USER_POOL_ID,
+            Filter=f'sub = "{sub}"',
+            Limit=1,
+        )
+        users = r.get("Users", [])
+        return users[0]["Username"] if users else None
+    except Exception as e:
+        print(f"[GET_USERNAME] {e}")
+        return None
+
+
 def is_admin(event):
+    # Fast path: JWT claims (works when token was issued after group assignment)
     claims = get_claims(event)
     groups = claims.get("cognito:groups", "") or ""
     if isinstance(groups, list):
-        return "ADMIN" in groups
-    # API GW serialises list as comma-separated string
-    return "ADMIN" in [g.strip() for g in groups.split(",")]
+        if "ADMIN" in groups:
+            return True
+    elif "ADMIN" in [g.strip() for g in groups.split(",") if g.strip()]:
+        return True
+
+    # Fallback: check Cognito directly (handles tokens issued before group was assigned)
+    user_id = get_user_id_from_token(event)
+    if not user_id:
+        return False
+    try:
+        username = get_cognito_username_by_sub(user_id)
+        if not username:
+            return False
+        resp_groups = cognito.admin_list_groups_for_user(
+            Username=username,
+            UserPoolId=USER_POOL_ID,
+        )
+        return any(g["GroupName"] == "ADMIN" for g in resp_groups.get("Groups", []))
+    except Exception as e:
+        print(f"[IS_ADMIN_FALLBACK] {e}")
+        return False
 
 
 def log_action(admin_id, action, details=""):
@@ -347,15 +381,18 @@ def handle_grant_admin(admin_id, user_id, body):
     except Exception as e:
         return resp(500, {"error": f"Password verification failed: {str(e)}"})
 
-    # Add target user to ADMIN Cognito group
+    # Add target user to ADMIN Cognito group — look up by sub to get actual username
     user_record = users_table.get_item(Key={"userId": user_id}).get("Item", {})
     target_email = user_record.get("email", "")
     if not target_email:
         return resp(404, {"error": "User not found"})
+    target_username = get_cognito_username_by_sub(user_id)
+    if not target_username:
+        return resp(404, {"error": "Cognito user not found"})
     try:
         cognito.admin_add_user_to_group(
             UserPoolId=USER_POOL_ID,
-            Username=target_email,
+            Username=target_username,
             GroupName="ADMIN",
         )
     except Exception as e:
@@ -394,10 +431,13 @@ def handle_revoke_admin(admin_id, user_id, body):
     target_email = user_record.get("email", "")
     if not target_email:
         return resp(404, {"error": "User not found"})
+    target_username = get_cognito_username_by_sub(user_id)
+    if not target_username:
+        return resp(404, {"error": "Cognito user not found"})
     try:
         cognito.admin_remove_user_from_group(
             UserPoolId=USER_POOL_ID,
-            Username=target_email,
+            Username=target_username,
             GroupName="ADMIN",
         )
     except Exception as e:

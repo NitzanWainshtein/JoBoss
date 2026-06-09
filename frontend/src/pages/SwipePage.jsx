@@ -505,8 +505,34 @@ function SwipePage() {
   const [tailorLimitToast, setTailorLimitToast] = useState(false);
   const [activeTailorJobs, setActiveTailorJobs] = useState([]); // [{ jobId, company }]
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true' && quota?.plan !== 'FREE';
-  const [discoveryMode, setDiscoveryMode] = useState(false);
+  const showAllJobsPref = localStorage.getItem('showAllJobs') === 'true';
+  const [discoveryUntil, setDiscoveryUntil] = useState(() => {
+    const saved = Number(localStorage.getItem('discoveryUntil') || 0);
+    return saved > Date.now() ? saved : null;
+  });
+  const [nowTick, setNowTick] = useState(Date.now());
   const navigate = useNavigate();
+
+  // Auto-expire discovery mode
+  useEffect(() => {
+    if (!discoveryUntil) return;
+    const remaining = discoveryUntil - Date.now();
+    if (remaining <= 0) { setDiscoveryUntil(null); localStorage.removeItem('discoveryUntil'); return; }
+    const expire = setTimeout(() => { setDiscoveryUntil(null); localStorage.removeItem('discoveryUntil'); }, remaining);
+    // Update minute display every 60s
+    const tick = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => { clearTimeout(expire); clearInterval(tick); };
+  }, [discoveryUntil]);
+
+  const discoveryActive = showAllJobsPref || (discoveryUntil && nowTick < discoveryUntil);
+
+  const activateDiscovery = () => {
+    if (showAllJobsPref) return; // already permanent
+    const until = Date.now() + 30 * 60 * 1000;
+    setDiscoveryUntil(until);
+    setNowTick(Date.now());
+    localStorage.setItem('discoveryUntil', String(until));
+  };
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -571,11 +597,9 @@ function SwipePage() {
   }, []);
 
   const allUnseen = jobs.filter(j => !swipedJobs.has(j.jobId));
-  // matchesPreferences===false means backend flagged it as off-preference discovery job.
-  // When undefined (old jobs or no prefs), treat as primary.
-  const primaryJobs    = allUnseen.filter(j => j.matchesPreferences !== false);
-  const discoveryJobs  = allUnseen.filter(j => j.matchesPreferences === false);
-  const filteredJobs   = discoveryMode ? allUnseen : primaryJobs;
+  const primaryJobs   = allUnseen.filter(j => j.matchesPreferences !== false);
+  const discoveryJobs = allUnseen.filter(j => j.matchesPreferences === false);
+  const filteredJobs  = discoveryActive ? allUnseen : primaryJobs;
   const currentJob = filteredJobs[filteredJobs.length - 1];
   const nextJob = filteredJobs[filteredJobs.length - 2];
 
@@ -737,6 +761,19 @@ function SwipePage() {
       {/* Quota bar */}
       <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} onRefresh={loadJobs} />
 
+      {/* Discovery mode active banner */}
+      {!showAllJobsPref && discoveryUntil && nowTick < discoveryUntil && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                   fontSize: 12, fontWeight: 600, color: '#E65100',
+                   background: '#FFF3E0', border: '1px solid #FFB74D',
+                   borderRadius: 20, padding: '4px 14px', alignSelf: 'center' }}
+        >
+          🔍 מציג כל המשרות · נגמר בעוד {Math.max(1, Math.ceil((discoveryUntil - nowTick) / 60000))} דק'
+        </motion.div>
+      )}
+
       {/* Auto-tailor progress indicator */}
       <AnimatePresence>
         {activeTailorJobs.length > 0 && (
@@ -818,7 +855,7 @@ function SwipePage() {
             </motion.div>
             {lockedOverlay}
           </>
-        ) : !discoveryMode && discoveryJobs.length > 0 ? (
+        ) : !discoveryActive && discoveryJobs.length > 0 ? (
           // Primary deck exhausted but discovery jobs available
           <motion.div style={styles.emptyState} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
             <motion.p style={{ fontSize: '72px', margin: 0 }} animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 1, delay: 0.2 }}>🔍</motion.p>
@@ -828,9 +865,9 @@ function SwipePage() {
             <motion.button
               style={{ ...styles.emptyBtn, background: 'linear-gradient(135deg, #FF6B6B, #E65100)', marginTop: 4 }}
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={() => setDiscoveryMode(true)}
+              onClick={activateDiscovery}
             >
-              הצג משרות נוספות ←
+              הצג משרות נוספות ← (30 דקות)
             </motion.button>
             <motion.button style={{ ...styles.emptyBtn, background: 'transparent', color: '#6C4FD4', border: '1px solid #6C4FD4', marginTop: 0 }}
               whileHover={{ scale: 1.03 }} onClick={() => navigate('/applications')}>📋 ראה הגשות</motion.button>

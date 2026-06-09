@@ -39,6 +39,8 @@ function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState(20);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [planKey, setPlanKey] = useState('FREE');
   const [preferredRoles, setPreferredRoles] = useState([]);
@@ -265,6 +267,45 @@ function ProfilePage() {
     window.location.href = '/login';
   };
 
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError('הדפדפן לא תומך ב-GPS');
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError('');
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords: { latitude, longitude } }) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+            { headers: { 'Accept-Language': 'he', 'User-Agent': 'joBoss-app' } }
+          );
+          const data = await res.json();
+          const a = data.address || {};
+          const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
+          const displayName = city || data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setLocation(displayName);
+          localStorage.setItem('jobLatitude', latitude);
+          localStorage.setItem('jobLongitude', longitude);
+        } catch {
+          setGpsError('לא הצלחנו לזהות את המיקום');
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsError(
+          err.code === 1
+            ? 'נדחתה הגישה למיקום — אשר הרשאה בהגדרות הדפדפן'
+            : 'לא הצלחנו לאתר את המיקום'
+        );
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
   // Subscription API wrapper for SubscriptionPage
   const subApi = async (method, path, body) => {
     if (method === 'GET' && path === '/subscriptions/me') {
@@ -390,6 +431,32 @@ function ProfilePage() {
                     localStorage.setItem('jobLongitude', lng);
                   }}
                 />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '2px 0' }}>
+                  <div style={{ flex: 1, height: '1px', background: '#eee' }} />
+                  <span style={{ fontSize: '12px', color: '#bbb' }}>או</span>
+                  <div style={{ flex: 1, height: '1px', background: '#eee' }} />
+                </div>
+
+                <button
+                  onClick={handleUseCurrentLocation}
+                  disabled={gpsLoading}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: '8px', width: '100%', padding: '12px', borderRadius: '12px',
+                    border: '1.5px solid #6C4FD4',
+                    background: gpsLoading ? '#F0F2FF' : 'white',
+                    color: '#6C4FD4', fontSize: '14px', fontWeight: 600,
+                    cursor: gpsLoading ? 'not-allowed' : 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  {gpsLoading ? '⏳ מאתר מיקום...' : '🎯 זהה מיקום נוכחי אוטומטית'}
+                </button>
+
+                {gpsError && (
+                  <p style={{ fontSize: '12px', color: '#F44336', margin: 0 }}>{gpsError}</p>
+                )}
               </div>
 
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -116,7 +116,7 @@ function LoginPage() {
           <>
             <input style={styles.input} placeholder="אימייל" type="email" value={email}
               onChange={(e) => { setEmail(e.target.value); setError(''); }} />
-            <input style={styles.input} placeholder="סיסמה (לפחות 8 תווים, אות גדולה ומספר)" type="password" value={password}
+            <input style={{ ...styles.input, fontSize: '12px' }} placeholder="סיסמה (לפחות 8 תווים, אות גדולה ומספר)" type="password" value={password}
               onChange={(e) => { setPassword(e.target.value); setError(''); }} />
           </>
         )}

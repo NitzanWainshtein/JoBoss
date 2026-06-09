@@ -567,46 +567,165 @@ def job_matches_availability(job, prefs):
     return any(kw in text for kw in kw_list)
 
 
-def apply_preference_filters(jobs, prefs):
-    """
-    Filter jobs by user preferences.  Each filter is AND-ed; within each
-    filter the default is always inclusive when information is missing.
-    Returns (filtered_list, stats_dict).
-    """
-    if not prefs:
-        return jobs, {"prefsApplied": False}
+def _role_detail(job, prefs):
+    """Returns (score 0-50, matched_roles[], unmatched_roles[], hint_keywords[])."""
+    roles = prefs.get("preferredRoles", [])
+    desired = prefs.get("desiredRole", "")
+    all_roles = [r for r in roles if r]
+    if desired:
+        all_roles.append(desired)
 
-    before = len(jobs)
-    filtered = []
-    dropped_role = dropped_exp = dropped_avail = 0
+    if not all_roles:
+        return 25, [], [], []
+
+    text = job_text(job)
+    title_text = job_title_text(job)
+    if not text.strip():
+        return 25, [], [], []
+
+    matched, unmatched, hints = [], [], []
+    for role in all_roles:
+        keywords = role_keywords_for(role)
+        if keywords is None:
+            matched.append(role)
+            continue
+        hit = False
+        for kw in keywords:
+            if (kw in title_text) if kw in TITLE_ONLY_KEYWORDS else (kw in text):
+                hit = True
+                break
+        if hit:
+            matched.append(role)
+        else:
+            unmatched.append(role)
+            # Suggest the first 3 keywords the user could add to their CV
+            hints.extend(kw for kw in keywords[:5]
+                         if kw not in TITLE_ONLY_KEYWORDS and len(kw) > 4)
+
+    score = 0 if not matched else round((len(matched) / len(all_roles)) * 50)
+    return score, matched, unmatched, list(dict.fromkeys(hints))[:4]
+
+
+def _experience_detail(job, prefs):
+    """Returns (score 0-30, user_level, detected_levels_set)."""
+    user_level = prefs.get("experienceLevel", "")
+    _LEVEL_NORM = {"סטודנט": "student", "junior": "junior", "mid": "mid",
+                   "senior": "senior", "lead": "senior", "manager": "senior"}
+    user_level = _LEVEL_NORM.get(user_level, user_level)
+
+    user_avail = prefs.get("availability", "")
+    if user_level == "student" or "student" in user_avail or "סטודנט" in user_avail:
+        user_level = "junior"
+
+    if not user_level:
+        return 15, "", set()
+
+    signalled = detect_job_level(job)
+    if not signalled:
+        return 15, user_level, set()
+
+    score = 30 if user_level in signalled else 0
+    return score, user_level, signalled
+
+
+def _distance_detail(job, requested_lat, requested_lng):
+    """Returns (score 0-20, dist_km or None, is_remote)."""
+    is_remote = "remote" in (job.get("location") or "").strip().lower()
+    if is_remote:
+        return 20, None, True
+
+    dist = job.get("distanceKm")
+    if dist is None:
+        job_lat = to_float(job.get("latitude"))
+        job_lng = to_float(job.get("longitude"))
+        if requested_lat is not None and requested_lng is not None \
+                and job_lat is not None and job_lng is not None:
+            dist = haversine_distance_km(requested_lat, requested_lng, job_lat, job_lng)
+        else:
+            return 10, None, False
+
+    if dist <= 10:   s = 20
+    elif dist <= 30: s = 16
+    elif dist <= 50: s = 12
+    elif dist <= 80: s = 7
+    else:            s = 3
+    return s, round(dist, 1), False
+
+
+def compute_match_score(job, prefs, requested_lat=None, requested_lng=None):
+    """Returns (total 0-100, breakdown_dict)."""
+    rs, matched, unmatched, hints = _role_detail(job, prefs)
+    es, user_level, detected  = _experience_detail(job, prefs)
+    ds, dist_km, is_remote    = _distance_detail(job, requested_lat, requested_lng)
+    total = min(100, rs + es + ds)
+    breakdown = {
+        "roleScore":      rs,   "expScore":  es,   "distScore": ds,
+        "matchedRoles":   matched,
+        "unmatchedRoles": unmatched,
+        "cvHintKeywords": hints,
+        "userLevel":      user_level,
+        "detectedLevels": list(detected),
+        "distanceKm":     dist_km,
+        "isRemote":       is_remote,
+    }
+    return total, breakdown
+
+
+def get_job_domains(job):
+    """Return all ROLE_KEYWORDS categories this job matches (regardless of user prefs)."""
+    text = job_text(job)
+    title_text = job_title_text(job)
+    if not text.strip():
+        return []
+    matched = []
+    for role, keywords in ROLE_KEYWORDS.items():
+        for kw in keywords:
+            hit = (kw in title_text) if kw in TITLE_ONLY_KEYWORDS else (kw in text)
+            if hit:
+                matched.append(role)
+                break
+    return matched
+
+
+def apply_preference_scoring(jobs, prefs, requested_lat=None, requested_lng=None):
+    """
+    Compute a 0-100 match score for every job and sort best-first.
+    No jobs are dropped — low-scoring ones simply appear further down the stack.
+    Also tags each job with matchesPreferences, jobDomains, and jobLevel so the
+    frontend can split the deck into primary / discovery pools.
+    """
+    has_prefs = bool(prefs)
 
     for job in jobs:
-        if not job_matches_roles(job, prefs):
-            dropped_role += 1
-            continue
-        if not job_matches_experience(job, prefs):
-            dropped_exp += 1
-            continue
-        if not job_matches_availability(job, prefs):
-            dropped_avail += 1
-            continue
-        filtered.append(job)
+        if has_prefs:
+            score, breakdown = compute_match_score(job, prefs, requested_lat, requested_lng)
+            job["matchScore"] = score
+            job["matchBreakdown"] = breakdown
+        else:
+            job["matchScore"] = None
+            job["matchBreakdown"] = None
+        job["matchesPreferences"] = (
+            job_matches_roles(job, prefs)
+            and job_matches_experience(job, prefs)
+            and job_matches_availability(job, prefs)
+        ) if has_prefs else True
+        job["jobDomains"] = get_job_domains(job)
+        job["jobLevel"] = list(detect_job_level(job))
 
-    print(f"PREFS FILTER: before={before}, after={len(filtered)}, "
-          f"dropped_role={dropped_role}, dropped_exp={dropped_exp}, "
-          f"dropped_avail={dropped_avail}, "
+    if has_prefs:
+        jobs.sort(key=lambda j: j.get("matchScore", 0), reverse=True)
+
+    if not has_prefs:
+        return jobs, {"prefsApplied": False}
+
+    avg = round(sum(j.get("matchScore", 0) for j in jobs) / len(jobs)) if jobs else 0
+    primary = sum(1 for j in jobs if j.get("matchesPreferences"))
+    print(f"PREFS SCORING: count={len(jobs)}, primary={primary}, avg_score={avg}, "
           f"roles={prefs.get('preferredRoles')}, "
           f"level={prefs.get('experienceLevel')}, "
           f"avail={prefs.get('availability')}")
 
-    return filtered, {
-        "prefsApplied": True,
-        "before": before,
-        "after": len(filtered),
-        "droppedRole": dropped_role,
-        "droppedExperience": dropped_exp,
-        "droppedAvailability": dropped_avail,
-    }
+    return jobs, {"prefsApplied": True, "count": len(jobs), "primaryCount": primary, "avgScore": avg}
 
 
 # ── Geo filter (unchanged from original) ─────────────────────────────────────
@@ -688,17 +807,19 @@ def list_jobs(event):
 
     jobs = scan_all_jobs()
 
-    # Apply preference filters first (role / experience / availability)
-    jobs, pref_stats = apply_preference_filters(jobs, prefs)
-
-    # Then apply geo filter
+    # Geo filter first so distanceKm is populated before scoring
     filtered_jobs, geo_filters = filter_jobs(jobs, query_params, prefs)
+
+    # Soft-score and sort — no jobs dropped, low scores appear last
+    requested_lat = to_float(query_params.get("lat")) or prefs.get("latitude")
+    requested_lng = to_float(query_params.get("lng")) or prefs.get("longitude")
+    scored_jobs, score_stats = apply_preference_scoring(filtered_jobs, prefs, requested_lat, requested_lng)
 
     return build_response(200, {
         "message": "Jobs fetched successfully",
-        "count": len(filtered_jobs),
-        "filters": {**geo_filters, **pref_stats},
-        "jobs": filtered_jobs,
+        "count": len(scored_jobs),
+        "filters": {**geo_filters, **score_stats},
+        "jobs": scored_jobs,
     })
 
 

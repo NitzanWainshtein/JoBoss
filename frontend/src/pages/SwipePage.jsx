@@ -153,9 +153,208 @@ function JobDetailModal({ job, onClose }) {
   );
 }
 
+// ── Domain / level helpers ────────────────────────────────────────────────────
+const DOMAIN_HE = {
+  'frontend developer':  'פרונטאנד',
+  'backend developer':   'בקאנד',
+  'full stack developer':'פול-סטאק',
+  'mobile developer':    'מובייל',
+  'devops':              'DevOps',
+  'data scientist':      'Data Science',
+  'data engineer':       'Data Eng',
+  'qa engineer':         'QA',
+  'security engineer':   'סייבר',
+  'product manager':     'PM',
+  'designer':            'עיצוב',
+  'embedded':            'Embedded',
+  'ai engineer':         'AI',
+};
+const LEVEL_HE = { junior: 'Junior', mid: 'Mid', senior: 'Senior', student: 'סטודנט' };
+
+function DomainTags({ domains = [], levels = [] }) {
+  const tags = [
+    ...domains.slice(0, 2).map(d => ({ label: DOMAIN_HE[d] || d, color: '#6C4FD4', bg: '#F0EEFF' })),
+    ...levels.slice(0, 1).map(l => ({ label: LEVEL_HE[l] || l, color: '#2E7D32', bg: '#E8F5E9' })),
+  ];
+  if (!tags.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+      {tags.map(t => (
+        <span key={t.label} style={{ fontSize: '11px', fontWeight: 700, color: t.color,
+          background: t.bg, border: `1px solid ${t.color}30`,
+          padding: '2px 8px', borderRadius: 20 }}>
+          {t.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function DiscoveryPreview({ jobs }) {
+  if (!jobs.length) return null;
+  const allDomains = [...new Set(jobs.flatMap(j => j.jobDomains || []))].slice(0, 6);
+  const allLevels  = [...new Set(jobs.flatMap(j => j.jobLevel || []))].slice(0, 2);
+  return (
+    <div style={{ width: '100%', background: '#FFF8F0', border: '1px solid #FFD0A0', borderRadius: 16,
+                  padding: '14px 16px', marginTop: 8, textAlign: 'right' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#E65100', marginBottom: 8 }}>כוללות תחומים כגון:</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {allDomains.map(d => (
+          <span key={d} style={{ fontSize: 12, fontWeight: 600, color: '#6C4FD4',
+            background: '#F0EEFF', border: '1px solid #6C4FD430',
+            padding: '3px 10px', borderRadius: 20 }}>
+            {DOMAIN_HE[d] || d}
+          </span>
+        ))}
+        {allLevels.map(l => (
+          <span key={l} style={{ fontSize: 12, fontWeight: 600, color: '#2E7D32',
+            background: '#E8F5E9', border: '1px solid #2E7D3230',
+            padding: '3px 10px', borderRadius: 20 }}>
+            {LEVEL_HE[l] || l}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Match score breakdown modal ───────────────────────────────────────────────
+function MatchModal({ score, breakdown, onClose }) {
+  const { roleScore=0, expScore=0, distScore=0,
+          matchedRoles=[], unmatchedRoles=[], cvHintKeywords=[],
+          userLevel='', detectedLevels=[], distanceKm, isRemote } = breakdown || {};
+
+  const Row = ({ label, score, max, children }) => {
+    const pct = Math.round((score / max) * 100);
+    const barColor = pct >= 70 ? '#4CAF50' : pct >= 40 ? '#FF9800' : '#F44336';
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: '#1E2A4A' }}>{label}</span>
+          <span style={{ fontWeight: 700, fontSize: 13, color: barColor }}>{score}/{max}</span>
+        </div>
+        <div style={{ height: 6, background: '#eee', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 3, transition: 'width 0.6s ease' }} />
+        </div>
+        {children}
+      </div>
+    );
+  };
+
+  const Chip = ({ label, color, bg }) => (
+    <span style={{ fontSize: 12, fontWeight: 600, color, background: bg,
+                   border: `1px solid ${color}30`, padding: '2px 10px',
+                   borderRadius: 20, display: 'inline-block' }}>{label}</span>
+  );
+
+  const levelHe = { junior: 'Junior', mid: 'Mid', senior: 'Senior', student: 'סטודנט' };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        style={modal.overlay}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 20 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+          style={{ ...modal.sheet, direction: 'rtl', gap: 0 }}
+          onClick={e => e.stopPropagation()}
+        >
+
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1E2A4A' }}>פירוט ציון התאמה</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 22, fontWeight: 800,
+                             color: score >= 70 ? '#2E7D32' : score >= 50 ? '#E65100' : '#757575' }}>
+                {score}%
+              </span>
+              <button onClick={onClose} style={{ background: '#f5f5f5', border: 'none', borderRadius: '50%',
+                                                  width: 30, height: 30, cursor: 'pointer', fontSize: 14 }}>✕</button>
+            </div>
+          </div>
+
+          {/* Role */}
+          <Row label="🎯 התאמת תפקיד" score={roleScore} max={50}>
+            {matchedRoles.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 4 }}>
+                {matchedRoles.map(r => <Chip key={r} label={`✓ ${DOMAIN_HE[r] || r}`} color="#2E7D32" bg="#E8F5E9" />)}
+              </div>
+            )}
+            {unmatchedRoles.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 4 }}>
+                {unmatchedRoles.map(r => <Chip key={r} label={`✗ ${DOMAIN_HE[r] || r}`} color="#c62828" bg="#FFEBEE" />)}
+              </div>
+            )}
+            {cvHintKeywords.length > 0 && (
+              <div style={{ marginTop: 6, padding: '8px 12px', background: '#FFF8E1',
+                            borderRadius: 10, border: '1px solid #FFD54F' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#F57F17', marginBottom: 4 }}>
+                  💡 הוסף לקורות חיים כדי לשפר את הציון:
+                </div>
+                <div style={{ fontSize: 12, color: '#555', direction: 'ltr', textAlign: 'left' }}>
+                  {cvHintKeywords.join(' · ')}
+                </div>
+              </div>
+            )}
+          </Row>
+
+          {/* Experience */}
+          <Row label="🎓 רמת ניסיון" score={expScore} max={30}>
+            {userLevel && (
+              <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>
+                הרמה שהגדרת: <strong>{levelHe[userLevel] || userLevel}</strong>
+                {detectedLevels.length > 0 && (
+                  <> · המשרה מחפשת: <strong>{detectedLevels.map(l => levelHe[l] || l).join(', ')}</strong></>
+                )}
+              </div>
+            )}
+            {expScore === 0 && userLevel && detectedLevels.length > 0 && (
+              <div style={{ fontSize: 12, padding: '6px 10px', background: '#FFEBEE',
+                            borderRadius: 8, color: '#c62828' }}>
+                💡 הדגש בקורות חיים ניסיון המתאים לרמת {detectedLevels.map(l => levelHe[l] || l).join('/')}
+              </div>
+            )}
+          </Row>
+
+          {/* Distance */}
+          <Row label="📍 מרחק" score={distScore} max={20}>
+            <div style={{ fontSize: 12, color: '#555' }}>
+              {isRemote ? 'עבודה מרחוק — ניקוד מלא'
+                : distanceKm != null ? `${distanceKm} ק"מ ממיקומך`
+                : 'לא נמצא מיקום למשרה'}
+            </div>
+          </Row>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ── Match score badge (stateless — parent controls open) ─────────────────────
+function MatchBadge({ score, onClick }) {
+  const color = score >= 70 ? '#2E7D32' : score >= 50 ? '#E65100' : '#757575';
+  const bg    = score >= 70 ? '#E8F5E9' : score >= 50 ? '#FFF3E0' : '#F5F5F5';
+  return (
+    <div
+      onClick={onClick}
+      style={{ fontSize: '12px', fontWeight: 700, color, background: bg,
+               border: `1px solid ${color}40`, padding: '4px 10px',
+               borderRadius: '20px', whiteSpace: 'nowrap', flexShrink: 0,
+               cursor: 'pointer', userSelect: 'none' }}
+    >
+      {score}% התאמה ℹ️
+    </div>
+  );
+}
+
 // ── Job card ─────────────────────────────────────────────────────────────────
 function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const matchTapRef = useRef(false);  // blocks card onTap when badge was clicked
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
@@ -169,14 +368,24 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
     setTimeout(() => setIsDragging(false), 150);
   };
 
+  const handleBadgeClick = (e) => {
+    e.stopPropagation();
+    matchTapRef.current = true;
+    setMatchOpen(true);
+  };
+
   return (
+    <>
     <motion.div
       style={{ x, rotate, opacity, ...styles.card, zIndex: 1, filter: locked ? 'blur(4px)' : 'none' }}
       drag={locked ? false : 'x'}
       dragConstraints={{ left: 0, right: 0 }}
       onDragStart={() => !locked && setIsDragging(true)}
       onDragEnd={handleDragEnd}
-      onTap={() => { if (!locked && !isDragging) onOpenDetail(); }}
+      onTap={() => {
+        if (matchTapRef.current) { matchTapRef.current = false; return; }
+        if (!locked && !isDragging) onOpenDetail();
+      }}
       whileTap={locked ? {} : { cursor: 'grabbing' }}
     >
       {!locked && <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity, pointerEvents: 'none' }}><img src="/icons/yes_icon.png" alt="YES" draggable="false" style={{ height: `${ICON_SIZES.stampYes}px`, objectFit: 'contain' }} /></motion.div>}
@@ -184,12 +393,16 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
 
       <div style={styles.cardHeader}>
         <CompanyLogo company={job.company} style={styles.logo_img} />
-        <div>
+        <div style={{ flex: 1 }}>
           <h2 style={styles.company}>{job.company}</h2>
           <p style={styles.location}>📍 {job.location}</p>
         </div>
+        {job.matchScore != null && <MatchBadge score={job.matchScore} onClick={handleBadgeClick} />}
       </div>
       <h3 style={styles.title}>{job.title}</h3>
+      {job.matchesPreferences === false && (
+        <DomainTags domains={job.jobDomains} levels={job.jobLevel} />
+      )}
       {job.distanceKm != null && <p style={styles.distance}>🗺 {job.distanceKm.toFixed(1)} ק"מ ממך</p>}
       {locationFilter && (
         <p style={styles.locationFilter}>📍 {shortenLocation(locationFilter.name)} · עד {locationFilter.radius} ק"מ</p>
@@ -207,6 +420,10 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
         </div>
       )}
     </motion.div>
+    {matchOpen && job.matchBreakdown && (
+      <MatchModal score={job.matchScore} breakdown={job.matchBreakdown} onClose={() => setMatchOpen(false)} />
+    )}
+    </>
   );
 }
 
@@ -288,6 +505,7 @@ function SwipePage() {
   const [tailorLimitToast, setTailorLimitToast] = useState(false);
   const [activeTailorJobs, setActiveTailorJobs] = useState([]); // [{ jobId, company }]
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true' && quota?.plan !== 'FREE';
+  const [discoveryMode, setDiscoveryMode] = useState(false);
   const navigate = useNavigate();
 
   const loadJobs = useCallback(async () => {
@@ -352,7 +570,12 @@ function SwipePage() {
     loadSwipes();
   }, []);
 
-  const filteredJobs = jobs.filter(j => !swipedJobs.has(j.jobId));
+  const allUnseen = jobs.filter(j => !swipedJobs.has(j.jobId));
+  // matchesPreferences===false means backend flagged it as off-preference discovery job.
+  // When undefined (old jobs or no prefs), treat as primary.
+  const primaryJobs    = allUnseen.filter(j => j.matchesPreferences !== false);
+  const discoveryJobs  = allUnseen.filter(j => j.matchesPreferences === false);
+  const filteredJobs   = discoveryMode ? allUnseen : primaryJobs;
   const currentJob = filteredJobs[filteredJobs.length - 1];
   const nextJob = filteredJobs[filteredJobs.length - 2];
 
@@ -595,8 +818,25 @@ function SwipePage() {
             </motion.div>
             {lockedOverlay}
           </>
+        ) : !discoveryMode && discoveryJobs.length > 0 ? (
+          // Primary deck exhausted but discovery jobs available
+          <motion.div style={styles.emptyState} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
+            <motion.p style={{ fontSize: '72px', margin: 0 }} animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 1, delay: 0.2 }}>🔍</motion.p>
+            <p style={styles.emptyTitle}>סיימת את המשרות בתחומך</p>
+            <p style={styles.emptySubtitle}>יש עוד {discoveryJobs.length} משרות מתחומים אחרים</p>
+            <DiscoveryPreview jobs={discoveryJobs.slice(0, 5)} />
+            <motion.button
+              style={{ ...styles.emptyBtn, background: 'linear-gradient(135deg, #FF6B6B, #E65100)', marginTop: 4 }}
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={() => setDiscoveryMode(true)}
+            >
+              הצג משרות נוספות ←
+            </motion.button>
+            <motion.button style={{ ...styles.emptyBtn, background: 'transparent', color: '#6C4FD4', border: '1px solid #6C4FD4', marginTop: 0 }}
+              whileHover={{ scale: 1.03 }} onClick={() => navigate('/applications')}>📋 ראה הגשות</motion.button>
+          </motion.div>
         ) : (
-          // Genuinely out of jobs and NOT blocked — the "all done" celebration.
+          // Genuinely out of all jobs — the "all done" celebration.
           <motion.div style={styles.emptyState} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
             <motion.p style={{ fontSize: '80px', margin: 0 }} animate={{ rotate: [0, 10, -10, 10, 0] }} transition={{ duration: 1, delay: 0.3 }}>🎉</motion.p>
             <p style={styles.emptyTitle}>סיימת את כל המשרות!</p>

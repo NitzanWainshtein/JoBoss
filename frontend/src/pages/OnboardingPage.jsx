@@ -47,7 +47,7 @@ export default function OnboardingPage({ onComplete }) {
   const [location, setLocation] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
-  const [radius, setRadius] = useState(20);
+  const [radius, setRadius] = useState(80);
   const [expLevel, setExpLevel] = useState('');
   const [availability, setAvailability] = useState('');
   const [phone, setPhone] = useState('');

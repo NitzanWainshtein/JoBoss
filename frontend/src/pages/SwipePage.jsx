@@ -987,7 +987,7 @@ function SwipePage() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
-  container: { height: '100svh', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '12px', paddingBottom: '80px', boxSizing: 'border-box', overflow: 'hidden' },
+  container: { height: 'calc(100svh - 120px)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '8px', paddingBottom: '4px', boxSizing: 'border-box', overflow: 'hidden' },
   quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 12px rgba(108,79,212,0.15)', border: '1px solid rgba(237,233,254,0.7)' },
   quotaBarTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
   quotaUpgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 },
@@ -1025,7 +1025,7 @@ const styles = {
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
   lockedSub: { fontSize: '13px', color: '#666', margin: 0 },
   lockedBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
-  buttons: { display: 'flex', gap: '24px', marginTop: '12px', flexShrink: 0, alignItems: 'center' },
+  buttons: { display: 'flex', gap: '24px', marginTop: '8px', flexShrink: 0, alignItems: 'center', direction: 'ltr' },
   rejectBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   acceptBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   swipeIcon: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },

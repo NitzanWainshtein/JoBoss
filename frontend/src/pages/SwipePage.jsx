@@ -233,7 +233,9 @@ function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
             : <><span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> החלקות היום</>}
         </span>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button style={styles.quotaRefreshBtn} onClick={onRefresh} title="רענן משרות">↻</button>
+          <button style={styles.quotaRefreshBtn} onClick={onRefresh} title="רענן משרות">
+            <img src="/icons/refresh_icon.png" alt="רענן" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+          </button>
           {plan === 'FREE' && (
             <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
           )}

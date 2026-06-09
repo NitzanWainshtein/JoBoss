@@ -15,7 +15,7 @@ import SwipeMockupPage from './pages/SwipeMockupPage.jsx';
 import JobCardPreviewPage from './pages/JobCardPreviewPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
-import { createMyProfile } from './api';
+import { createMyProfile, getSubscription } from './api';
 import './styles/global.css';
 
 function SplashScreen({ onDone }) {
@@ -163,6 +163,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin]       = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
+  const [planKey, setPlanKey] = useState(() => localStorage.getItem('planKey') || '');
   const [loading, setLoading] = useState(true);
   // Skip the splash for the extension auth bridge so it resolves instantly.
   const isAuthExtRoute = typeof window !== 'undefined' && window.location.pathname === '/auth-extension';
@@ -180,6 +181,12 @@ function App() {
         const { getMyProfile } = await import('./api');
         const data = await getMyProfile();
         setOnboardingCompleted(data?.user?.onboardingCompleted === true);
+        try {
+          const subData = await getSubscription();
+          const plan = subData?.planKey || 'FREE';
+          setPlanKey(plan);
+          localStorage.setItem('planKey', plan);
+        } catch { /* subscription fetch failure is non-fatal */ }
       } catch (e) {
         if (e?.status === 403 && e?.data?.code === 'ACCOUNT_SUSPENDED') {
           setIsSuspended(true);
@@ -238,7 +245,7 @@ function App() {
           </div>
         ) : (
           <Router>
-            {isLoggedIn && onboardingCompleted && !isAuthExtRoute && <Navbar isAdmin={isAdmin} />}
+            {isLoggedIn && onboardingCompleted && !isAuthExtRoute && <Navbar isAdmin={isAdmin} planKey={planKey} />}
             <div style={{ paddingBottom: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? '64px' : '0', paddingTop: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? '56px' : '0' }}>
               <AnimatedRoutes
                 isLoggedIn={isLoggedIn}

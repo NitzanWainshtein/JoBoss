@@ -3,7 +3,18 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'aws-amplify/auth';
 import ICON_SIZES from '../iconSizes';
 
-function Navbar({ isAdmin = false }) {
+const PLAN_LOGOS = {
+  FREE:         '/icons/free_members_icon.png',
+  PREMIUM:      '/icons/premium_member_icon.png',
+  PREMIUM_PLUS: '/icons/plus_members_icon.png',
+};
+
+function getHeaderLogo(isAdmin, planKey) {
+  if (isAdmin) return '/icons/admin_logo.png';
+  return PLAN_LOGOS[planKey] || '/app_logo.png';
+}
+
+function Navbar({ isAdmin = false, planKey = '' }) {
   const navigate  = useNavigate();
   const location  = useLocation();
   const itemRefs  = useRef([]);
@@ -39,7 +50,7 @@ function Navbar({ isAdmin = false }) {
     <>
       <div style={styles.header}>
         <img
-          src={isAdmin ? '/icons/admin_logo.png' : '/app_logo.png'}
+          src={getHeaderLogo(isAdmin, planKey)}
           alt="joBoss"
           style={styles.logo}
         />

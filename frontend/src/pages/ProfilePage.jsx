@@ -451,7 +451,7 @@ function ProfilePage() {
                     transition: 'background 0.2s',
                   }}
                 >
-                  {gpsLoading ? '⏳ מאתר מיקום...' : '🎯 זהה מיקום נוכחי אוטומטית'}
+                  {gpsLoading ? 'מאתר מיקום... ⏳' : 'זהה מיקום נוכחי אוטומטית 🎯'}
                 </button>
 
                 {gpsError && (

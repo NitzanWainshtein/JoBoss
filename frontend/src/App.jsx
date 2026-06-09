@@ -173,7 +173,7 @@ function App() {
   const checkAuth = async () => {
     try {
       await getCurrentUser();
-      const session = await fetchAuthSession();
+      const session = await fetchAuthSession({ forceRefresh: true });
       setIsLoggedIn(true);
       setIsAdmin(isAdminUser(session));
       // Check onboarding status — keep loading=true until we know
@@ -211,6 +211,7 @@ function App() {
     // האזן ל-OAuth callbacks
     const hubListenerCancelToken = Hub.listen('auth', ({ payload }) => {
       switch (payload.event) {
+        case 'signedIn':
         case 'signInWithRedirect':
           checkAuth();
           break;

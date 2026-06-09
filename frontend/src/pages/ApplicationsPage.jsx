@@ -254,6 +254,16 @@ function AutoApplyResult({ app, planKey, canExplain, isActiveTailoring }) {
 
   // ── manual: auto-apply was off for this job ────────────────────────────────
   if (app.autoApplyStatus === 'manual') {
+    if (!isPremium) {
+      return (
+        <div style={{ ...styles.autoBoxCol, background: '#F5F5F5', borderColor: '#ccc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.manualBlock}px`, height: `${ICON_SIZES.manualBlock}px`, objectFit: 'contain' }} />
+            <p style={{ ...styles.autoTitle, color: '#999', margin: 0 }}>הגשת משרה אוטומטית — פרימיום בלבד 🔒</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{ ...styles.autoBoxCol, background: cfg.bg, borderColor: cfg.border }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -564,15 +574,15 @@ function ApplicationsPage() {
           </div>
           <div style={styles.statChipDiv} />
           <div style={styles.statChip}>
-            <span style={{ ...styles.statChipNum, color: '#9C27B0' }}>{applications.filter(a => a.status === 'INTERVIEW').length}</span>
-            <img src="/icons/interviews_icon.png" alt="" style={styles.statChipIcon} />
-            <span style={styles.statChipLabel}>ראיונות</span>
-          </div>
-          <div style={styles.statChipDiv} />
-          <div style={styles.statChip}>
             <span style={{ ...styles.statChipNum, color: '#4CAF50' }}>{applications.filter(a => a.status === 'ACCEPTED').length}</span>
             <img src="/icons/accepted_icon.png" alt="" style={styles.statChipIcon} />
             <span style={styles.statChipLabel}>התקבלו</span>
+          </div>
+          <div style={styles.statChipDiv} />
+          <div style={styles.statChip}>
+            <span style={{ ...styles.statChipNum, color: '#9C27B0' }}>{applications.filter(a => a.status === 'INTERVIEW').length}</span>
+            <img src="/icons/interviews_icon.png" alt="" style={styles.statChipIcon} />
+            <span style={styles.statChipLabel}>ראיונות</span>
           </div>
           {canTailorCV && applications.some(a => a.autoApplyStatus) && (<>
             <div style={styles.statChipDiv} />
@@ -680,7 +690,7 @@ function ApplicationsPage() {
                     >
                       {tailoringJobId === app.jobId ? '⏳ מתאים...' : canTailorCV
                         ? <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.tailorButton}px`, height: `${ICON_SIZES.tailorButton}px`, objectFit: 'contain' }} />התאמת קורות חיים למשרה</span>
-                        : '🔒 התאמת קורות חיים — פרימיום בלבד'}
+                        : 'התאמת קורות חיים — פרימיום בלבד 🔒'}
                     </button>
                   )}
 
@@ -724,7 +734,7 @@ function ApplicationsPage() {
                       </button>
                     ) : (
                       <button type="button" style={styles.manualTailorBtnLocked} onClick={() => setShowUpsell(true)}>
-                        🔒 התאמת קורות חיים — פרימיום בלבד
+                        התאמת קורות חיים — פרימיום בלבד 🔒
                       </button>
                     )
                   )}
@@ -745,8 +755,8 @@ function ApplicationsPage() {
                       >
                         {isUpdating && app.status !== s ? '...' : (
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-                            {STATUS_CONFIG[s]?.icon && <img src={STATUS_CONFIG[s].icon} alt="" style={{ width: `${ICON_SIZES.statusButton}px`, height: `${ICON_SIZES.statusButton}px`, objectFit: 'contain' }} />}
                             {STATUS_CONFIG[s]?.label}
+                            {STATUS_CONFIG[s]?.icon && <img src={STATUS_CONFIG[s].icon} alt="" style={{ width: `${ICON_SIZES.statusButton}px`, height: `${ICON_SIZES.statusButton}px`, objectFit: 'contain' }} />}
                           </span>
                         )}
                       </button>

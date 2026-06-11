@@ -280,4 +280,14 @@ def handler(event, context):
         )
         return resp(200, {'success': True})
 
+    if method == 'DELETE':
+        body = json.loads(event.get('body') or '{}')
+        job_ids = body.get('jobIds', [])
+        if not job_ids or not isinstance(job_ids, list):
+            return resp(400, {'error': 'jobIds array required'})
+        with table.batch_writer() as batch:
+            for job_id in job_ids:
+                batch.delete_item(Key={'userId': user_id, 'jobId': job_id})
+        return resp(200, {'deleted': len(job_ids)})
+
     return resp(405, {'error': 'Method not allowed'})

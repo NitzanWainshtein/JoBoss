@@ -593,7 +593,8 @@ def step_7_routes(api_id, auth_id):
     _method(api_id, apps, "GET", _lambda_uri(f"{APP}-applications"), auth_id)
     _method(api_id, apps, "POST", _lambda_uri(f"{APP}-applications"), auth_id)
     _method(api_id, apps, "PUT", _lambda_uri(f"{APP}-applications"), auth_id)
-    _cors(api_id, apps, "GET,POST,PUT")
+    _method(api_id, apps, "DELETE", _lambda_uri(f"{APP}-applications"), auth_id)
+    _cors(api_id, apps, "GET,POST,PUT,DELETE")
     _allow_invoke(api_id, f"{APP}-applications", "/applications*", "AllowApigwApps")
     ok("/applications")
 

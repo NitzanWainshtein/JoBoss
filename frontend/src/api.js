@@ -84,6 +84,10 @@ export const clearApplicationTailoring = async (jobId) => {
   return apiCall('PUT', '/applications', { jobId, clearTailoring: true });
 };
 
+export const deleteApplications = async (jobIds) => {
+  return apiCall('DELETE', '/applications', { jobIds });
+};
+
 // ===== USERS =====
 export const getMyProfile = async () => apiCall('GET', '/users/me');
 

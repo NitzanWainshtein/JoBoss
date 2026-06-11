@@ -1,16 +1,17 @@
 ﻿import React, { useState, useEffect } from 'react';
 import ICON_SIZES from '../iconSizes';
-import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring, explainFailure } from '../api';
+import { CompanyLogo } from '../utils/companyLogos';
+import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring, explainFailure, deleteApplications, getMyProfile } from '../api';
 import LimitModal from '../components/LimitModal';
 import MismatchWarningModal from '../components/MismatchWarningModal';
 import Spinner from '../components/Spinner';
 
 // ── Track B: user-set funnel status ──────────────────────────────────────────
 const STATUS_CONFIG = {
-  SUBMITTED: { color: '#FFC107', label: 'הוגש' },
-  REVIEWED:  { color: '#2196F3', label: 'נסקר' },
-  INTERVIEW: { color: '#9C27B0', label: 'ראיון',   icon: '/icons/interviews_icon.png' },
-  ACCEPTED:  { color: '#4CAF50', label: 'התקבלת',  icon: '/icons/accepted_icon.png' },
+  SUBMITTED: { color: '#FF9800', label: 'ממתין להגשה' },
+  REVIEWED:  { color: '#2196F3', label: 'הוגש' },
+  INTERVIEW: { color: '#9C27B0', label: 'בתהליך' },
+  ACCEPTED:  { color: '#4CAF50', label: 'התקבלת' },
   REJECTED:  { color: '#F44336', label: 'נדחה' },
 };
 
@@ -34,8 +35,8 @@ const PRIMARY_TABS = [
 // Level-2 sub-tabs (only under "סטטוס מועמדות"). null = all candidacy statuses.
 const CANDIDACY_STATUSES = ['REVIEWED', 'INTERVIEW', 'ACCEPTED', 'REJECTED'];
 const SUB_TABS = [
-  { key: 'REVIEWED', label: 'נסקר' },
-  { key: 'INTERVIEW', label: 'ראיון' },
+  { key: 'REVIEWED', label: 'הוגש' },
+  { key: 'INTERVIEW', label: 'בתהליך' },
   { key: 'ACCEPTED', label: 'התקבלת' },
   { key: 'REJECTED', label: 'נדחה' },
 ];
@@ -390,10 +391,142 @@ function AutoApplyResult({ app, planKey, canExplain, isActiveTailoring }) {
   );
 }
 
+// ── Confirm delete modal ──────────────────────────────────────────────────────
+function ConfirmDeleteModal({ count, onConfirm, onCancel }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div style={{ background: 'white', borderRadius: '20px', padding: '28px 24px', width: 'min(340px, 95vw)', display: 'flex', flexDirection: 'column', gap: '16px', direction: 'rtl', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center' }}>
+          <span style={{ fontSize: '40px' }}>🗑</span>
+          <p style={{ fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: 0 }}>מחיקת הגשות</p>
+          <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>
+            האם למחוק <strong>{count}</strong> {count === 1 ? 'הגשה' : 'הגשות'} לצמיתות?<br />
+            <span style={{ fontSize: '12px', color: '#F44336' }}>לא ניתן לשחזר פעולה זו</span>
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#F44336', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
+            onClick={onConfirm}
+          >
+            מחק
+          </button>
+          <button
+            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1.5px solid #e0e0e0', background: 'white', color: '#555', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
+            onClick={onCancel}
+          >
+            ביטול
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Panel tab ─────────────────────────────────────────────────────────────────
+function PanelTab({ applications, planKey, userName }) {
+  const total        = applications.length;
+  const manualPending = applications.filter(a => a.autoApplyStatus === 'manual').length;
+  const inProgress   = applications.filter(a => a.autoApplyStatus === 'pending' || a.autoApplyStatus === 'pending_tailoring').length;
+  const autoSuccess  = applications.filter(a => a.autoApplyStatus === 'success').length;
+  const failed       = applications.filter(a => a.autoApplyStatus === 'failed').length;
+  const reviewed     = applications.filter(a => a.status === 'REVIEWED').length;
+  const interviews   = applications.filter(a => a.status === 'INTERVIEW').length;
+  const accepted     = applications.filter(a => a.status === 'ACCEPTED').length;
+  const rejected     = applications.filter(a => a.status === 'REJECTED').length;
+
+  const interviewRate = total > 0 ? Math.round((interviews / total) * 100) : 0;
+  const recent = [...applications].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 6);
+
+  const StatCard = ({ icon, value, label, color, bg }) => (
+    <div style={{ background: bg || '#F8F6FF', borderRadius: '14px', padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flex: '1 1 calc(33% - 6px)', minWidth: '85px' }}>
+      <img src={icon} alt="" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+      <span style={{ fontSize: '22px', fontWeight: 900, color: color || '#6C4FD4', lineHeight: 1 }}>{value}</span>
+      <span style={{ fontSize: '10px', color: '#888', fontWeight: 600, textAlign: 'center' }}>{label}</span>
+    </div>
+  );
+
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+      {/* Hero card */}
+      <div style={{ background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', borderRadius: '18px', padding: '18px 20px', color: 'white', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, opacity: 0.85, display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <img src="/icons/panel_icons/wave_icon.png" alt="" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
+            שלום, {userName ? userName.split(' ')[0] : ''}!
+          </p>
+          <p style={{ margin: 0, fontSize: '22px', fontWeight: 800, letterSpacing: '-0.3px' }}>
+            הפאנל שלך
+          </p>
+        </div>
+        <div style={{ width: '52px', height: '52px', borderRadius: '14px', overflow: 'hidden', background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <img src="/icons/panel_icons/male_profile.png" alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      </div>
+
+      {/* Stats grid */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <StatCard icon="/icons/panel_icons/waiting_for_apply_icon.png" value={manualPending} label="ממתין להגשה ידנית" color="#E65100" bg="#FFF8F0" />
+        <StatCard icon="/icons/panel_icons/inproccess_icon.png"        value={inProgress}    label="בתהליך הגשה"      color="#7C3AED" bg="#F5F3FF" />
+        <StatCard icon="/icons/panel_icons/auto_applied_icon.png"      value={autoSuccess}   label="הוגש אוטומטית"    color="#166534" bg="#F0FDF4" />
+        <StatCard icon="/icons/panel_icons/viewd_icon.png"             value={reviewed}      label="נסקר"             color="#1565C0" bg="#EFF6FF" />
+        <StatCard icon="/icons/panel_icons/interviews_icon.png"        value={interviews}    label="ראיונות"          color="#9C27B0" bg="#FDF4FF" />
+        <StatCard icon="/icons/panel_icons/approved_icon.png"          value={accepted}      label="התקבלת"           color="#2E7D32" bg="#F0FDF4" />
+      </div>
+
+
+      {/* Recent applications */}
+      {recent.length > 0 && (
+        <div style={{ background: 'white', borderRadius: '16px', padding: '16px', direction: 'rtl', boxShadow: '0 1px 5px rgba(0,0,0,0.07)' }}>
+          <p style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: 800, color: '#1E2A4A' }}>הגשות אחרונות</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {recent.map(app => {
+              const isPendingManual = app.autoApplyStatus === 'manual';
+              const badgeCfg = isPendingManual
+                ? { label: 'ממתין להגשה', color: '#FF9800' }
+                : (STATUS_CONFIG[app.status] || { label: 'הוגש', color: '#FFC107' });
+              return (
+                <div key={app.jobId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #F5F5F5' }}>
+                  <CompanyLogo company={app.company} style={{ width: '36px', height: '36px', borderRadius: '9px', objectFit: 'contain', border: '1px solid #eee', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E2A4A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.company}</p>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.title}</p>
+                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: badgeCfg.color, background: `${badgeCfg.color}18`, padding: '3px 8px', borderRadius: '20px', flexShrink: 0 }}>
+                    {badgeCfg.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {total === 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 24px', background: 'white', borderRadius: '14px', textAlign: 'center' }}>
+          <p style={{ fontSize: '48px', margin: 0 }}>📊</p>
+          <p style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>אין נתונים עדיין</p>
+          <p style={{ fontSize: '14px', color: '#777', margin: 0 }}>החלק משרות כדי לראות סטטיסטיקות</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
+  const [pageTab, setPageTab] = useState('my-applications');
   const [primaryTab, setPrimaryTab] = useState('all');
-  const [subTab, setSubTab] = useState(null); // candidacy sub-filter (null = all)
+  const [subTab, setSubTab] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
@@ -404,6 +537,7 @@ function ApplicationsPage() {
   const [clearedTailoring, setClearedTailoring] = useState(new Set());
   const [mismatchState, setMismatchState] = useState(null);
   const [planKey, setPlanKey] = useState('FREE');
+  const [userName, setUserName] = useState('');
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
   const canTailorCV = planKey !== 'FREE';
   const [tailoringJobs, setTailoringJobs] = useState(() => {
@@ -416,6 +550,9 @@ function ApplicationsPage() {
     getSubscription()
       .then(sub => setPlanKey(sub?.planKey || 'FREE'))
       .catch(() => setPlanKey('FREE'));
+    getMyProfile()
+      .then(p => setUserName(p?.user?.fullName || p?.user?.email || ''))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -501,7 +638,55 @@ function ApplicationsPage() {
     }
   });
 
-  const selectPrimary = (key) => { setPrimaryTab(key); setSubTab(null); };
+  const STATUS_ORDER = { SUBMITTED: 0, REVIEWED: 1, INTERVIEW: 2, ACCEPTED: 3, REJECTED: 4 };
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortBy) {
+      case 'date_asc':    return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      case 'company':     return (a.company || '').localeCompare(b.company || '');
+      case 'status':      return (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+      case 'date_desc':
+      default:            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage   = Math.min(currentPage, totalPages);
+  const paginated  = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const selectPrimary = (key) => { setPrimaryTab(key); setSubTab(null); setCurrentPage(1); };
+
+  const toggleSelect = (jobId) => {
+    setSelected(prev => {
+      const s = new Set(prev);
+      s.has(jobId) ? s.delete(jobId) : s.add(jobId);
+      return s;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === paginated.length) setSelected(new Set());
+    else setSelected(new Set(paginated.map(a => a.jobId)));
+  };
+
+  const handleDelete = () => {
+    if (!selected.size) return;
+    setConfirmDelete(true);
+  };
+
+  const confirmAndDelete = async () => {
+    setConfirmDelete(false);
+    setDeleting(true);
+    try {
+      await deleteApplications([...selected]);
+      setApplications(prev => prev.filter(a => !selected.has(a.jobId)));
+      setSelected(new Set());
+      setEditMode(false);
+    } catch {
+      alert('שגיאה במחיקה');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleTailorCV = async (app, force = false) => {
     setTailoringJobId(app.jobId);
@@ -559,54 +744,75 @@ function ApplicationsPage() {
     <div style={styles.container}>
       <div style={styles.content}>
 
-        {/* Page header: title + refresh */}
+        {/* Page header */}
         <div style={styles.pageHeader}>
-          <span style={styles.pageTitle}>הגשות שלי</span>
+          <span style={styles.pageTitle}>הגשות</span>
           <button style={styles.refreshBtn} onClick={loadApplications}>
             <img src="/icons/refresh_icon.png" alt="" style={{ width: `${ICON_SIZES.cvButton}px`, height: `${ICON_SIZES.cvButton}px`, objectFit: 'contain' }} />
             רענן
           </button>
         </div>
 
-        {/* Compact stats strip */}
-        <div style={styles.statsStrip}>
-          <div style={styles.statChip}>
-            <span style={{ ...styles.statChipNum, color: '#6C4FD4' }}>{applications.length}</span>
-            <img src="/icons/applies_icon.png" alt="" style={styles.statChipIcon} />
-            <span style={styles.statChipLabel}>סה"כ</span>
-          </div>
-          <div style={styles.statChipDiv} />
-          <div style={styles.statChip}>
-            <span style={{ ...styles.statChipNum, color: '#4CAF50' }}>{applications.filter(a => a.status === 'ACCEPTED').length}</span>
-            <img src="/icons/accepted_icon.png" alt="" style={styles.statChipIcon} />
-            <span style={styles.statChipLabel}>התקבלו</span>
-          </div>
-          <div style={styles.statChipDiv} />
-          <div style={styles.statChip}>
-            <span style={{ ...styles.statChipNum, color: '#9C27B0' }}>{applications.filter(a => a.status === 'INTERVIEW').length}</span>
-            <img src="/icons/interviews_icon.png" alt="" style={styles.statChipIcon} />
-            <span style={styles.statChipLabel}>ראיונות</span>
-          </div>
-          {canTailorCV && applications.some(a => a.autoApplyStatus) && (<>
-            <div style={styles.statChipDiv} />
-            <div style={styles.statChip}>
-              <span style={{ ...styles.statChipNum, color: '#4CAF50' }}>{applications.filter(a => a.autoApplyStatus === 'success').length}</span>
-              <img src="/icons/robot_icon.png" alt="" style={styles.statChipIcon} />
-              <span style={styles.statChipLabel}>אוטו'</span>
-            </div>
-            <div style={styles.statChipDiv} />
-            <div style={styles.statChip}>
-              <span style={{ ...styles.statChipNum, color: '#7C3AED' }}>{applications.filter(a => a.autoApplyStatus === 'pending').length}</span>
-              <img src="/icons/process_icon.png" alt="" style={styles.statChipIcon} />
-              <span style={styles.statChipLabel}>בתהליך</span>
-            </div>
-            <div style={styles.statChipDiv} />
-            <div style={styles.statChip}>
-              <span style={{ ...styles.statChipNum, color: '#FF9800' }}>{applications.filter(a => a.autoApplyStatus === 'manual').length}</span>
-              <img src="/icons/waiting_to_apply_icon.png" alt="" style={styles.statChipIcon} />
-              <span style={styles.statChipLabel}>ממתינים</span>
-            </div>
-          </>)}
+        {/* Top-level page tabs */}
+        <div style={styles.pageTabs}>
+          <button
+            style={{ ...styles.pageTabBtn, ...(pageTab === 'my-applications' ? styles.pageTabActive : {}) }}
+            onClick={() => setPageTab('my-applications')}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <img src="/icons/applies_icon.png" alt="" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+              ההגשות שלי
+            </span>
+          </button>
+          <button
+            style={{ ...styles.pageTabBtn, ...(pageTab === 'panel' ? styles.pageTabActive : {}) }}
+            onClick={() => setPageTab('panel')}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <img src="/icons/panel_icons/panel_icon.png" alt="" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+              פאנל ההגשות
+            </span>
+          </button>
+        </div>
+
+        {/* ── Panel tab ── */}
+        {pageTab === 'panel' && (
+          <PanelTab applications={applications} planKey={planKey} userName={userName} />
+        )}
+
+        {/* ── My applications tab ── */}
+        {pageTab === 'my-applications' && (<>
+
+        {/* Sort + Edit toolbar */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', direction: 'rtl' }}>
+          <select
+            value={sortBy}
+            onChange={e => { setSortBy(e.target.value); setCurrentPage(1); }}
+            style={styles.sortSelect}
+          >
+            <option value="date_desc">תאריך הוספה — חדש לישן</option>
+            <option value="date_asc">תאריך הוספה — ישן לחדש</option>
+            <option value="company">שם חברה</option>
+            <option value="status">סטטוס הגשה</option>
+          </select>
+          {!editMode ? (
+            <button style={styles.editBtn} onClick={() => { setEditMode(true); setSelected(new Set()); }}>
+              ✏️ ערוך
+            </button>
+          ) : (
+            <>
+              <button
+                style={{ ...styles.editBtn, background: '#F44336', color: 'white', borderColor: '#F44336' }}
+                disabled={deleting || selected.size === 0}
+                onClick={handleDelete}
+              >
+                {deleting ? '...' : `🗑 מחק (${selected.size})`}
+              </button>
+              <button style={styles.editBtn} onClick={() => { setEditMode(false); setSelected(new Set()); }}>
+                ביטול
+              </button>
+            </>
+          )}
         </div>
 
         {/* Level 1 — primary tabs */}
@@ -637,7 +843,7 @@ function ApplicationsPage() {
           </div>
         )}
 
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <div style={styles.empty}>
             <p style={{ fontSize: '48px', margin: 0 }}>📋</p>
             <p style={styles.emptyTitle}>
@@ -646,13 +852,39 @@ function ApplicationsPage() {
             <p style={styles.emptySub}>החלק משרות כדי ליצור הגשות</p>
           </div>
         ) : (
+          <>
+          {/* Select-all row (edit mode only) */}
+          {editMode && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', direction: 'rtl', padding: '4px 2px' }}>
+              <input type="checkbox" checked={selected.size === paginated.length && paginated.length > 0} onChange={toggleSelectAll} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+              <span style={{ fontSize: '13px', color: '#666', fontWeight: 600 }}>בחר הכל בדף</span>
+              {selected.size > 0 && <span style={{ fontSize: '12px', color: '#F44336', fontWeight: 700 }}>{selected.size} נבחרו</span>}
+            </div>
+          )}
           <div style={styles.list}>
-            {filtered.map(app => {
-              const cfg = STATUS_CONFIG[app.status] || { color: '#FFC107', label: 'ממתין' };
+            {paginated.map(app => {
+              const isPendingManual = (app.autoApplyStatus === 'manual' || app.autoApplyStatus === 'pending' || app.autoApplyStatus === 'failed') && app.status === 'SUBMITTED';
+              const cfg = isPendingManual
+                ? { color: '#FF9800', label: 'ממתין להגשה' }
+                : (STATUS_CONFIG[app.status] || { color: '#FFC107', label: 'ממתין' });
               const isUpdating = updating === app.jobId;
+              const isSelected = selected.has(app.jobId);
               return (
-                <div key={app.jobId} style={styles.card}>
+                <div
+                  key={app.jobId}
+                  style={{ ...styles.card, ...(isSelected ? { outline: '2px solid #6C4FD4', outlineOffset: '1px' } : {}) }}
+                  onClick={editMode ? () => toggleSelect(app.jobId) : undefined}
+                >
                   <div style={{ ...styles.cardTop, direction: 'ltr' }}>
+                    {editMode && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(app.jobId)}
+                        onClick={e => e.stopPropagation()}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0, marginLeft: '6px' }}
+                      />
+                    )}
                     <div style={{ ...styles.cardInfo, direction: 'rtl' }}>
                       <p style={styles.company}>{app.company || app.jobId}</p>
                       <p style={styles.title}>{app.title || 'משרה'}</p>
@@ -756,12 +988,7 @@ function ApplicationsPage() {
                         }}
                         onClick={() => handleStatusChange(app.jobId, s)}
                       >
-                        {isUpdating && app.status !== s ? '...' : (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-                            {STATUS_CONFIG[s]?.label}
-                            {STATUS_CONFIG[s]?.icon && <img src={STATUS_CONFIG[s].icon} alt="" style={{ width: `${ICON_SIZES.statusButton}px`, height: `${ICON_SIZES.statusButton}px`, objectFit: 'contain' }} />}
-                          </span>
-                        )}
+                        {isUpdating && app.status !== s ? '...' : STATUS_CONFIG[s]?.label}
                       </button>
                     ))}
                   </div>
@@ -769,8 +996,35 @@ function ApplicationsPage() {
               );
             })}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={styles.pagination}>
+              <button
+                style={{ ...styles.pageBtn, opacity: safePage <= 1 ? 0.3 : 1 }}
+                disabled={safePage <= 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              >→</button>
+              <span style={styles.pageInfo}>{safePage} / {totalPages}</span>
+              <button
+                style={{ ...styles.pageBtn, opacity: safePage >= totalPages ? 0.3 : 1 }}
+                disabled={safePage >= totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              >←</button>
+            </div>
+          )}
+          </>
         )}
+        </>)}
       </div>
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          count={selected.size}
+          onConfirm={confirmAndDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
 
       <LimitModal
         visible={showUpsell || premiumAtLimit}
@@ -835,7 +1089,12 @@ const styles = {
   pageTitle: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A' },
   refreshBtn: { display: 'flex', alignItems: 'center', gap: '5px', background: 'white', border: '1.5px solid #e0e0e0', borderRadius: '20px', padding: '6px 14px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#555', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
 
-  /* Compact stats strip */
+  /* Page-level tabs */
+  pageTabs: { display: 'flex', background: 'white', borderRadius: '14px', padding: '4px', gap: '4px', boxShadow: '0 1px 5px rgba(0,0,0,0.07)' },
+  pageTabBtn: { flex: 1, padding: '9px 8px', borderRadius: '10px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#888', transition: 'all 0.15s' },
+  pageTabActive: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', boxShadow: '0 2px 8px rgba(108,79,212,0.3)' },
+
+  /* Compact stats strip (kept for possible future use) */
   statsStrip: { display: 'flex', background: 'white', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.07)' },
   statChip: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', gap: '3px' },
   statChipNum: { fontSize: '20px', fontWeight: 800, lineHeight: 1.1 },
@@ -851,6 +1110,11 @@ const styles = {
   detailBtn: { border: '1.5px solid', borderRadius: '999px', background: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
   detailPanel: { overflow: 'hidden', transition: 'max-height 0.3s ease, opacity 0.3s ease' },
   detailInner: { paddingTop: '10px' },
+  sortSelect: { flex: 1, padding: '7px 10px', borderRadius: '10px', border: '1.5px solid #e0e0e0', background: 'white', fontSize: '12px', fontWeight: 600, color: '#555', cursor: 'pointer', direction: 'rtl' },
+  editBtn: { flexShrink: 0, padding: '7px 14px', borderRadius: '10px', border: '1.5px solid #e0e0e0', background: 'white', fontSize: '12px', fontWeight: 700, color: '#555', cursor: 'pointer', whiteSpace: 'nowrap' },
+  pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', paddingTop: '4px' },
+  pageBtn: { width: '34px', height: '34px', borderRadius: '50%', border: '1.5px solid #e0e0e0', background: 'white', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pageInfo: { fontSize: '13px', fontWeight: 700, color: '#555', minWidth: '50px', textAlign: 'center' },
   filterRow: { display: 'flex', gap: '7px', overflowX: 'auto', paddingBottom: '3px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' },
   filterBtn: { flexShrink: 0, padding: '7px 15px', borderRadius: '20px', border: '1.5px solid #e0e0e0', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#666', whiteSpace: 'nowrap' },
   filterActive: { background: '#6C4FD4', borderColor: '#6C4FD4', color: 'white' },

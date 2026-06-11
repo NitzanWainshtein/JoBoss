@@ -13,6 +13,7 @@ import {
 import SubscriptionPage from './SubscriptionPage';
 import LocationInput from '../components/LocationInput';
 import { JOB_CATEGORIES } from '../data/jobCategories';
+import { EditProfileModal, ChangePasswordModal } from '../components/ProfileModals';
 
 // ── Subscription badge for profile header ────────────────────────────────────
 function PlanBadge({ planKey }) {
@@ -48,6 +49,11 @@ function ProfilePage() {
   const [experienceLevel, setExperienceLevel] = useState('');
   const [availability, setAvailability] = useState('');
   const [showAllJobs, setShowAllJobs] = useState(() => localStorage.getItem('showAllJobs') === 'true');
+  const [avatarMenuOpen,   setAvatarMenuOpen]   = useState(false);
+  const [showEditModal,    setShowEditModal]    = useState(false);
+  const [showChangePass,   setShowChangePass]   = useState(false);
+  const avatarMenuRef = useRef(null);
+  const profileImgInputRef = useRef(null);
   const profileLoaded = useRef(false); // true after first successful load
   const pendingSaveRef = useRef(null); // latest unsaved payload (for unmount flush)
 
@@ -203,6 +209,41 @@ function ProfilePage() {
     };
   }, []);
 
+  // Close avatar menu on outside click
+  useEffect(() => {
+    if (!avatarMenuOpen) return;
+    const handler = (e) => {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) setAvatarMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [avatarMenuOpen]);
+
+  const handleAvatarImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('התמונה גדולה מדי (מקסימום 5MB)'); return; }
+    setProfileImage(URL.createObjectURL(file));
+    setUploadingImage(true);
+    setAvatarMenuOpen(false);
+    try {
+      const r = await uploadProfileImage(file);
+      setProfileImage(r.imageUrl);
+    } catch {
+      alert('שגיאה בהעלאת התמונה');
+      setProfileImage(profile?.profileImageUrl || null);
+    } finally {
+      setUploadingImage(false);
+    }
+    e.target.value = '';
+  };
+
+  const handleLogout = async () => {
+    const { signOut } = await import('aws-amplify/auth');
+    await signOut();
+    window.location.href = '/login';
+  };
+
   const handleCvUpload = async (e) => {
     const file = e.target.files[0];
 
@@ -259,12 +300,6 @@ function ProfilePage() {
     } catch {
       alert('❌ שגיאה במחיקה');
     }
-  };
-
-  const handleLogout = async () => {
-    const { signOut } = await import('aws-amplify/auth');
-    await signOut();
-    window.location.href = '/login';
   };
 
   const handleUseCurrentLocation = () => {
@@ -343,49 +378,42 @@ function ProfilePage() {
       <div style={styles.content}>
         {/* Profile header card */}
         <div style={styles.card}>
-          <div style={{ position: 'relative' }}>
-            {profileImage ? (
+          {/* Avatar with dropdown */}
+          <div ref={avatarMenuRef} style={{ position: 'relative' }}>
+            <button style={styles.avatarBtn} onClick={() => setAvatarMenuOpen(v => !v)}>
               <img
-                src={profileImage}
+                src={profileImage || '/icons/panel_icons/male_profile.png'}
                 alt="Profile"
-                style={{ ...styles.avatar, opacity: uploadingImage ? 0.5 : 1 }}
+                style={{ ...styles.avatarImg, opacity: uploadingImage ? 0.5 : 1 }}
               />
-            ) : (
-              <div style={styles.avatar}>{userName.charAt(0).toUpperCase()}</div>
+              {uploadingImage && <div style={styles.avatarSpinner}>⏳</div>}
+            </button>
+
+            {avatarMenuOpen && (
+              <div style={styles.avatarDropdown}>
+                <div style={styles.dropdownHeader}>
+                  <p style={styles.dropdownName}>{userName}</p>
+                </div>
+                {[
+                  { icon: '✏️', label: 'עריכת פרטים אישיים',  action: () => { setAvatarMenuOpen(false); setShowEditModal(true); } },
+                  { icon: '📷', label: uploadingImage ? 'מעלה תמונה...' : 'העלאת תמונת פרופיל', action: () => { setAvatarMenuOpen(false); profileImgInputRef.current?.click(); } },
+                  { icon: '🔑', label: 'החלפת סיסמא',          action: () => { setAvatarMenuOpen(false); setShowChangePass(true); } },
+                  { icon: '🚪', label: 'התנתקות',               action: handleLogout, danger: true },
+                ].map((item, i) => (
+                  <button key={i}
+                    style={{ ...styles.dropdownItem, color: item.danger ? '#F44336' : '#1E2A4A' }}
+                    onClick={item.action}>
+                    <span style={{ fontSize: '16px', flexShrink: 0 }}>{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             )}
-
-            <label style={styles.cameraIcon}>
-              {uploadingImage ? '⏳' : '📷'}
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-
-                  if (!file) return;
-
-                  if (file.size > 5 * 1024 * 1024) {
-                    alert('התמונה גדולה מדי (מקסימום 5MB)');
-                    return;
-                  }
-
-                  setProfileImage(URL.createObjectURL(file));
-                  setUploadingImage(true);
-
-                  try {
-                    const r = await uploadProfileImage(file);
-                    setProfileImage(r.imageUrl);
-                  } catch {
-                    alert('שגיאה בהעלאת התמונה');
-                    setProfileImage(null);
-                  } finally {
-                    setUploadingImage(false);
-                  }
-                }}
-              />
-            </label>
           </div>
+
+          {/* Hidden file input for profile image */}
+          <input ref={profileImgInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={handleAvatarImageUpload} />
 
           <h2 style={styles.username}>{userName}</h2>
           <PlanBadge planKey={planKey} />
@@ -577,7 +605,7 @@ function ProfilePage() {
             {/* Resumes */}
             <div style={styles.card}>
               <h3 style={styles.cardTitle}><img src="/icons/cv_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />קורות חיים</h3>
-              <p style={styles.settingDesc}>העלה עד 3 קבצים — ה-AI יתאים את הפעיל לכל משרה</p>
+              <p style={styles.settingDesc}>ניתן להעלות עד 3 קבצים - התאמה אוטומטית תבוצע על הקובץ שנבחר כפעיל</p>
 
               {planKey === 'FREE' && (
                 <div style={styles.aiLockBanner}>
@@ -821,6 +849,20 @@ function ProfilePage() {
         {/* Subscription tab */}
         {tab === 'subscription' && <SubscriptionPage api={subApi} />}
       </div>
+
+      {showEditModal && (
+        <EditProfileModal
+          profile={profile}
+          onClose={() => setShowEditModal(false)}
+          onSaved={(updated) => {
+            setUserName(updated.fullName);
+            setProfile(prev => ({ ...prev, ...updated }));
+          }}
+        />
+      )}
+      {showChangePass && (
+        <ChangePasswordModal onClose={() => setShowChangePass(false)} />
+      )}
     </div>
   );
 }
@@ -850,33 +892,36 @@ const styles = {
     alignItems: 'center',
     gap: '12px',
   },
-  avatar: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: '32px',
-    fontWeight: 800,
-    color: 'white',
-    objectFit: 'cover',
+  avatarBtn: {
+    width: '80px', height: '80px', borderRadius: '50%', padding: 0,
+    border: '3px solid rgba(108,79,212,0.3)', cursor: 'pointer',
+    overflow: 'hidden', position: 'relative', background: 'none',
+    boxShadow: '0 4px 16px rgba(108,79,212,0.2)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  cameraIcon: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: '28px',
-    height: '28px',
-    borderRadius: '50%',
-    background: '#6C4FD4',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: '14px',
-    cursor: 'pointer',
-    border: '3px solid white',
+  avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  avatarSpinner: {
+    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+    justifyContent: 'center', background: 'rgba(0,0,0,0.35)', fontSize: '20px',
+  },
+  avatarDropdown: {
+    position: 'absolute', top: 'calc(100% + 10px)', left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'white', borderRadius: '16px', minWidth: '220px',
+    boxShadow: '0 8px 32px rgba(108,79,212,0.18), 0 2px 8px rgba(0,0,0,0.1)',
+    border: '1px solid rgba(108,79,212,0.1)', overflow: 'hidden', zIndex: 300,
+    animation: 'dropdownIn 0.18s ease',
+  },
+  dropdownHeader: {
+    padding: '14px 16px 10px', borderBottom: '1px solid #F3F4F6',
+    background: 'linear-gradient(135deg, rgba(108,79,212,0.06), rgba(30,42,74,0.04))',
+  },
+  dropdownName: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E2A4A' },
+  dropdownItem: {
+    display: 'flex', alignItems: 'center', gap: '10px',
+    width: '100%', padding: '13px 16px', background: 'transparent',
+    border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
+    textAlign: 'right', transition: 'background 0.15s',
   },
   username: {
     fontSize: '20px',

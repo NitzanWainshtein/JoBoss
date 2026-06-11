@@ -231,7 +231,7 @@ export default function AdminPage() {
               <StatCard label="סה״כ Swipes"   value={stats.totalSwipes}   color="#FF9800" />
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <StatCard label="Likes כלל הזמן"        value={stats.totalLikes}        color="#6C4FD4" />
+              <StatCard label="סה''כ משרות שקיבלו LIKE"        value={stats.totalLikes}        color="#6C4FD4" />
               <StatCard label="משתמשים חדשים השבוע" value={stats.newUsersThisWeek}  color="#00BCD4" />
               <StatCard label="AI Tailorings"        value={stats.aiTailoringsTotal} color="#9C27B0" />
               <StatCard label="Bedrock"
@@ -239,7 +239,7 @@ export default function AdminPage() {
                 color={stats.bedrockAvailable ? '#4CAF50' : '#F44336'} />
             </div>
             <div style={{ background: 'white', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <p style={{ fontWeight: 700, color: '#1E2A4A', margin: '0 0 12px' }}>פילוח לפי Plan</p>
+              <p style={{ fontWeight: 700, color: '#1E2A4A', margin: '0 0 12px' }}>פילוח משתמשים לפי סוג המנוי</p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {Object.entries(stats.planBreakdown || {}).map(([plan, count]) => (
                   <div key={plan} style={{ background: (PLAN_COLORS[plan] || '#888') + '15',

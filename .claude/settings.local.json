@@ -88,7 +88,10 @@
       "Bash(aws ecr *)",
       "Bash(grep -n \"CV יישלח\\\\|אוטומטית\\\\|autoApply\" /c/Users/NITZAN/JoBoss/frontend/src/pages/ProfilePage.jsx | head -10)",
       "Read(//c/Users/NITZAN/JoBoss/frontend/src/pages/**)",
-      "PowerShell(aws dynamodb describe-table --table-name joboss-jobs --region us-east-1 --query \"Table.KeySchema\" --output json)"
+      "PowerShell(aws dynamodb describe-table --table-name joboss-jobs --region us-east-1 --query \"Table.KeySchema\" --output json)",
+      "Bash(find /c/Users/NITZAN -name \"playwright\" -type d 2>/dev/null | head -5; ls /c/Users/NITZAN/JoBoss/frontend/node_modules | grep play 2>/dev/null)",
+      "Read(//c/c/Users/NITZAN/**)",
+      "Read(//c/Users/NITZAN/JoBoss/frontend/node_modules/**)"
     ]
   }
 }

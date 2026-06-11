@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
 import LimitModal from '../components/LimitModal';
@@ -105,46 +105,58 @@ function JobDescription({ description }) {
 function JobDetailModal({ job, onClose }) {
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={modal.overlay} onClick={onClose}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} style={modal.overlay} onClick={onClose}>
       <motion.div
-        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%', transition: { duration: 0.22, ease: 'easeIn' } }}
+        transition={{ type: 'spring', damping: 32, stiffness: 280 }}
         style={modal.sheet} onClick={(e) => e.stopPropagation()}
       >
-        <div style={modal.header}>
-          <CompanyLogo company={job.company} style={modal.logo} />
-          <div style={{ flex: 1 }}>
-            <h2 style={modal.title}>{job.title}</h2>
-            <p style={modal.company}>{job.company}</p>
+        {/* ── Sticky header ── */}
+        <div style={modal.stickyHeader}>
+          <div style={modal.dragHandle} />
+          <div style={modal.header}>
+            <CompanyLogo company={job.company} style={modal.logo} />
+            <div style={{ flex: 1 }}>
+              <h2 style={modal.title}>{job.title}</h2>
+              <p style={modal.company}>{job.company}</p>
+            </div>
+            <button style={modal.closeBtn} onClick={onClose}>✕</button>
           </div>
-          <button style={modal.closeBtn} onClick={onClose}>✕</button>
+          <div style={modal.meta}>
+            <span style={modal.metaItem}>📍 {job.location}</span>
+            {job.distanceKm != null && (
+              <span style={{ ...modal.metaItem, background: '#E8F5E9', color: '#2E7D32' }}>🗺 {job.distanceKm.toFixed(1)} ק"מ</span>
+            )}
+          </div>
         </div>
-        <div style={modal.meta}>
-          <span style={modal.metaItem}>📍 {job.location}</span>
-          {job.distanceKm != null && (
-            <span style={{ ...modal.metaItem, background: '#E8F5E9', color: '#2E7D32' }}>🗺 {job.distanceKm.toFixed(1)} ק"מ</span>
+
+        {/* ── Scrollable body ── */}
+        <div style={modal.scrollBody}>
+          {(job.technologies || job.requirements)?.length > 0 && (
+            <div style={modal.section}>
+              <p style={modal.sectionTitle}>טכנולוגיות נדרשות</p>
+              <div style={modal.tags}>
+                {(job.technologies || job.requirements).map(t => <span key={t} style={modal.tag}>{t}</span>)}
+              </div>
+            </div>
+          )}
+          {job.description && (
+            <div style={modal.section}>
+              <p style={modal.sectionTitle}>תיאור המשרה</p>
+              <JobDescription description={job.description} />
+            </div>
+          )}
+          {job.applyUrl && (
+            <div style={modal.section}>
+              <a href={job.applyUrl} target="_blank" rel="noreferrer" style={modal.applyLink}>🔗 לינק למשרה המקורית</a>
+            </div>
           )}
         </div>
-        {(job.technologies || job.requirements)?.length > 0 && (
-          <div style={modal.section}>
-            <p style={modal.sectionTitle}>טכנולוגיות נדרשות</p>
-            <div style={modal.tags}>
-              {(job.technologies || job.requirements).map(t => <span key={t} style={modal.tag}>{t}</span>)}
-            </div>
-          </div>
-        )}
-        {job.description && (
-          <div style={modal.section}>
-            <p style={modal.sectionTitle}>תיאור המשרה</p>
-            <JobDescription description={job.description} />
-          </div>
-        )}
-        {job.applyUrl && (
-          <div style={modal.section}>
-            <a href={job.applyUrl} target="_blank" rel="noreferrer" style={modal.applyLink}>🔗 לינק למשרה המקורית</a>
-          </div>
-        )}
-        <div style={modal.footer}>
+
+        {/* ── Sticky footer ── */}
+        <div style={modal.stickyFooter}>
           <button style={modal.passBtn} onClick={onClose}>דלג ✕</button>
           <button style={modal.applyBtn} onClick={() => onClose('apply')}>הגש ♥</button>
         </div>
@@ -354,7 +366,8 @@ function MatchBadge({ score, onClick }) {
 function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
   const [isDragging, setIsDragging] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
-  const matchTapRef = useRef(false);  // blocks card onTap when badge was clicked
+  const matchTapRef = useRef(false);
+  const cardControls = useAnimationControls();  // blocks card onTap when badge was clicked
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
@@ -377,14 +390,21 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
   return (
     <>
     <motion.div
+      animate={cardControls}
       style={{ x, rotate, opacity, ...styles.card, zIndex: 1, filter: locked ? 'blur(4px)' : 'none' }}
       drag={locked ? false : 'x'}
       dragConstraints={{ left: 0, right: 0 }}
       onDragStart={() => !locked && setIsDragging(true)}
       onDragEnd={handleDragEnd}
-      onTap={() => {
+      onTap={async () => {
         if (matchTapRef.current) { matchTapRef.current = false; return; }
-        if (!locked && !isDragging) onOpenDetail();
+        if (locked || isDragging) return;
+        await cardControls.start({
+          scale: [1, 1.03, 1],
+          y: [0, -8, 0],
+          transition: { duration: 0.25, ease: 'easeInOut' },
+        });
+        onOpenDetail();
       }}
       whileTap={locked ? {} : { cursor: 'grabbing' }}
     >
@@ -416,7 +436,14 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
       </div>
       {!locked && (
         <div style={styles.tapHint}>
-          <img src="/icons/clickHere_icon.png" alt="לחץ לפרטים נוספים" style={{ width: 'min(220px, 70%)', height: 'auto', objectFit: 'contain' }} draggable="false" />
+          <motion.img
+            src="/icons/clickHere_icon.png"
+            alt="לחץ לפרטים נוספים"
+            style={{ width: 'min(220px, 70%)', height: 'auto', objectFit: 'contain' }}
+            draggable="false"
+            animate={!isDragging ? { y: [0, -5, 0], opacity: [0.85, 1, 0.85] } : {}}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          />
         </div>
       )}
     </motion.div>
@@ -978,7 +1005,7 @@ function SwipePage() {
         onClose={() => setLimitModal(false)}
       />
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {selectedJob && <JobDetailModal job={selectedJob} onClose={handleModalClose} />}
       </AnimatePresence>
     </div>
@@ -1051,15 +1078,19 @@ const styles = {
 };
 
 const modal = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' },
-  sheet: { background: 'white', borderRadius: '20px', padding: '20px 24px 32px', width: 'min(360px, 95vw)', maxHeight: '80vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' },
-  header: { display: 'flex', alignItems: 'center', gap: '12px' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 200, display: 'flex', justifyContent: 'center', alignItems: 'flex-end' },
+  sheet: { background: 'white', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: '480px', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  dragHandle: { width: '40px', height: '4px', background: '#E0E0E0', borderRadius: '2px', alignSelf: 'center', marginBottom: '12px', flexShrink: 0 },
+  stickyHeader: { padding: '12px 24px 0', flexShrink: 0, borderBottom: '1px solid #F3F4F6' },
+  scrollBody: { flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
+  stickyFooter: { display: 'flex', gap: '12px', padding: '12px 24px 32px', flexShrink: 0, borderTop: '1px solid #F3F4F6', background: 'white' },
+  header: { display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px' },
   logo: { width: '56px', height: '56px', borderRadius: '14px', objectFit: 'contain', border: '1px solid #eee', flexShrink: 0 },
   logo_placeholder: { width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #6C4FD4, #4A90E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 700, color: 'white', flexShrink: 0 },
   title: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
   company: { fontSize: '14px', color: '#6C4FD4', fontWeight: 600, margin: 0 },
   closeBtn: { background: '#f5f5f5', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', flexShrink: 0, marginRight: 'auto' },
-  meta: { display: 'flex', gap: '12px', flexWrap: 'wrap' },
+  meta: { display: 'flex', gap: '12px', flexWrap: 'wrap', paddingBottom: '12px' },
   metaItem: { background: '#F0F2FF', color: '#6C4FD4', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600 },
   section: { display: 'flex', flexDirection: 'column', gap: '8px' },
   sectionTitle: { fontSize: '14px', fontWeight: 700, color: '#1E2A4A', margin: 0 },

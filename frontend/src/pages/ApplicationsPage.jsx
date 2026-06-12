@@ -566,7 +566,17 @@ function ApplicationsPage() {
     const handleComplete = (e) => {
       const { jobId, tailoredResume, tailoredResumeUrl } = e.detail;
       setApplications(prev => prev.map(a =>
-        a.jobId === jobId ? { ...a, tailoredResume, tailoredResumeUrl } : a
+        a.jobId === jobId
+          ? {
+              ...a,
+              tailoredResume,
+              tailoredResumeUrl,
+              // When Auto Apply is on, tailoring completion moves the server
+              // record to 'pending' (dispatched to the apply bot). Mirror that
+              // locally so "הגשה אוטומטית בתהליך" shows without a refresh.
+              autoApplyStatus: a.autoApplyStatus === 'pending_tailoring' ? 'pending' : a.autoApplyStatus,
+            }
+          : a
       ));
       setTailoringJobs(prev => { const s = new Set(prev); s.delete(jobId); return s; });
     };
@@ -581,8 +591,18 @@ function ApplicationsPage() {
     };
   }, []);
 
-  const loadApplications = async () => {
-    setLoading(true);
+  // Live progress: while any application is still being tailored or submitted
+  // by the bot, silently re-fetch every 20s so statuses advance without F5.
+  useEffect(() => {
+    const inFlight = applications.some(a =>
+      a.autoApplyStatus === 'pending' || a.autoApplyStatus === 'pending_tailoring');
+    if (!inFlight) return;
+    const timer = setTimeout(() => loadApplications(true), 20000);
+    return () => clearTimeout(timer);
+  }, [applications]);
+
+  const loadApplications = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const data = await getMyApplications();

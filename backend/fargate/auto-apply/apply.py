@@ -227,19 +227,31 @@ NEXT_STEP_PATTERNS = [
 ]
 
 
+def iter_frames(page):
+    """The page's main frame plus every iframe. ATSs like Comeet load the
+    application form inside an iframe, which page.locator() can't see —
+    searching only the main frame made those runs fail with
+    'no fillable form fields found' even though the form was right there."""
+    try:
+        return list(page.frames)
+    except Exception:
+        return [page.main_frame]
+
+
 def try_fill_field(page, patterns, value, field_name):
     for sel in patterns:
-        try:
-            loc = page.locator(sel).first
-            if loc.count() == 0:
+        for frame in iter_frames(page):
+            try:
+                loc = frame.locator(sel).first
+                if loc.count() == 0:
+                    continue
+                if not loc.is_visible() or not loc.is_enabled():
+                    continue
+                loc.fill(value)
+                log.info("Filled %s via '%s' (frame: %s)", field_name, sel, frame.url[:60])
+                return True
+            except Exception:
                 continue
-            if not loc.is_visible() or not loc.is_enabled():
-                continue
-            loc.fill(value)
-            log.info("Filled %s via '%s'", field_name, sel)
-            return True
-        except Exception:
-            continue
     return False
 
 
@@ -247,32 +259,35 @@ def try_upload_resume(page, resume_path):
     if not resume_path:
         return False
     for sel in FIELD_PATTERNS["resume"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.count() == 0:
+        for frame in iter_frames(page):
+            try:
+                loc = frame.locator(sel).first
+                if loc.count() == 0:
+                    continue
+                loc.set_input_files(resume_path)
+                log.info("Resume uploaded via '%s' (frame: %s)", sel, frame.url[:60])
+                return True
+            except Exception:
                 continue
-            loc.set_input_files(resume_path)
-            log.info("Resume uploaded via '%s'", sel)
-            return True
-        except Exception:
-            continue
     return False
 
 
 def try_click_first(page, selectors):
-    """Try each selector in order; click the first visible+enabled match. Returns selector used or None."""
+    """Try each selector in order across all frames; click the first
+    visible+enabled match. Returns selector used or None."""
     for sel in selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.count() == 0:
+        for frame in iter_frames(page):
+            try:
+                loc = frame.locator(sel).first
+                if loc.count() == 0:
+                    continue
+                if not loc.is_visible() or not loc.is_enabled():
+                    continue
+                loc.click()
+                log.info("Clicked '%s' (frame: %s)", sel, frame.url[:60])
+                return sel
+            except Exception:
                 continue
-            if not loc.is_visible() or not loc.is_enabled():
-                continue
-            loc.click()
-            log.info("Clicked '%s'", sel)
-            return sel
-        except Exception:
-            continue
     return None
 
 
@@ -493,28 +508,39 @@ def is_real_application_form(page):
     signals = 0
     found = []
 
-    # 1. Resume / file upload field.
+    frames = iter_frames(page)
+
+    def count_all(selector):
+        total = 0
+        for frame in frames:
+            try:
+                total += frame.locator(selector).count()
+            except Exception:
+                continue
+        return total
+
+    # 1. Resume / file upload field (any frame).
     try:
-        if page.locator("input[type='file']").count() > 0:
+        if count_all("input[type='file']") > 0:
             signals += 1
             found.append("file_upload")
     except Exception:
         pass
 
-    # 2. Name field AND email field together.
+    # 2. Name field AND email field together (any frame).
     try:
         name_sels = FIELD_PATTERNS.get("name", []) + FIELD_PATTERNS.get("first_name", [])
-        has_name = any(page.locator(s).count() > 0 for s in name_sels)
-        has_email = any(page.locator(s).count() > 0 for s in FIELD_PATTERNS.get("email", []))
+        has_name = any(count_all(s) > 0 for s in name_sels)
+        has_email = any(count_all(s) > 0 for s in FIELD_PATTERNS.get("email", []))
         if has_name and has_email:
             signals += 1
             found.append("name+email")
     except Exception:
         pass
 
-    # 3. Three or more (non-hidden) input fields total.
+    # 3. Three or more (non-hidden) input fields total (all frames).
     try:
-        total_inputs = page.locator("input:not([type='hidden']), textarea").count()
+        total_inputs = count_all("input:not([type='hidden']), textarea")
         if total_inputs >= 3:
             signals += 1
             found.append(f"inputs={total_inputs}")
@@ -530,9 +556,14 @@ def is_real_application_form(page):
     except Exception:
         pass
 
-    # 5. Page text mentions resume / application terms.
+    # 5. Page text mentions resume / application terms (any frame).
     try:
-        text = (page.inner_text("body") or "").lower()
+        text = ""
+        for frame in frames:
+            try:
+                text += (frame.inner_text("body") or "").lower()
+            except Exception:
+                continue
         if any(k in text for k in JOB_TEXT_KEYWORDS):
             signals += 1
             found.append("text_keyword")
@@ -544,19 +575,20 @@ def is_real_application_form(page):
 
 
 def has_form_fields(page):
-    """Return True if the page currently shows at least one visible fillable field."""
+    """Return True if the page (any frame) shows at least one visible fillable field."""
     selectors = [
         "input[type='text']", "input[type='email']", "input[type='tel']",
         "input:not([type])", "textarea", "input[type='file']",
         "input[name='name']", "input[name='email']",
     ]
     for sel in selectors:
-        try:
-            loc = page.locator(sel)
-            if loc.count() > 0 and loc.first.is_visible():
-                return True
-        except Exception:
-            continue
+        for frame in iter_frames(page):
+            try:
+                loc = frame.locator(sel)
+                if loc.count() > 0 and loc.first.is_visible():
+                    return True
+            except Exception:
+                continue
     return False
 
 

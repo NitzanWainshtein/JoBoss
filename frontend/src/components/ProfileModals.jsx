@@ -55,6 +55,9 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
     try {
       const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
       await updateMyProfile({ fullName, email: email.trim() });
+      // עדכון גלובלי — כל הקומפוננטות שמציגות את השם (Navbar, ProfilePage,
+      // ApplicationsPage) מאזינות לאירוע הזה ומתרעננות מיד, בלי ריפרש ידני.
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { fullName, email: email.trim() } }));
       onSaved({ fullName, email: email.trim() });
       onClose();
     } catch {

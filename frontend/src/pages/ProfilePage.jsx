@@ -66,14 +66,15 @@ function ProfilePage() {
   }, []);
 
   useEffect(() => {
+    // Cognito הוא רק fallback — אם הפרופיל מהמאגר כבר סיפק fullName, לא דורסים אותו.
     getCurrentUser().then(async (user) => {
       try {
         const { fetchAuthSession } = await import('aws-amplify/auth');
         const session = await fetchAuthSession();
         const idToken = session.tokens?.idToken?.payload;
-        setUserName(idToken?.name || idToken?.email || user.username);
+        setUserName(prev => prev || idToken?.name || idToken?.email || user.username);
       } catch {
-        setUserName(user.username);
+        setUserName(prev => prev || user.username);
       }
     });
 
@@ -84,6 +85,8 @@ function ProfilePage() {
         console.log('LOADED:', user);
 
         setProfile(user);
+        // השם מהמאגר גובר על המייל/שם מהטוקן של Cognito.
+        if (user?.fullName?.trim()) setUserName(user.fullName.trim());
 
         if (user?.preferredLocation) setLocation(user.preferredLocation);
         if (user?.searchRadius) setRadius(Number(user.searchRadius));
@@ -207,6 +210,17 @@ function ProfilePage() {
         updateMyProfile(pendingSaveRef.current).catch(() => {});
       }
     };
+  }, []);
+
+  // התעדכנות מיידית כשהפרטים נערכו מכל מקום באפליקציה (גם מה-Navbar).
+  useEffect(() => {
+    const onProfileUpdated = (e) => {
+      const { fullName, email } = e.detail || {};
+      if (fullName) setUserName(fullName);
+      setProfile(prev => prev ? { ...prev, ...(fullName && { fullName }), ...(email && { email }) } : prev);
+    };
+    window.addEventListener('profile-updated', onProfileUpdated);
+    return () => window.removeEventListener('profile-updated', onProfileUpdated);
   }, []);
 
   // Close avatar menu on outside click
@@ -388,6 +402,7 @@ function ProfilePage() {
               />
               {uploadingImage && <div style={styles.avatarSpinner}>⏳</div>}
             </button>
+            <div style={styles.avatarEditBadge} onClick={() => setAvatarMenuOpen(v => !v)}>✏️</div>
 
             {avatarMenuOpen && (
               <div style={styles.avatarDropdown}>
@@ -479,7 +494,12 @@ function ProfilePage() {
                     transition: 'background 0.2s',
                   }}
                 >
-                  {gpsLoading ? 'מאתר מיקום... ⏳' : 'זהה מיקום נוכחי אוטומטית 🎯'}
+                  {gpsLoading ? 'מאתר מיקום... ⏳' : (
+                    <>
+                      זהה מיקום נוכחי אוטומטית
+                      <img src="/icons/location_icon.png" alt="" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+                    </>
+                  )}
                 </button>
 
                 {gpsError && (
@@ -900,6 +920,14 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  avatarEditBadge: {
+    position: 'absolute', bottom: '-2px', right: '-2px',
+    width: '26px', height: '26px', borderRadius: '50%',
+    background: '#6C4FD4', border: '2.5px solid white',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '11px', cursor: 'pointer',
+    boxShadow: '0 2px 6px rgba(108,79,212,0.35)',
+  },
   avatarSpinner: {
     position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
     justifyContent: 'center', background: 'rgba(0,0,0,0.35)', fontSize: '20px',

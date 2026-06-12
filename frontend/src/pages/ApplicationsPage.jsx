@@ -553,6 +553,13 @@ function ApplicationsPage() {
     getMyProfile()
       .then(p => setUserName(p?.user?.fullName || p?.user?.email || ''))
       .catch(() => {});
+
+    // התעדכנות מיידית כשהשם נערך מה-Navbar/פרופיל, בלי ריפרש.
+    const onProfileUpdated = (e) => {
+      if (e.detail?.fullName) setUserName(e.detail.fullName);
+    };
+    window.addEventListener('profile-updated', onProfileUpdated);
+    return () => window.removeEventListener('profile-updated', onProfileUpdated);
   }, []);
 
   useEffect(() => {

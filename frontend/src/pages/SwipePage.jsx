@@ -208,8 +208,8 @@ function DiscoveryPreview({ jobs }) {
   const allLevels  = [...new Set(jobs.flatMap(j => j.jobLevel || []))].slice(0, 2);
   return (
     <div style={{ width: '100%', background: '#FFF8F0', border: '1px solid #FFD0A0', borderRadius: 16,
-                  padding: '14px 16px', marginTop: 8, textAlign: 'right' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#E65100', marginBottom: 8 }}>כוללות תחומים כגון:</div>
+                  padding: 'clamp(8px, 1.5svh, 14px) 16px', marginTop: 0, textAlign: 'right' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#E65100', marginBottom: 6 }}>כוללות תחומים כגון:</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {allDomains.map(d => (
           <span key={d} style={{ fontSize: 12, fontWeight: 600, color: '#6C4FD4',
@@ -479,9 +479,11 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
               {locationFilter && ` · עד ${locationFilter.radius} ק"מ`}
             </p>
           </div>
-          <div style={styles.cardHeroLogoChip}>
-            <CompanyLogo company={job.company} style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain', background: 'white', flexShrink: 0 }} />
+          <div style={styles.cardHeroLogoWrap}>
             <span style={styles.cardHeroCompany}>{job.company}</span>
+            <div style={styles.cardHeroLogoChip}>
+              <CompanyLogo company={job.company} style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain', background: 'white', flexShrink: 0 }} />
+            </div>
           </div>
         </div>
       </div>
@@ -951,19 +953,20 @@ function SwipePage() {
           </>
         ) : !discoveryActive && discoveryJobs.length > 0 ? (
           // Primary deck exhausted but discovery jobs available
-          <motion.div style={styles.emptyState} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
-            <motion.p style={{ fontSize: '72px', margin: 0 }} animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 1, delay: 0.2 }}>🔍</motion.p>
-            <p style={styles.emptyTitle}>סיימת את המשרות בתחומך</p>
-            <p style={styles.emptySubtitle}>יש עוד {discoveryJobs.length} משרות מתחומים אחרים</p>
+          <motion.div style={{ ...styles.emptyState, height: '100%', justifyContent: 'center', gap: 'clamp(6px, 1.6svh, 14px)', padding: 'clamp(8px, 2svh, 24px) 16px' }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
+            <motion.p style={{ fontSize: 'clamp(34px, 7svh, 64px)', margin: 0, lineHeight: 1 }} animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 1, delay: 0.2 }}>🔍</motion.p>
+            <p style={{ ...styles.emptyTitle, fontSize: 'clamp(17px, 2.6svh, 24px)' }}>סיימת את המשרות בתחומך</p>
+            <p style={{ ...styles.emptySubtitle, fontSize: 'clamp(12px, 1.7svh, 14px)' }}>יש עוד {discoveryJobs.length} משרות מתחומים אחרים</p>
             <DiscoveryPreview jobs={discoveryJobs.slice(0, 5)} />
             <motion.button
-              style={{ ...styles.emptyBtn, background: 'linear-gradient(135deg, #FF6B6B, #E65100)', marginTop: 4 }}
+              style={{ ...styles.emptyBtn, background: 'linear-gradient(135deg, #FF6B6B, #E65100)', marginTop: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: 'clamp(8px, 1.4svh, 14px) 28px', fontSize: 'clamp(13px, 1.9svh, 16px)' }}
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={activateDiscovery}
             >
-              הצג משרות נוספות ← (30 דקות)
+              <span>הצג משרות מחוץ לתחומך</span>
+              <span style={{ fontSize: 'clamp(10px, 1.4svh, 11px)', fontWeight: 500, opacity: 0.9 }}>ההצגה תהיה פעילה למשך 30 דקות</span>
             </motion.button>
-            <motion.button style={{ ...styles.emptyBtn, background: 'transparent', color: '#6C4FD4', border: '1px solid #6C4FD4', marginTop: 0 }}
+            <motion.button style={{ ...styles.emptyBtn, background: 'transparent', color: '#6C4FD4', border: '1px solid #6C4FD4', marginTop: 0, padding: 'clamp(8px, 1.4svh, 14px) 28px', fontSize: 'clamp(13px, 1.9svh, 16px)' }}
               whileHover={{ scale: 1.03 }} onClick={() => navigate('/applications')}>📋 ראה הגשות</motion.button>
           </motion.div>
         ) : (
@@ -1099,8 +1102,9 @@ const styles = {
   cardHeroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 28%, rgba(0,0,0,0.52) 62%, rgba(0,0,0,0.84) 100%)' },
   cardHeroMatchBadge: { position: 'absolute', top: '12px', left: '12px', zIndex: 2 },
   cardHeroBottom: { position: 'absolute', bottom: '12px', left: '12px', right: '12px', display: 'flex', alignItems: 'flex-end', gap: '10px', zIndex: 2, direction: 'ltr' },
-  cardHeroLogoChip: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '16px', padding: '12px 14px', flexShrink: 0, minWidth: '72px' },
-  cardHeroCompany: { color: 'white', fontSize: '12px', fontWeight: 700, maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' },
+  cardHeroLogoWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', flexShrink: 0 },
+  cardHeroLogoChip: { width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '16px', flexShrink: 0 },
+  cardHeroCompany: { color: 'white', fontSize: '12px', fontWeight: 700, maxWidth: '100px', textAlign: 'center', textShadow: '0 1px 4px rgba(0,0,0,0.6)', lineHeight: 1.2, wordBreak: 'break-word' },
   cardHeroTitle: { color: 'white', fontSize: '18px', fontWeight: 800, margin: '0 0 4px', lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.5)', direction: 'ltr', textAlign: 'left' },
   cardHeroMeta: { color: 'rgba(255,255,255,0.88)', fontSize: '12px', fontWeight: 500, margin: 0, direction: 'ltr', textAlign: 'left' },
   cardBody: { padding: '10px 16px 12px', display: 'flex', flexDirection: 'column', gap: '7px', flex: 1, overflow: 'hidden', minHeight: 0 },

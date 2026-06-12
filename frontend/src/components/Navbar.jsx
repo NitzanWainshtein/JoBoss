@@ -65,6 +65,15 @@ function Navbar({ isAdmin = false, planKey = '' }) {
       setUserName(u.fullName || u.email || '');
       if (u.profileImageUrl) setProfileImage(u.profileImageUrl);
     }).catch(() => {});
+
+    // התעדכנות מיידית כשהפרטים נערכו מכל מקום באפליקציה (Navbar או ProfilePage).
+    const onProfileUpdated = (e) => {
+      const { fullName, email } = e.detail || {};
+      if (fullName) setUserName(fullName);
+      setProfileData(prev => prev ? { ...prev, ...(fullName && { fullName }), ...(email && { email }) } : prev);
+    };
+    window.addEventListener('profile-updated', onProfileUpdated);
+    return () => window.removeEventListener('profile-updated', onProfileUpdated);
   }, []);
 
   useEffect(() => {

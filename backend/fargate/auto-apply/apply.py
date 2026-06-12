@@ -65,12 +65,18 @@ def update_status(user_id, job_id, status, fail_reason=None):
     log.info("DB status → %s (userId=%s, jobId=%s)", status, user_id, job_id)
 
 
-def get_user_email(user_id):
+def get_user_info(user_id):
+    """Real applicant details for form filling — submitting 'Applicant' as a
+    name makes otherwise-successful applications look broken to recruiters."""
     try:
         item = users_tbl.get_item(Key={"userId": user_id}).get("Item", {})
-        return item.get("email", "")
+        return {
+            "email": item.get("email", "") or "",
+            "fullName": (item.get("fullName", "") or "").strip(),
+            "phone": str(item.get("phone", "") or ""),
+        }
     except Exception:
-        return ""
+        return {"email": "", "fullName": "", "phone": ""}
 
 
 def _download_s3_pdf(bucket, key, label="resume"):
@@ -298,19 +304,26 @@ def wait_for_settle(page, timeout=15_000):
         pass
 
 
-def fill_common_fields(page, user_email, resume_path):
-    """Fill name/email/phone/resume. Returns True if at least one field was filled."""
+def fill_common_fields(page, user, resume_path):
+    """Fill name/email/phone/resume with the user's REAL details.
+    Returns True if at least one field was filled."""
+    full_name = user.get("fullName") or "Applicant"
+    first_name, _, last_name = full_name.partition(" ")
+    email = user.get("email") or ""
+    phone = user.get("phone") or ""
+
     filled_any = False
-    if try_fill_field(page, FIELD_PATTERNS["name"], "Applicant", "name"):
+    if try_fill_field(page, FIELD_PATTERNS["name"], full_name, "name"):
         filled_any = True
     else:
-        fn = try_fill_field(page, FIELD_PATTERNS["first_name"], "Applicant", "first_name")
-        ln = try_fill_field(page, FIELD_PATTERNS["last_name"], "", "last_name")
+        fn = try_fill_field(page, FIELD_PATTERNS["first_name"], first_name, "first_name")
+        ln = try_fill_field(page, FIELD_PATTERNS["last_name"], last_name or first_name, "last_name")
         if fn or ln:
             filled_any = True
-    if try_fill_field(page, FIELD_PATTERNS["email"], user_email or "applicant@example.com", "email"):
+    if email and try_fill_field(page, FIELD_PATTERNS["email"], email, "email"):
         filled_any = True
-    try_fill_field(page, FIELD_PATTERNS["phone"], "", "phone")
+    if phone:
+        try_fill_field(page, FIELD_PATTERNS["phone"], phone, "phone")
     if resume_path and try_upload_resume(page, resume_path):
         filled_any = True
     return filled_any
@@ -318,7 +331,7 @@ def fill_common_fields(page, user_email, resume_path):
 
 # ── Site-specific flows ───────────────────────────────────────────────────────
 
-def apply_smartrecruiters(page, user_email, resume_path):
+def apply_smartrecruiters(page, user, resume_path):
     """
     SmartRecruiters multi-step flow:
       1. Click the Apply / Apply now button to open the application form
@@ -371,7 +384,7 @@ def apply_smartrecruiters(page, user_email, resume_path):
 
     # Step 2 — fill fields
     page.wait_for_timeout(2_000)
-    filled = fill_common_fields(page, user_email, resume_path)
+    filled = fill_common_fields(page, user, resume_path)
     if not filled:
         return False, "no fillable form fields found on page"
 
@@ -399,7 +412,7 @@ def apply_smartrecruiters(page, user_email, resume_path):
     return True, None
 
 
-def apply_lever(page, user_email, resume_path):
+def apply_lever(page, user, resume_path):
     """
     Lever single-page flow: fields are directly on the page.
     Returns (success: bool, reason: str | None)
@@ -438,7 +451,7 @@ def apply_lever(page, user_email, resume_path):
     except Exception:
         pass
     try:
-        if try_fill_field(page, ["input[name='email']"], user_email or "applicant@example.com", "email"):
+        if try_fill_field(page, ["input[name='email']"], user.get("email", ""), "email"):
             filled_any = True
     except Exception:
         pass
@@ -455,7 +468,7 @@ def apply_lever(page, user_email, resume_path):
 
     if not filled_any:
         # Fall back to generic selectors
-        filled_any = fill_common_fields(page, user_email, resume_path)
+        filled_any = fill_common_fields(page, user, resume_path)
 
     if not filled_any:
         return False, "no fillable form fields found on page"
@@ -610,7 +623,7 @@ def _submit_and_finish(page):
 MAX_WIZARD_STEPS = 4
 
 
-def _wizard_fill_and_submit(page, user_email, resume_path):
+def _wizard_fill_and_submit(page, user, resume_path):
     """Walk a (possibly multi-step) application wizard: fill the visible
     fields, submit if a submit button exists, otherwise advance with
     Next/Continue and fill again. Many career sites split the form across
@@ -619,7 +632,7 @@ def _wizard_fill_and_submit(page, user_email, resume_path):
     for step in range(MAX_WIZARD_STEPS):
         if step > 0:
             # New wizard page — fill whatever fields it shows (best effort).
-            fill_common_fields(page, user_email, resume_path)
+            fill_common_fields(page, user, resume_path)
 
         page.wait_for_timeout(1_000)
         if try_click_first(page, SUBMIT_PATTERNS):
@@ -652,18 +665,18 @@ def _wizard_fill_and_submit(page, user_email, resume_path):
     return False, f"application wizard did not finish within {MAX_WIZARD_STEPS} steps"
 
 
-def _attempt_apply(page, user_email, resume_path):
+def _attempt_apply(page, user, resume_path):
     """Validate the current page is a real application form, then fill + submit.
     Returns (success, reason) if an attempt was made, or None if this page is not
     a valid application form (so the caller can keep navigating)."""
     if not is_real_application_form(page):
         return None
-    if not fill_common_fields(page, user_email, resume_path):
+    if not fill_common_fields(page, user, resume_path):
         return None
-    return _wizard_fill_and_submit(page, user_email, resume_path)
+    return _wizard_fill_and_submit(page, user, resume_path)
 
 
-def apply_generic(page, user_email, resume_path):
+def apply_generic(page, user, resume_path):
     """
     Generic fallback flow for unknown job boards. Acts as a navigator: if the
     landing page has no form, it tries to reach one (click Apply/Register CTA,
@@ -684,7 +697,7 @@ def apply_generic(page, user_email, resume_path):
         return False, f"captcha_detected: {captcha}"
 
     # Direct attempt — a validated form is already on the landing page.
-    res = _attempt_apply(page, user_email, resume_path)
+    res = _attempt_apply(page, user, resume_path)
     if res is not None:
         return res
 
@@ -700,7 +713,7 @@ def apply_generic(page, user_email, resume_path):
         captcha = detect_captcha(page)
         if captcha:
             return False, f"captcha_detected: {captcha}"
-        res = _attempt_apply(page, user_email, resume_path)
+        res = _attempt_apply(page, user, resume_path)
         if res is not None:
             return res
 
@@ -715,7 +728,7 @@ def apply_generic(page, user_email, resume_path):
                 continue
             if modal.locator("input, textarea").count() > 0:
                 log.info("Found modal with fields: %s", msel)
-                res = _attempt_apply(page, user_email, resume_path)
+                res = _attempt_apply(page, user, resume_path)
                 if res is not None:
                     return res
         except Exception:
@@ -729,7 +742,7 @@ def apply_generic(page, user_email, resume_path):
         captcha = detect_captcha(page)
         if captcha:
             return False, f"captcha_detected: {captcha}"
-        res = _attempt_apply(page, user_email, resume_path)
+        res = _attempt_apply(page, user, resume_path)
         if res is not None:
             return res
 
@@ -758,7 +771,20 @@ def run_apply(payload):
         update_status(user_id, job_id, "auto_apply_failed", reason)
         return False, reason
 
-    user_email  = get_user_email(user_id)
+    # Workday tenants require creating a per-company account (with email
+    # verification) before any form is shown — a bot cannot complete that.
+    # Fail fast with an honest reason instead of "no fillable form fields".
+    if "myworkdayjobs.com" in job_url or "myworkday.com" in job_url:
+        reason = ("site_requires_account: this company uses Workday, which requires "
+                  "creating a personal account (with email verification) before applying. "
+                  "Automatic submission is not possible — apply manually with the tailored CV.")
+        log.warning("Workday detected — skipping: %s", job_url)
+        update_status(user_id, job_id, "auto_apply_failed", reason)
+        user = get_user_info(user_id)
+        _send_result_email(False, user.get("email", ""), job_title, company, job_url, reason)
+        return False, reason
+
+    user = get_user_info(user_id)
     resume_path = download_resume(user_id, tailored_s3_url=tailored_resume_url)
 
     with sync_playwright() as pw:
@@ -784,11 +810,11 @@ def run_apply(payload):
             # Dispatch to the right site-specific flow
             url_lower = job_url.lower()
             if "smartrecruiters.com" in url_lower:
-                success, reason = apply_smartrecruiters(page, user_email, resume_path)
+                success, reason = apply_smartrecruiters(page, user, resume_path)
             elif "lever.co" in url_lower:
-                success, reason = apply_lever(page, user_email, resume_path)
+                success, reason = apply_lever(page, user, resume_path)
             else:
-                success, reason = apply_generic(page, user_email, resume_path)
+                success, reason = apply_generic(page, user, resume_path)
 
             if success:
                 update_status(user_id, job_id, "auto_apply_success")
@@ -796,7 +822,7 @@ def run_apply(payload):
                 update_status(user_id, job_id, "auto_apply_failed", reason)
 
             browser.close()
-            _send_result_email(success, user_email, job_title, company, job_url, reason)
+            _send_result_email(success, user.get("email", ""), job_title, company, job_url, reason)
             return success, reason
 
         except PlaywrightTimeout as e:
@@ -807,7 +833,7 @@ def run_apply(payload):
                 browser.close()
             except Exception:
                 pass
-            _send_result_email(False, user_email, job_title, company, job_url, reason)
+            _send_result_email(False, user.get("email", ""), job_title, company, job_url, reason)
             return False, reason
 
         except Exception as e:
@@ -818,7 +844,7 @@ def run_apply(payload):
                 browser.close()
             except Exception:
                 pass
-            _send_result_email(False, user_email, job_title, company, job_url, reason)
+            _send_result_email(False, user.get("email", ""), job_title, company, job_url, reason)
             return False, reason
 
 

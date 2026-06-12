@@ -99,24 +99,49 @@ export const updateMyProfile = async (data) => apiCall('PUT', '/users/me', data)
 
 export const createMyProfile = async (data) => apiCall('POST', '/users/me', data);
 
-export const uploadProfileImage = async (file) => {
-  const reader = new FileReader();
-  return new Promise((resolve, reject) => {
-    reader.onloadend = async () => {
-      try {
-        const base64 = reader.result.split(',')[1];
-        const response = await apiCall('POST', '/profile/image', {
-          image: base64,
-          fileName: file.name,
-        });
-        resolve(response);
-      } catch (error) {
-        reject(error);
-      }
+// Downscale an image client-side (canvas → JPEG). Avatars don't need 5MB:
+// large originals inflated by base64 used to exceed the 6MB Lambda invoke
+// cap and the gateway rejected them before the Lambda ever ran.
+const downscaleImage = (file, maxDim = 512, quality = 0.85) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('image processing failed'))),
+        'image/jpeg',
+        quality,
+      );
     };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('invalid image')); };
+    img.src = url;
   });
+
+const blobToBase64 = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+export const uploadProfileImage = async (file) => {
+  let payload = file;
+  let fileName = file.name;
+  try {
+    payload = await downscaleImage(file);
+    fileName = (file.name.replace(/\.[^.]+$/, '') || 'profile') + '.jpg';
+  } catch {
+    // Unsupported format for canvas (e.g. some HEICs) — send the original.
+  }
+  const base64 = await blobToBase64(payload);
+  return apiCall('POST', '/profile/image', { image: base64, fileName });
 };
 
 export const uploadResume = async (file) => {

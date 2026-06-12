@@ -473,11 +473,12 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
         <div style={styles.cardHeroBottom}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={styles.cardHeroTitle}>{job.title}</h3>
-            <p style={styles.cardHeroMeta}>
-              📍 {job.location}
-              {job.distanceKm != null && ` · ${job.distanceKm.toFixed(1)} ק"מ`}
-              {locationFilter && ` · עד ${locationFilter.radius} ק"מ`}
-            </p>
+            <p style={styles.cardHeroMeta}>📍 {job.location}</p>
+            {job.distanceKm != null && (
+              <p style={styles.cardHeroDistance} dir="rtl">
+                🚗 <span dir="ltr">{job.distanceKm.toFixed(1)}</span> ק״מ ממך
+              </p>
+            )}
           </div>
           <div style={styles.cardHeroLogoWrap}>
             <span style={styles.cardHeroCompany}>{job.company}</span>
@@ -1111,6 +1112,7 @@ const styles = {
   cardHeroCompany: { color: 'white', fontSize: '12px', fontWeight: 700, maxWidth: '100px', textAlign: 'center', textShadow: '0 1px 4px rgba(0,0,0,0.6)', lineHeight: 1.2, wordBreak: 'break-word' },
   cardHeroTitle: { color: 'white', fontSize: '18px', fontWeight: 800, margin: '0 0 4px', lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.5)', direction: 'ltr', textAlign: 'left' },
   cardHeroMeta: { color: 'rgba(255,255,255,0.88)', fontSize: '12px', fontWeight: 500, margin: 0, direction: 'ltr', textAlign: 'left' },
+  cardHeroDistance: { display: 'inline-block', color: 'white', fontSize: '11px', fontWeight: 600, margin: '4px 0 0', padding: '2px 8px', background: 'rgba(0,0,0,0.35)', borderRadius: '8px', lineHeight: 1.4 },
   cardBody: { padding: '10px 16px 12px', display: 'flex', flexDirection: 'column', gap: '7px', flex: 1, overflow: 'hidden', minHeight: 0 },
   stamp: { position: 'absolute', top: '24px', zIndex: 10 },
   likeStamp: { right: '24px', transform: 'rotate(15deg)' },

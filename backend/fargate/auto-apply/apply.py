@@ -56,6 +56,11 @@ def update_status(user_id, job_id, status, fail_reason=None):
     if fail_reason:
         expr += ", failReason = :fr"
         values[":fr"] = fail_reason[:500]
+    # Failed auto-applies don't consume the user's daily credit: the quota
+    # counters in swipes/subscriptions skip quotaExempt records.
+    if "failed" in status:
+        expr += ", quotaExempt = :qe"
+        values[":qe"] = True
     apps_tbl.update_item(
         Key={"userId": user_id, "jobId": job_id},
         UpdateExpression=expr,

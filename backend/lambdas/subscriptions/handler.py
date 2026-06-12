@@ -209,10 +209,16 @@ def count_today_applications(user_id):
     except Exception:
         pass
 
+    # quotaExempt records (auto-apply that failed) refund the daily credit —
+    # must match the swipes Lambda filter exactly.
     count = 0
     kwargs = {
         "KeyConditionExpression": boto3.dynamodb.conditions.Key("userId").eq(user_id),
-        "FilterExpression": boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso),
+        "FilterExpression": (
+            boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso)
+            & (~boto3.dynamodb.conditions.Attr("quotaExempt").exists()
+               | boto3.dynamodb.conditions.Attr("quotaExempt").eq(False))
+        ),
         "Select": "COUNT",
     }
     while True:

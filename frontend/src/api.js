@@ -144,6 +144,10 @@ export const uploadProfileImage = async (file) => {
   return apiCall('POST', '/profile/image', { image: base64, fileName });
 };
 
+export const removeProfileImage = async () => {
+  return apiCall('POST', '/profile/image', { remove: true });
+};
+
 export const uploadResume = async (file) => {
   // Ask the backend for a presigned PUT URL, then upload the file straight to
   // S3 — avoids the API Gateway ~7MB payload cap and base64 inflation.

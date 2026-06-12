@@ -593,13 +593,16 @@ function ApplicationsPage() {
 
   // Live progress: while any application is still being tailored or submitted
   // by the bot, silently re-fetch every 20s so statuses advance without F5.
+  // Keyed on a boolean (not the array) so the interval is stable, and the
+  // fetch only commits state when something meaningful actually changed.
+  const hasInFlight = applications.some(a =>
+    a.autoApplyStatus === 'pending' || a.autoApplyStatus === 'pending_tailoring');
+
   useEffect(() => {
-    const inFlight = applications.some(a =>
-      a.autoApplyStatus === 'pending' || a.autoApplyStatus === 'pending_tailoring');
-    if (!inFlight) return;
-    const timer = setTimeout(() => loadApplications(true), 20000);
-    return () => clearTimeout(timer);
-  }, [applications]);
+    if (!hasInFlight) return;
+    const timer = setInterval(() => loadApplications(true), 20000);
+    return () => clearInterval(timer);
+  }, [hasInFlight]);
 
   const loadApplications = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -614,16 +617,27 @@ function ApplicationsPage() {
       // shouldn't show an infinite spinner.
       const TAILORING_ACTIVE_WINDOW_MS = 15 * 60 * 1000;
       const now = Date.now();
-      setTailoringJobs(new Set(
+      const nextTailoring = new Set(
         apps
           .filter(app =>
             app.autoApplyStatus === 'pending_tailoring' &&
             !app.tailoredResumeUrl &&
             now - new Date(app.updatedAt || app.createdAt || 0).getTime() < TAILORING_ACTIVE_WINDOW_MS)
           .map(app => app.jobId)
-      ));
+      );
+      setTailoringJobs(prev =>
+        (prev.size === nextTailoring.size && [...nextTailoring].every(id => prev.has(id)))
+          ? prev
+          : nextTailoring
+      );
 
-      setApplications(apps);
+      // Presigned URLs regenerate on every fetch — comparing without them
+      // prevents silent polls from re-rendering (and visually "refreshing")
+      // the page when nothing actually changed.
+      const fingerprint = (list) => JSON.stringify(
+        list.map(({ tailoredResumePresignedUrl, jobApplyUrl, ...rest }) => rest)
+      );
+      setApplications(prev => (silent && fingerprint(prev) === fingerprint(apps)) ? prev : apps);
     } catch (err) {
       console.error('loadApplications failed:', err);
       if (err?.status === 401 || err?.message?.includes('auth') || err?.message?.includes('token')) {

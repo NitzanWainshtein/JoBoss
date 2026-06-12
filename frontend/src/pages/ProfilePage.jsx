@@ -6,6 +6,7 @@ import {
   updateMyProfile,
   uploadResume,
   uploadProfileImage,
+  removeProfileImage,
   getSubscription,
   createCheckoutSession,
   cancelSubscription,
@@ -252,6 +253,19 @@ function ProfilePage() {
     e.target.value = '';
   };
 
+  const handleRemoveProfileImage = async () => {
+    setAvatarMenuOpen(false);
+    if (!window.confirm('להסיר את תמונת הפרופיל?')) return;
+    const previous = profileImage;
+    setProfileImage(null);
+    try {
+      await removeProfileImage();
+    } catch {
+      setProfileImage(previous);
+      alert('שגיאה בהסרת התמונה');
+    }
+  };
+
   const handleLogout = async () => {
     const { signOut } = await import('aws-amplify/auth');
     await signOut();
@@ -412,6 +426,7 @@ function ProfilePage() {
                 {[
                   { icon: '✏️', label: 'עריכת פרטים אישיים',  action: () => { setAvatarMenuOpen(false); setShowEditModal(true); } },
                   { icon: '📷', label: uploadingImage ? 'מעלה תמונה...' : 'העלאת תמונת פרופיל', action: () => { setAvatarMenuOpen(false); profileImgInputRef.current?.click(); } },
+                  ...(profileImage ? [{ icon: '🗑️', label: 'הסרת תמונת פרופיל', action: handleRemoveProfileImage, danger: true }] : []),
                   { icon: '🔑', label: 'החלפת סיסמא',          action: () => { setAvatarMenuOpen(false); setShowChangePass(true); } },
                   { icon: '🚪', label: 'התנתקות',               action: handleLogout, danger: true },
                 ].map((item, i) => (

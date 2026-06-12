@@ -156,10 +156,15 @@ def count_today_applications(user_id):
         count_from = today_iso
 
     # Query by partition key (userId) instead of scanning the whole table.
+    # quotaExempt records (auto-apply that failed) refund the daily credit.
     count = 0
     kwargs = {
         "KeyConditionExpression": boto3.dynamodb.conditions.Key("userId").eq(user_id),
-        "FilterExpression": boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso),
+        "FilterExpression": (
+            boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso)
+            & (~boto3.dynamodb.conditions.Attr("quotaExempt").exists()
+               | boto3.dynamodb.conditions.Attr("quotaExempt").eq(False))
+        ),
         "ConsistentRead": True,
         "Select": "COUNT",
     }

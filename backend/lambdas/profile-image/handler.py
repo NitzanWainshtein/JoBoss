@@ -37,6 +37,24 @@ def handler(event, context):
         return resp(405, {'error': 'Method not allowed'})
 
     body = json.loads(event.get('body') or '{}')
+
+    # Remove the current profile image (sent as POST {remove: true} since the
+    # gateway route only exposes POST/OPTIONS).
+    if body.get('remove'):
+        try:
+            old = users_table.get_item(Key={'userId': user_id}).get('Item', {})
+            old_key = old.get('profileImageKey')
+            if old_key:
+                s3.delete_object(Bucket=BUCKET, Key=old_key)
+        except Exception as e:
+            print(f'REMOVE IMAGE: S3 delete failed: {e}')
+        users_table.update_item(
+            Key={'userId': user_id},
+            UpdateExpression='REMOVE profileImageUrl, profileImageKey SET updatedAt = :now',
+            ExpressionAttributeValues={':now': datetime.now(timezone.utc).isoformat()},
+        )
+        return resp(200, {'success': True, 'removed': True})
+
     image_base64 = body.get('image')
     file_name = body.get('fileName', 'profile.jpg')
 

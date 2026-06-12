@@ -911,6 +911,30 @@ def explain_failure(event):
     return response(200, {"explanation": explanation, "cached": False})
 
 
+def _mark_tailoring_failed(user_id, job_id, err):
+    """A tailoring crash used to leave the application stuck on
+    'pending_tailoring' forever (infinite spinner, no Auto Apply, no refund).
+    Mark it failed and quota-exempt so the user's daily credit is returned."""
+    if not user_id or not job_id:
+        return
+    try:
+        applications_table.update_item(
+            Key={"userId": user_id, "jobId": job_id},
+            UpdateExpression="SET autoApplyStatus = :f, failReason = :r, quotaExempt = :q, updatedAt = :t",
+            ConditionExpression="autoApplyStatus = :pt",
+            ExpressionAttributeValues={
+                ":f": "failed",
+                ":r": f"tailoring_failed: {str(err)[:200]}",
+                ":q": True,
+                ":pt": "pending_tailoring",
+                ":t": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            },
+        )
+        print(f"[TAILOR_FAIL_MARKED] userId={user_id} jobId={job_id}")
+    except Exception:
+        pass  # not a pending_tailoring record — nothing to repair
+
+
 def _maybe_dispatch_auto_apply(user_id, job_id, tailored_resume_url, job):
     """If this application was held in 'pending_tailoring' state, transition it
     to 'pending' and dispatch to the auto-apply SQS queue with the tailored CV URL.
@@ -956,10 +980,11 @@ def _maybe_dispatch_auto_apply(user_id, job_id, tailored_resume_url, job):
         try:
             applications_table.update_item(
                 Key={"userId": user_id, "jobId": job_id},
-                UpdateExpression="SET autoApplyStatus = :f, failReason = :r, updatedAt = :t",
+                UpdateExpression="SET autoApplyStatus = :f, failReason = :r, quotaExempt = :q, updatedAt = :t",
                 ExpressionAttributeValues={
                     ":f": "failed",
                     ":r": f"SQS dispatch error after tailoring: {str(e)[:200]}",
+                    ":q": True,
                     ":t": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 },
             )
@@ -983,6 +1008,8 @@ def lambda_handler(event, context):
     if direct_text_response:
         return direct_text_response
 
+    user_id = None
+    job_id = None
     try:
         body = get_body(event)
 
@@ -1090,12 +1117,14 @@ def lambda_handler(event, context):
         return response(400, {"error": "Invalid JSON body"})
 
     except ClientError as error:
+        _mark_tailoring_failed(user_id, job_id, error)
         return response(500, {
             "error": "AWS service error",
             "details": str(error),
         })
 
     except Exception as error:
+        _mark_tailoring_failed(user_id, job_id, error)
         return response(500, {
             "error": "Internal server error",
             "details": str(error),

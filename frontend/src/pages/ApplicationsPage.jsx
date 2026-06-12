@@ -283,8 +283,8 @@ function AutoApplyResult({ app, planKey, canExplain, isActiveTailoring }) {
   }
 
   // ── pending_tailoring: AI tailoring in progress before Fargate launch ────────
-  // Only show this block if tailoring is genuinely active in the current session
-  // (tracked via localStorage). A stale server-side pending_tailoring is invisible.
+  // isActiveTailoring is derived from the server record (pending_tailoring +
+  // recent updatedAt); stale records simply don't render a spinner.
   if (app.autoApplyStatus === 'pending_tailoring') {
     if (app.tailoredResumeUrl) return null; // already completed
     if (!isActiveTailoring) return null;    // stale / not tracked locally
@@ -540,10 +540,10 @@ function ApplicationsPage() {
   const [userName, setUserName] = useState('');
   const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
   const canTailorCV = planKey !== 'FREE';
-  const [tailoringJobs, setTailoringJobs] = useState(() => {
-    const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
-    return new Set(Object.keys(pending));
-  });
+  // Derived from the server (autoApplyStatus === 'pending_tailoring') on load,
+  // updated live via tailorComplete/tailorError events. No localStorage — the
+  // state survives device/browser switches and can't go stale locally.
+  const [tailoringJobs, setTailoringJobs] = useState(new Set());
 
   useEffect(() => {
     loadApplications();
@@ -588,18 +588,20 @@ function ApplicationsPage() {
       const data = await getMyApplications();
       const apps = data.applications || [];
 
-      setTailoringJobs(prev => {
-        const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
-        const updated = new Set(prev);
-        apps.forEach(app => {
-          if (app.tailoredResumeUrl && updated.has(app.jobId)) {
-            updated.delete(app.jobId);
-            delete pending[app.jobId];
-          }
-        });
-        localStorage.setItem('tailoringPending', JSON.stringify(pending));
-        return updated;
-      });
+      // Server is the source of truth: a tailoring is "active" if the record
+      // says pending_tailoring, has no result yet, and started recently.
+      // Older pending_tailoring records are stale (tailor Lambda died) and
+      // shouldn't show an infinite spinner.
+      const TAILORING_ACTIVE_WINDOW_MS = 15 * 60 * 1000;
+      const now = Date.now();
+      setTailoringJobs(new Set(
+        apps
+          .filter(app =>
+            app.autoApplyStatus === 'pending_tailoring' &&
+            !app.tailoredResumeUrl &&
+            now - new Date(app.updatedAt || app.createdAt || 0).getTime() < TAILORING_ACTIVE_WINDOW_MS)
+          .map(app => app.jobId)
+      ));
 
       setApplications(apps);
     } catch (err) {

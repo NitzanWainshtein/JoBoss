@@ -20,6 +20,7 @@ from botocore.exceptions import ClientError
 REGION = os.getenv("AWS_REGION", "us-east-1")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
 SUBSCRIPTIONS_TABLE = os.getenv("SUBSCRIPTIONS_TABLE", "joboss-subscriptions")
+APPLICATIONS_TABLE = os.getenv("APPLICATIONS_TABLE", "joboss-applications")
 
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
@@ -82,6 +83,7 @@ PLANS = {
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 users_table = dynamodb.Table(USERS_TABLE)
 subs_table = dynamodb.Table(SUBSCRIPTIONS_TABLE)
+applications_table = dynamodb.Table(APPLICATIONS_TABLE)
 
 
 def cors():
@@ -183,6 +185,45 @@ def reset_daily_if_needed(user_id, sub):
     return sub
 
 
+def count_today_applications(user_id):
+    """Single source of truth for daily quota usage — mirrors the swipes Lambda.
+
+    Counts today's rows in joboss-applications (LIKE swipes create one each,
+    undo deletes it), honoring an admin quotaResetAt later than midnight.
+    This replaces the old `dailyApplications` counter on the subscription
+    record, which could drift from what the swipes Lambda actually enforced.
+    """
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_iso = today.isoformat()
+    tomorrow_iso = (today + timedelta(days=1)).isoformat()
+
+    count_from = today_iso
+    try:
+        user_record = users_table.get_item(
+            Key={"userId": user_id},
+            ProjectionExpression="quotaResetAt",
+        ).get("Item", {})
+        reset_at = user_record.get("quotaResetAt", "")
+        if reset_at and reset_at > today_iso:
+            count_from = reset_at
+    except Exception:
+        pass
+
+    count = 0
+    kwargs = {
+        "KeyConditionExpression": boto3.dynamodb.conditions.Key("userId").eq(user_id),
+        "FilterExpression": boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso),
+        "Select": "COUNT",
+    }
+    while True:
+        result = applications_table.query(**kwargs)
+        count += result.get("Count", 0)
+        if "LastEvaluatedKey" not in result:
+            break
+        kwargs["ExclusiveStartKey"] = result["LastEvaluatedKey"]
+    return count
+
+
 def effective_plan(sub):
     plan = sub.get("plan", "FREE")
     status = sub.get("status", "FREE")
@@ -203,7 +244,9 @@ def handle_get_me(event):
     sub = reset_daily_if_needed(user_id, sub)
     plan = effective_plan(sub)
     limit = PLAN_LIMITS.get(plan, 5)
-    used = int(sub.get("dailyApplications", 0))
+    # Same source the swipes Lambda enforces against — keeps the UI number
+    # identical to what actually gates the next LIKE.
+    used = 0 if limit == -1 else count_today_applications(user_id)
 
     return resp(200, {
         "userId": user_id,

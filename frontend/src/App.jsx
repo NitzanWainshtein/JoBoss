@@ -18,11 +18,19 @@ import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile, getSubscription } from './api';
 import './styles/global.css';
 
-function SplashScreen({ onDone }) {
+function SplashScreen({ ready, onDone }) {
+  // Show for a short minimum (branding) but dismiss as soon as auth resolved —
+  // no more fixed 2s wait on top of the actual loading time.
+  const [minElapsed, setMinElapsed] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(onDone, 2000);
+    const timer = setTimeout(() => setMinElapsed(true), 900);
     return () => clearTimeout(timer);
-  }, [onDone]);
+  }, []);
+
+  useEffect(() => {
+    if (ready && minElapsed) onDone();
+  }, [ready, minElapsed, onDone]);
 
   return (
     <motion.div
@@ -173,7 +181,10 @@ function App() {
   const checkAuth = async () => {
     try {
       await getCurrentUser();
-      const session = await fetchAuthSession({ forceRefresh: true });
+      // No forceRefresh — Amplify refreshes expired tokens on its own, and the
+      // admin-group fallback below covers stale group claims. Saves a network
+      // round-trip to Cognito on every app load.
+      const session = await fetchAuthSession();
       setIsLoggedIn(true);
       // Primary: read from JWT. Fallback: probe the backend (handles cases where
       // group membership was updated after the last token was issued).
@@ -242,7 +253,7 @@ function App() {
   return (
     <>
       <AnimatePresence>
-        {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+        {showSplash && <SplashScreen ready={!loading} onDone={() => setShowSplash(false)} />}
       </AnimatePresence>
 
       {!showSplash && isSuspended && <SuspendedScreen />}

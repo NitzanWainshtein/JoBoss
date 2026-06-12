@@ -588,6 +588,7 @@ function SwipePage() {
   const [swipedRight, setSwipedRight] = useState(0);
   const [selectedJob, setSelectedJob] = useState(null);
   const [locationFilter, setLocationFilter] = useState(null);
+  const [locationFilterFailed, setLocationFilterFailed] = useState(false);
   const [autoApply, setAutoApply] = useState(false);
   const [swipedJobs, setSwipedJobs] = useState(new Set());
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
@@ -633,10 +634,11 @@ function SwipePage() {
       const jobList = data.jobs || [];
       setJobs(jobList);
       setTotalJobs(jobList.length);
+      setLocationFilterFailed(data.locationFilterFailed === true);
       const lat = localStorage.getItem('jobLatitude');
       const lng = localStorage.getItem('jobLongitude');
       const radius = localStorage.getItem('jobRadius');
-      if (lat && lng && radius) {
+      if (lat && lng && radius && !data.locationFilterFailed) {
         setLocationFilter({ name: localStorage.getItem('jobLocation') || 'מיקום נוכחי', radius: Number(radius) });
       }
     } catch {
@@ -726,12 +728,6 @@ function SwipePage() {
     undoTimerRef.current = setTimeout(() => setShowUndo(false), 5000);
     setJobs(prev => prev.slice(0, -1));
 
-    if (direction === 'right' && autoTailorCV) {
-      const pending = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
-      pending[currentJob.jobId] = { company: currentJob.company, title: currentJob.title };
-      localStorage.setItem('tailoringPending', JSON.stringify(pending));
-    }
-
     try {
       const result = await createSwipe(currentJob.jobId, direction === 'right' ? 'LIKE' : 'PASS', {
         company: currentJob.company,
@@ -750,18 +746,12 @@ function SwipePage() {
         tailorCVForJob(currentJob.jobId, true)
           .then(result => {
             setActiveTailorJobs(prev => prev.filter(j => j.jobId !== currentJob.jobId));
-            const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
-            delete p[currentJob.jobId];
-            localStorage.setItem('tailoringPending', JSON.stringify(p));
             window.dispatchEvent(new CustomEvent('tailorComplete', {
               detail: { jobId: currentJob.jobId, tailoredResume: result.tailoredResume, tailoredResumeUrl: result.tailoredResumeUrl }
             }));
           })
           .catch((err) => {
             setActiveTailorJobs(prev => prev.filter(j => j.jobId !== currentJob.jobId));
-            const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
-            delete p[currentJob.jobId];
-            localStorage.setItem('tailoringPending', JSON.stringify(p));
             window.dispatchEvent(new CustomEvent('tailorError', { detail: { jobId: currentJob.jobId } }));
             if (err?.code === 'AI_LIMIT_REACHED' || err?.status === 429) {
               setTailorLimitToast(true);
@@ -770,10 +760,6 @@ function SwipePage() {
           });
       }
     } catch (err) {
-      const p = JSON.parse(localStorage.getItem('tailoringPending') || '{}');
-      delete p[currentJob.jobId];
-      localStorage.setItem('tailoringPending', JSON.stringify(p));
-
       if (err.status === 429 || err.code === 'LIMIT_REACHED') {
         setSwipedJobs(prev => { const s = new Set(prev); s.delete(currentJob.jobId); return s; });
         setJobs(prev => [...prev, currentJob]);
@@ -855,6 +841,20 @@ function SwipePage() {
     <div style={styles.container}>
       {/* Quota bar */}
       <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} onRefresh={loadJobs} />
+
+      {/* Location filter fell back to unfiltered results — let the user know */}
+      {locationFilterFailed && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                   fontSize: 12, fontWeight: 600, color: '#B45309',
+                   background: '#FFF8E1', border: '1px solid #FFE082',
+                   borderRadius: 10, padding: '6px 12px', marginBottom: 6,
+                   maxWidth: 'min(360px, 95vw)' }}
+        >
+          ⚠️ סינון לפי מיקום לא זמין כרגע — מוצגות משרות מכל הארץ
+        </motion.div>
+      )}
 
       {/* Discovery mode active banner */}
       {!showAllJobsPref && discoveryUntil && nowTick < discoveryUntil && (

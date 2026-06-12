@@ -49,8 +49,12 @@ export const getJobs = async () => {
   if (latitude && longitude && radius) {
     try {
       return await apiCall('GET', `/jobs?lat=${latitude}&lng=${longitude}&radius=${radius}`);
-    } catch {
-      return await apiCall('GET', '/jobs');
+    } catch (error) {
+      // Fall back to unfiltered jobs, but tell the caller so the UI can show
+      // that radius filtering is off instead of failing silently.
+      console.warn('Location-filtered jobs failed, falling back to unfiltered:', error?.message);
+      const data = await apiCall('GET', '/jobs');
+      return { ...data, locationFilterFailed: true };
     }
   }
   return apiCall('GET', '/jobs');
@@ -116,23 +120,27 @@ export const uploadProfileImage = async (file) => {
 };
 
 export const uploadResume = async (file) => {
-  const reader = new FileReader();
-  return new Promise((resolve, reject) => {
-    reader.onloadend = async () => {
-      try {
-        const base64 = reader.result.split(',')[1];
-        const response = await apiCall('POST', '/resumes/upload', {
-          file: base64,
-          fileName: file.name,
-        });
-        resolve(response);
-      } catch (error) {
-        reject(error);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+  // Ask the backend for a presigned PUT URL, then upload the file straight to
+  // S3 — avoids the API Gateway ~7MB payload cap and base64 inflation.
+  const { uploadUrl, ...meta } = await apiCall('POST', '/resumes/upload', {
+    fileName: file.name,
+    contentType: file.type || 'application/pdf',
   });
+
+  if (uploadUrl) {
+    const putResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/pdf' },
+      body: file,
+    });
+    if (!putResponse.ok) {
+      const error = new Error(`Resume upload failed: ${putResponse.status}`);
+      error.status = putResponse.status;
+      throw error;
+    }
+  }
+
+  return meta;
 };
 
 // ===== SUBSCRIPTIONS =====

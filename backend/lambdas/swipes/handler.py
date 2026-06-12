@@ -192,9 +192,11 @@ def create_swipe(event):
     if not job_id or decision not in ("LIKE", "PASS"):
         return resp(400, {"message": "jobId and decision (LIKE|PASS) required"})
 
+    plan = get_effective_plan(user_id)
+    daily_limit = get_swipe_limit(plan)
+    used_after = None
+
     if decision == "LIKE":
-        plan = get_effective_plan(user_id)
-        daily_limit = get_swipe_limit(plan)
         print(f"SWIPE CHECK: userId={user_id}, resolved_plan={plan}, daily_limit={daily_limit}")
 
         if daily_limit != -1:
@@ -238,6 +240,26 @@ def create_swipe(event):
         }
         applications_table.put_item(Item=app_item)
 
+        # Race guard: the pre-check above isn't atomic with the write, so two
+        # concurrent LIKEs can both pass it. Recount AFTER writing; if we
+        # overshot the limit, roll our write back and reject. Worst case both
+        # racers roll back (the user just swipes again) — the limit itself is
+        # never exceeded. Auto-apply dispatch happens only after this guard.
+        if daily_limit != -1:
+            used_after = count_today_applications(user_id)
+            if used_after > daily_limit:
+                applications_table.delete_item(Key={"userId": user_id, "jobId": job_id})
+                print(f"SWIPE RACE ROLLBACK: userId={user_id}, jobId={job_id}, count={used_after} > limit={daily_limit}")
+                return resp(429, {
+                    "message": "Daily swipe limit reached",
+                    "code": "LIMIT_REACHED",
+                    "plan": plan,
+                    "limit": daily_limit,
+                    "used": daily_limit,
+                    "remaining": 0,
+                    "resetAt": get_reset_time(),
+                })
+
         if auto_apply_on and not ai_tailoring_on:
             # Tailoring not involved — go straight to SQS.
             apply_url = get_job_apply_url(job_id)
@@ -254,13 +276,12 @@ def create_swipe(event):
     }
     swipes_table.put_item(Item=swipe_item)
 
-    plan = get_effective_plan(user_id)
-    daily_limit = get_swipe_limit(plan)
     if daily_limit == -1:
         used_after = 0
         remaining = -1
     else:
-        used_after = count_today_applications(user_id)
+        if used_after is None:
+            used_after = count_today_applications(user_id)
         remaining = max(0, daily_limit - used_after)
 
     return resp(201, {

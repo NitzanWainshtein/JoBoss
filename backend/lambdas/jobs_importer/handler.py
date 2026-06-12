@@ -7,6 +7,7 @@ import boto3
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
+from apply_url_resolver import resolve_apply_url
 from geocoding import geocode_location
 from job_description_ai import normalize_description_with_ai
 from job_description_fetcher import fetch_full_description
@@ -102,9 +103,15 @@ def insert_jobs(messages):
             created_at = datetime.now(timezone.utc)
             expires_at = int((created_at + timedelta(days=10)).timestamp()) # sets expire date for 10 days
 
+            # Source channels sometimes post truncated/generic links (a careers
+            # listing instead of the position page). Try to recover the real
+            # position URL; flag the job when we couldn't.
+            apply_url, url_is_specific, page_html = resolve_apply_url(apply_url, parsed["title"])
+
             raw_description = fetch_full_description(
                 apply_url,
                 extract_preview_description(msg, parsed["description"]),
+                prefetched_html=page_html,
             )
 
             normalized_description = normalize_description_with_ai(
@@ -131,6 +138,9 @@ def insert_jobs(messages):
                 "isActive": True,
                 "description": description,
                 "shortDescription": short_description,
+                # True when the link leads to a generic/listing page — the UI
+                # and Auto Apply can use this to set expectations.
+                "applyUrlGeneric": not url_is_specific,
             }
 
             if lat is not None and lng is not None:

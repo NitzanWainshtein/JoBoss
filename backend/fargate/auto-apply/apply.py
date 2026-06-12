@@ -206,9 +206,24 @@ SUBMIT_PATTERNS = [
     "button:has-text('apply')",
     "button:has-text('send application')",
     "button:has-text('הגש')",
+    "button:has-text('הגשת מועמדות')",
+    "button:has-text('שלח')",
+    "button:has-text('שליחה')",
     "[data-qa='btn-submit']",
     ".submit-button",
     "#submit",
+]
+
+# Buttons that advance a multi-step application wizard to its next page.
+NEXT_STEP_PATTERNS = [
+    "button:has-text('Next')",
+    "button:has-text('Continue')",
+    "button:has-text('הבא')",
+    "button:has-text('המשך')",
+    "button:has-text('המשיכו')",
+    "a:has-text('Next')",
+    "[class*='next-step']",
+    "[data-qa*='next']",
 ]
 
 
@@ -456,6 +471,10 @@ APPLY_CTA_SELECTORS = [
     "a:has-text('Apply here')", "a:has-text('Apply now')",
     "button:has-text('Apply now')", "a:has-text('Register')",
     "button:has-text('Register')", "a:has-text('Create account')",
+    # Hebrew career sites
+    "a:has-text('הגשת מועמדות')", "button:has-text('הגשת מועמדות')",
+    "a:has-text('הגש מועמדות')", "button:has-text('הגש מועמדות')",
+    "a:has-text('להגשת מועמדות')", "a:has-text('שלחו קורות חיים')",
     "[class*='apply']", "[id*='apply']",
 ]
 
@@ -556,6 +575,51 @@ def _submit_and_finish(page):
     return True, None
 
 
+MAX_WIZARD_STEPS = 4
+
+
+def _wizard_fill_and_submit(page, user_email, resume_path):
+    """Walk a (possibly multi-step) application wizard: fill the visible
+    fields, submit if a submit button exists, otherwise advance with
+    Next/Continue and fill again. Many career sites split the form across
+    several pages — a single submit click used to fail with
+    'could not find submit button' even though the flow was completable."""
+    for step in range(MAX_WIZARD_STEPS):
+        if step > 0:
+            # New wizard page — fill whatever fields it shows (best effort).
+            fill_common_fields(page, user_email, resume_path)
+
+        page.wait_for_timeout(1_000)
+        if try_click_first(page, SUBMIT_PATTERNS):
+            wait_for_settle(page)
+            captcha = detect_captcha(page)
+            if captcha:
+                return False, f"captcha_detected: {captcha}"
+            # If submitting only advanced the wizard (form fields still
+            # visible), keep walking instead of declaring success.
+            page.wait_for_timeout(1_500)
+            if not has_form_fields(page):
+                return True, None
+            log.info("Wizard: submit advanced to another step (%d)", step + 1)
+            continue
+
+        if try_click_first(page, NEXT_STEP_PATTERNS):
+            log.info("Wizard: advanced to step %d", step + 2)
+            wait_for_settle(page)
+            page.wait_for_timeout(1_500)
+            captcha = detect_captcha(page)
+            if captcha:
+                return False, f"captcha_detected: {captcha}"
+            continue
+
+        return False, "could not find submit/next button"
+
+    # Ran out of steps; if the form is gone, assume the last submit landed.
+    if not has_form_fields(page):
+        return True, None
+    return False, f"application wizard did not finish within {MAX_WIZARD_STEPS} steps"
+
+
 def _attempt_apply(page, user_email, resume_path):
     """Validate the current page is a real application form, then fill + submit.
     Returns (success, reason) if an attempt was made, or None if this page is not
@@ -564,7 +628,7 @@ def _attempt_apply(page, user_email, resume_path):
         return None
     if not fill_common_fields(page, user_email, resume_path):
         return None
-    return _submit_and_finish(page)
+    return _wizard_fill_and_submit(page, user_email, resume_path)
 
 
 def apply_generic(page, user_email, resume_path):

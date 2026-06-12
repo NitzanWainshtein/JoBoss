@@ -23,7 +23,8 @@ Rules:
 - Remove irrelevant content such as navigation menus, footer text, cookie notices, privacy text, equal opportunity boilerplate, generic company marketing, and unrelated jobs.
 - Keep the language English.
 - Be concise but useful.
-- If a section has no reliable information, omit that section.
+- If a section has no reliable information, OMIT the section entirely — including its header.
+- NEVER write filler lines such as "No specific responsibilities were detailed", "Not specified", or "No technologies were mentioned". A missing section must simply not appear.
 - Do not include markdown fences.
 - Return plain text only.
 - Never return a refusal, apology, or explanation that you cannot complete the task.
@@ -37,7 +38,7 @@ Location: {location}
 Return ONLY a valid JSON object with this exact structure:
 {{
   "shortDescription": "1 to 2 concise sentences, about 35 to 55 words, written for a swipe card. It should summarize the role, company/team, and main work without bullets.",
-  "description": "Summary\\nWrite about 4 concise lines explaining the role, domain/team, and main work.\\n\\nResponsibilities\\n- 3 to 6 bullets\\n\\nRequirements\\n- 3 to 7 bullets\\n\\nNice to have\\n- 0 to 4 bullets, only if clearly present\\n\\nTechnologies\\nComma-separated list of technologies, tools, methods, or domains clearly mentioned."
+  "description": "Summary\\nWrite about 4 concise lines explaining the role, domain/team, and main work.\\n\\nResponsibilities\\n- 3 to 6 bullets (omit the whole section if none are in the raw text)\\n\\nRequirements\\n- 3 to 7 bullets (omit the whole section if none are in the raw text)\\n\\nNice to have\\n- 0 to 4 bullets, only if clearly present\\n\\nTechnologies\\nComma-separated list, only if clearly mentioned (omit the whole section otherwise)."
 }}
 
 Raw job page text:
@@ -103,18 +104,11 @@ def build_metadata_fallback_description(title, company, location):
     company = company or "the company"
     location_text = f" in {location}" if location else ""
 
+    # Summary only — no placeholder Responsibilities/Requirements sections.
+    # The detail view simply won't render sections that aren't present.
     return f"""
 Summary
-{company} is hiring for {title}{location_text}. The source page did not expose a complete structured job description during import, so candidates should review the original apply page for the full role details.
-
-Responsibilities
-- Review the original apply page for role-specific responsibilities.
-
-Requirements
-- Review the original apply page for role-specific requirements.
-
-Technologies
-Not specified in the imported source text.
+{company} is hiring for {title}{location_text}. The source page did not expose the full role details during import — use the original apply link below to see the complete description.
 """.strip()
 
 def build_metadata_fallback_result(title, company, location):

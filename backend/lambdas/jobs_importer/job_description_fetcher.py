@@ -184,12 +184,12 @@ def extract_full_description_from_html(html_text: str) -> str:
     return best[:MAX_DESCRIPTION_LENGTH]
 
 
-def fetch_full_description(apply_url: str, fallback_description: str) -> str:
+def fetch_full_description(apply_url: str, fallback_description: str, prefetched_html: str = "") -> str:
     if not apply_url or "t.me/" in apply_url or "telegram.me/" in apply_url:
         return fallback_description
 
     try:
-        html_text = fetch_html(apply_url)
+        html_text = prefetched_html or fetch_html(apply_url)
         description = extract_full_description_from_html(html_text)
 
         if description:

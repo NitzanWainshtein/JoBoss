@@ -2,29 +2,29 @@
 import React, { useState } from 'react';
 
 /**
- * מחזיר שרשרת URLs לטעינת לוגו חברה.
+ * מחזיר שרשרת מקורות לטעינת לוגו חברה.
  *
- * רקע: בעבר השתמשנו ב-logo.dev (שה-token שלו פג ומחזיר 401 לכל בקשה) וב-Clearbit
- * (שהשירות החינמי שלו נסגר אחרי הרכישה ע"י HubSpot ומחזיר connection error). לכן
- * כל הלוגואים "נשברו". גם Google s2/favicons הישן בעייתי כי הוא מחזיר גלובוס גנרי
- * (HTTP 200) לחברה לא מוכרת, מה שמונע fallback לאות הראשונה.
+ * רקע: logo.dev (ה-token פג — 401) ו-Clearbit (נסגר אחרי רכישת HubSpot) ירדו.
+ * נשארו שני מקורות חינמיים בלי key:
+ *   1. Google gstatic faviconV2 — איכותי ומהיר, אבל לדומיין בלי favicon מחזיר
+ *      404 *עם גלובוס 16x16 בגוף התשובה*. דפדפנים מרנדרים גוף תקין גם ב-404
+ *      (onLoad נורה, לא onError!) — לכן חייבים לבדוק naturalWidth.
+ *   2. DuckDuckGo icons — עוקב אחרי redirects בצד שרת (johnsonjohnson.com →
+ *      jnj.com → הלוגו האמיתי!), אבל לדומיין מת מחזיר placeholder 48x48.
  *
- * שני המקורות כאן שניהם: (א) מחזירים לוגו אמיתי באיכות טובה, (ב) מחזירים 404 אמיתי
- * כשאין לוגו — כך ש-onError של ה-<img> נורה ואפשר ליפול ל-fallback הבא ובסוף לאות.
+ * לכן כל מקור נושא minSize: תמונה שנטענה קטנה מהסף = אייקון גנרי → מדלגים
+ * למקור הבא, ובסוף נופלים לאות הראשונה של החברה.
  *
  * @param {string} company - שם החברה
  * @param {string} website - אתר החברה (אופציונלי, גובר על ניחוש הדומיין)
- * @returns {{ primary: string|null, fallbacks: string[] }}
+ * @returns {Array<{src: string, minSize: number}>}
  */
-export const getCompanyLogoUrls = (company, website = null) => {
-  if (!company) {
-    return { primary: null, fallbacks: [] };
-  }
+export const getCompanyLogoSources = (company, website = null) => {
+  if (!company) return [];
 
-  // ניחוש דומיינים: אם יש website משתמשים בו; אחרת מנסים כמה וריאציות —
-  // השם המלא כ-slug ("Johnson&Johnson" → johnsonjohnson.com) וגם המילה
-  // הראשונה בלבד ("Johnson" → johnson.com). כל מועמד הוא URL נוסף בשרשרת
-  // ה-fallback, כך שאם הראשון מחזיר גלובוס/404 ננסה את הבא.
+  // ניחוש דומיינים: website אם יש; אחרת השם המלא כ-slug ("Johnson&Johnson" →
+  // johnsonjohnson.com) וגם המילה הראשונה ("Johnson" → johnson.com), אחרי
+  // ניקוי סיומות תאגידיות שמקלקלות את הניחוש (Ltd, Inc, Technologies...).
   const domains = [];
   if (website) {
     const d = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim();
@@ -38,27 +38,40 @@ export const getCompanyLogoUrls = (company, website = null) => {
   if (fullSlug) domains.push(`${fullSlug}.com`);
   if (firstWord && firstWord !== fullSlug) domains.push(`${firstWord}.com`);
 
-  if (domains.length === 0) return { primary: null, fallbacks: [] };
+  const unique = [...new Set(domains)];
+  if (unique.length === 0) return [];
 
-  // gstatic עם URL — עוקב אחרי redirects (למשל johnsonjohnson.com → jnj.com).
-  // הערה: לדומיין בלי favicon הוא לפעמים מחזיר 200 עם גלובוס גנרי 16x16 במקום
-  // 404 — לכן ה-component בודק גם naturalWidth ב-onLoad ולא סומך רק על onError.
-  const urls = [...new Set(domains)].map(d =>
-    `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${d}&size=128`
-  );
+  return [
+    // gstatic — הגלובוס הגנרי שלו הוא 16px, לוגו אמיתי גדול יותר.
+    ...unique.map(d => ({
+      src: `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${d}&size=128`,
+      minSize: 17,
+    })),
+    // DDG — ה-placeholder שלו הוא 48px; לוגו אמיתי שנקבל ממנו הוא 64+ לרוב.
+    ...unique.map(d => ({
+      src: `https://icons.duckduckgo.com/ip3/${d}.ico`,
+      minSize: 49,
+    })),
+  ];
+};
 
-  return { primary: urls[0], fallbacks: urls.slice(1) };
+// תאימות לאחור למי שמייבא את ה-API הישן.
+export const getCompanyLogoUrls = (company, website = null) => {
+  const sources = getCompanyLogoSources(company, website);
+  const urls = sources.map(s => s.src);
+  return { primary: urls[0] || null, fallbacks: urls.slice(1) };
 };
 
 /**
  * React component לטעינת לוגו עם fallback אוטומטי.
- * עובר בין המקורות ב-onError, ובסוף מציג placeholder עם האות הראשונה של החברה.
+ * עובר בין המקורות ב-onError וגם ב-onLoad כשהתמונה קטנה מדי (= אייקון גנרי),
+ * ובסוף מציג placeholder עם האות הראשונה של החברה.
  */
 export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
-  const allUrls = React.useMemo(() => {
-    const { primary, fallbacks } = getCompanyLogoUrls(company, website);
-    return primary ? [primary, ...fallbacks] : fallbacks;
-  }, [company, website]);
+  const sources = React.useMemo(
+    () => getCompanyLogoSources(company, website),
+    [company, website]
+  );
 
   const [idx, setIdx] = useState(0);
 
@@ -70,9 +83,9 @@ export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
     setIdx(0);
   }
 
-  const currentUrl = allUrls[idx] ?? null;
+  const current = sources[idx] ?? null;
 
-  if (!currentUrl) {
+  if (!current) {
     // Placeholder - אות ראשונה של החברה
     return (
       <div style={{
@@ -93,19 +106,18 @@ export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
 
   return (
     <img
-      key={currentUrl}
-      src={currentUrl}
+      key={current.src}
+      src={current.src}
       alt={alt || company}
       style={style}
       onError={() => setIdx(i => i + 1)}
       onLoad={(e) => {
-        // gstatic מחזיר גלובוס גנרי בגודל 16x16 (HTTP 200) כשאין favicon אמיתי,
-        // למרות שביקשנו size=128. לוגו אמיתי חוזר 32px ומעלה — אז תמונה קטנטנה
-        // היא הגלובוס, ומדלגים למקור הבא (ובסוף לאות הראשונה).
-        if (e.target.naturalWidth <= 16) setIdx(i => i + 1);
+        // תמונה קטנה מהסף של המקור = האייקון הגנרי שלו (גלובוס/placeholder),
+        // לא לוגו אמיתי — מדלגים למקור הבא (ובסוף לאות הראשונה).
+        if (e.target.naturalWidth < current.minSize) setIdx(i => i + 1);
       }}
     />
   );
 };
 
-export default { getCompanyLogoUrls, CompanyLogo };
+export default { getCompanyLogoUrls, getCompanyLogoSources, CompanyLogo };

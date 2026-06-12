@@ -140,12 +140,6 @@ def normalize_resume(resume):
 
 
 def validate_user_fields(body):
-    if "plan" in body and body["plan"] not in ["FREE", "PREMIUM"]:
-        return "plan must be FREE or PREMIUM"
-
-    if "role" in body and body["role"] not in ["USER", "ADMIN"]:
-        return "role must be USER or ADMIN"
-
     if "autoApply" in body and not isinstance(body["autoApply"], bool):
         return "autoApply must be true or false"
 
@@ -180,8 +174,8 @@ def build_updated_user_from_body(existing_user, body):
         "searchRadius",
         "desiredRole",
         "experienceLevel",
-        "plan",
-        "role",
+        # NOTE: "plan" and "role" are intentionally NOT self-editable.
+        # plan is owned by the subscriptions service / admin; role by Cognito groups.
         "autoApply",
         "autoTailorCV",
         "onboardingCompleted",
@@ -357,8 +351,9 @@ def create_user_profile(event):
         "searchRadius": body.get("searchRadius", 20),
         "desiredRole": body.get("desiredRole", ""),
         "experienceLevel": body.get("experienceLevel", ""),
-        "plan": body.get("plan", "FREE"),
-        "role": body.get("role", "USER"),
+        # plan/role are never taken from the client (privilege escalation risk).
+        "plan": "FREE",
+        "role": "USER",
         "autoApply": body.get("autoApply", False),
         "resumeUrl": body.get("resumeUrl"),
         "resumes": body.get("resumes", []),
@@ -457,7 +452,7 @@ def handler(event, context):
         })
 
     except Exception as e:
+        print(f"USERS ERROR: {type(e).__name__}: {e}")
         return build_response(500, {
-            "message": "Failed to process user request",
-            "error": str(e)
+            "message": "Failed to process user request"
         })

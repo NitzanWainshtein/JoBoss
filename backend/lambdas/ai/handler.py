@@ -66,11 +66,10 @@ def get_user_id(event, body):
     if user_id:
         return user_id
 
-    user_id = get_user_id_from_authorization_header(event)
-    if user_id:
-        return user_id
-
-    return body.get("userId")
+    # NOTE: the Authorization-header decode below is unverified — it only
+    # stands in until POST /ai/tailor gets a Cognito authorizer at the gateway.
+    # Never fall back to body["userId"]: that let anyone act as any user.
+    return get_user_id_from_authorization_header(event)
 
 
 def get_user_id_from_authorization_header(event):

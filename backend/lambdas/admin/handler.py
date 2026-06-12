@@ -1,7 +1,6 @@
-import base64
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import boto3
@@ -60,21 +59,10 @@ def get_claims(event):
 
 
 def get_user_id_from_token(event):
-    claims = get_claims(event)
-    uid = claims.get("sub")
-    if uid:
-        return uid
-    headers = event.get("headers") or {}
-    token = headers.get("Authorization") or headers.get("authorization") or ""
-    token = token.replace("Bearer ", "", 1).strip()
-    parts = token.split(".")
-    if len(parts) < 2:
-        return None
-    try:
-        payload = parts[1] + "=" * (-len(parts[1]) % 4)
-        return json.loads(base64.urlsafe_b64decode(payload))["sub"]
-    except Exception:
-        return None
+    # Identity must come from the API Gateway Cognito authorizer claims.
+    # (Decoding the Authorization header without signature verification would
+    # let a forged token impersonate an admin if a route is ever exposed.)
+    return get_claims(event).get("sub")
 
 
 def get_cognito_username_by_sub(sub):
@@ -150,7 +138,7 @@ def handle_stats(admin_id):
 
     now = datetime.now(timezone.utc)
     today     = now.strftime("%Y-%m-%d")
-    this_week = (now.replace(day=now.day - now.weekday())).strftime("%Y-%m-%d")
+    this_week = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
     this_month= now.strftime("%Y-%m")
 
     users = scan_all(users_table,
@@ -356,6 +344,15 @@ def handle_block_user(admin_id, user_id, body):
         UpdateExpression="SET blocked = :b",
         ExpressionAttributeValues={":b": blocked},
     )
+    if blocked:
+        # Revoke refresh tokens so the user (and the Chrome extension) can't
+        # keep using the account once the current access token expires.
+        try:
+            username = get_cognito_username_by_sub(user_id)
+            if username:
+                cognito.admin_user_global_sign_out(UserPoolId=USER_POOL_ID, Username=username)
+        except Exception as e:
+            print(f"[BLOCK_USER] global sign out failed: {e}")
     _send_block_email(user_record.get("email", ""), blocked)
     return resp(200, {"success": True, "blocked": blocked})
 
@@ -453,15 +450,44 @@ def handle_delete_user(admin_id, user_id):
     user_record = users_table.get_item(Key={"userId": user_id}).get("Item", {})
     email = user_record.get("email", "")
 
-    # Delete from Cognito so the user can no longer log in
-    if email:
+    # Delete from Cognito so the user can no longer log in.
+    # Look up the real Username by sub (it isn't necessarily the email).
+    username = get_cognito_username_by_sub(user_id) or email
+    if username:
         try:
-            cognito.admin_delete_user(UserPoolId=USER_POOL_ID, Username=email)
-            print(f"Deleted Cognito user: {email}")
+            cognito.admin_delete_user(UserPoolId=USER_POOL_ID, Username=username)
+            print(f"Deleted Cognito user: {username}")
         except cognito.exceptions.UserNotFoundException:
-            print(f"Cognito user not found (already deleted?): {email}")
+            print(f"Cognito user not found (already deleted?): {username}")
         except Exception as e:
             print(f"Cognito delete failed: {e}")
+
+    # Warn loudly if there's a live Stripe subscription — this Lambda has no
+    # Stripe client, so billing must be cancelled via the Stripe dashboard.
+    try:
+        sub = subs_table.get_item(Key={"userId": user_id}).get("Item", {})
+        if sub.get("stripeSubscriptionId") and sub.get("status") not in ("FREE", "CANCELLED"):
+            print(f"[DELETE_USER] WARNING: user {user_id} has active Stripe "
+                  f"subscription {sub['stripeSubscriptionId']} — cancel it in Stripe!")
+    except Exception as e:
+        print(f"[DELETE_USER] subs lookup failed: {e}")
+
+    # Remove related records so they don't linger as orphans.
+    try:
+        subs_table.delete_item(Key={"userId": user_id})
+    except Exception as e:
+        print(f"[DELETE_USER] subs delete failed: {e}")
+
+    for tbl in (swipes_table, apps_table):
+        try:
+            result = tbl.query(
+                KeyConditionExpression=boto3.dynamodb.conditions.Key("userId").eq(user_id)
+            )
+            with tbl.batch_writer() as batch:
+                for item in result.get("Items", []):
+                    batch.delete_item(Key={"userId": item["userId"], "jobId": item["jobId"]})
+        except Exception as e:
+            print(f"[DELETE_USER] cleanup failed for {tbl.name}: {e}")
 
     users_table.delete_item(Key={"userId": user_id})
     return resp(200, {"success": True})
@@ -597,6 +623,11 @@ def lambda_handler(event, context):
     body = get_body(event)
 
     try:
+        # Lightweight admin check — used by the frontend on app load instead of
+        # hitting /admin/stats (which scans every table).
+        if method == "GET" and path.endswith("/admin/ping"):
+            return resp(200, {"admin": True})
+
         # Stats
         if method == "GET" and path.endswith("/admin/stats"):
             return handle_stats(admin_id)
@@ -651,7 +682,7 @@ def lambda_handler(event, context):
 
     except ClientError as e:
         print(f"[ADMIN_ERROR] ClientError: {e}")
-        return resp(500, {"error": "AWS service error", "details": str(e)})
+        return resp(500, {"error": "AWS service error"})
     except Exception as e:
         print(f"[ADMIN_ERROR] {type(e).__name__}: {e}")
-        return resp(500, {"error": "Internal error", "details": str(e)})
+        return resp(500, {"error": "Internal error"})

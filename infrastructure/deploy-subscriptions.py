@@ -10,7 +10,9 @@ from botocore.exceptions import ClientError
 REGION = os.getenv("AWS_REGION", "us-east-1")
 FUNCTION_NAME = os.getenv("SUBSCRIPTIONS_FUNCTION_NAME", "joboss-subscriptions")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
-API_NAME = os.getenv("API_NAME", "joboss-api")
+# NOTE: the live gateway is "JoBossApi" (pi6i87ag1c). The old default
+# ("joboss-api") silently deployed unauthenticated routes to an orphan API.
+API_NAME = os.getenv("API_NAME", "JoBossApi")
 API_ID = os.getenv("API_GATEWAY_ID", "")
 API_STAGE = os.getenv("API_STAGE", "prod")
 ROLE_ARN = os.getenv("LAMBDA_ROLE_ARN", "")

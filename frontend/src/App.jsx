@@ -181,8 +181,8 @@ function App() {
       let adminStatus = jwtAdmin;
       if (!jwtAdmin) {
         try {
-          const { adminGetStats } = await import('./api');
-          await adminGetStats();
+          const { adminPing } = await import('./api');
+          await adminPing();
           adminStatus = true;
         } catch { /* 403 = not admin, any other error = ignore */ }
       }

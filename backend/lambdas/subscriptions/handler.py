@@ -8,7 +8,6 @@ Routes:
   POST /subscriptions/webhook  → Stripe webhook (no auth)
 """
 
-import base64
 import json
 import os
 from datetime import datetime, timezone, timedelta
@@ -114,29 +113,9 @@ def get_user_id(event):
     if uid:
         return uid
 
-    # Fallback: decode JWT from Authorization header
-    headers = event.get("headers") or {}
-    token = (headers.get("Authorization") or headers.get("authorization") or "").replace("Bearer ", "").strip()
-    parts = token.split(".")
-    if len(parts) >= 2:
-        try:
-            payload = parts[1] + "=" * (-len(parts[1]) % 4)
-            return json.loads(base64.urlsafe_b64decode(payload)).get("sub")
-        except Exception:
-            pass
-
-    # Fallback: query param or body
-    qs = event.get("queryStringParameters") or {}
-    if qs.get("userId"):
-        return qs["userId"]
-
-    body = event.get("body")
-    if body:
-        try:
-            return json.loads(body).get("userId")
-        except Exception:
-            pass
-
+    # No fallback: identity must come from the API Gateway Cognito authorizer.
+    # (Accepting userId from the query string / body / an unverified JWT would
+    # let anyone act on another user's subscription.)
     return None
 
 
@@ -207,7 +186,8 @@ def reset_daily_if_needed(user_id, sub):
 def effective_plan(sub):
     plan = sub.get("plan", "FREE")
     status = sub.get("status", "FREE")
-    if status not in ("ACTIVE", "FREE"):
+    # TRIALING comes from the Stripe subscription.updated webhook during a trial.
+    if status not in ("ACTIVE", "TRIAL", "TRIALING", "FREE"):
         return "FREE"
     return plan
 
@@ -256,10 +236,13 @@ def handle_checkout(event):
     if not price_id:
         return resp(500, {"error": "Stripe price ID not configured"})
 
+    trial_days = PLANS.get(plan, {}).get("trial_days")
+
     try:
         session = stripe.checkout.Session.create(
             mode="subscription",
             line_items=[{"price": price_id, "quantity": 1}],
+            **({"subscription_data": {"trial_period_days": trial_days}} if trial_days else {}),
             success_url=f"{FRONTEND_URL}/profile?tab=subscription&checkout=success",
             cancel_url=f"{FRONTEND_URL}/profile?tab=subscription&checkout=cancel",
             client_reference_id=user_id,
@@ -436,6 +419,8 @@ def lambda_handler(event, context):
         return resp(405, {"error": f"Method {method} not allowed"})
 
     except ClientError as e:
-        return resp(500, {"error": "AWS error", "details": str(e)})
+        print(f"[SUBS_ERROR] ClientError: {e}")
+        return resp(500, {"error": "AWS error"})
     except Exception as e:
-        return resp(500, {"error": "Internal error", "details": str(e)})
+        print(f"[SUBS_ERROR] {type(e).__name__}: {e}")
+        return resp(500, {"error": "Internal error"})

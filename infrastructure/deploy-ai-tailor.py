@@ -9,8 +9,10 @@ from botocore.exceptions import ClientError
 
 REGION = os.getenv("AWS_REGION", "us-east-1")
 FUNCTION_NAME = os.getenv("AI_FUNCTION_NAME", "joboss-ai-tailor")
-API_NAME = os.getenv("API_NAME", "joboss-api")
-API_ID = os.getenv("API_GATEWAY_ID", "")
+# NOTE: the live gateway is "JoBossApi" (pi6i87ag1c). The old default
+# ("joboss-api") silently deployed unauthenticated routes to an orphan API.
+API_NAME = os.getenv("API_NAME", "JoBossApi")
+API_ID = os.getenv("API_GATEWAY_ID", "pi6i87ag1c")
 API_STAGE = os.getenv("API_STAGE", "prod")
 ROLE_ARN = os.getenv("LAMBDA_ROLE_ARN", "")
 USERS_TABLE = os.getenv("USERS_TABLE", "joboss-users")
@@ -206,17 +208,40 @@ def get_resource_id(path_part, parent_id):
     return resource["id"]
 
 
+def discover_authorizer_id():
+    authorizers = api_client.get_authorizers(restApiId=API_ID).get("items", [])
+    cognito = next((a for a in authorizers if a.get("type") == "COGNITO_USER_POOLS"), None)
+    return cognito["id"] if cognito else ""
+
+
 def put_proxy_method(resource_id, http_method):
-    try:
-        api_client.put_method(
-            restApiId=API_ID,
-            resourceId=resource_id,
-            httpMethod=http_method,
-            authorizationType="NONE",
+    authorizer_id = discover_authorizer_id()
+    if not authorizer_id:
+        raise RuntimeError(
+            f"No Cognito authorizer found on API {API_ID} — refusing to create "
+            f"an unauthenticated {http_method} method."
         )
+    method_args = {
+        "restApiId": API_ID,
+        "resourceId": resource_id,
+        "httpMethod": http_method,
+        "authorizationType": "COGNITO_USER_POOLS",
+        "authorizerId": authorizer_id,
+    }
+    try:
+        api_client.put_method(**method_args)
     except ClientError as error:
         if error.response["Error"]["Code"] != "ConflictException":
             raise
+        api_client.update_method(
+            restApiId=API_ID,
+            resourceId=resource_id,
+            httpMethod=http_method,
+            patchOperations=[
+                {"op": "replace", "path": "/authorizationType", "value": "COGNITO_USER_POOLS"},
+                {"op": "replace", "path": "/authorizerId", "value": authorizer_id},
+            ],
+        )
 
     api_client.put_integration(
         restApiId=API_ID,

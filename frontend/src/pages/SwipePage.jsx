@@ -805,8 +805,12 @@ function SwipePage() {
         setQuota(q => q ? { ...q, used: Math.max(0, (q.used || 0) - 1), remaining: q.limit === -1 ? -1 : (q.remaining || 0) + 1 } : q);
       }
       setLastSwipe(null);
-    } catch {
-      alert('❌ שגיאה בביטול Swipe');
+    } catch (e) {
+      if (e?.code === 'ALREADY_APPLIED') {
+        alert('המועמדות כבר נשלחה על ידי Auto Apply ולא ניתן לבטל אותה');
+      } else {
+        alert('❌ שגיאה בביטול Swipe');
+      }
     }
   };
 

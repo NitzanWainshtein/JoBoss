@@ -167,6 +167,7 @@ export const explainFailure = async (jobId) => {
 };
 
 // ===== ADMIN =====
+export const adminPing           = ()           => apiCall('GET',    '/admin/ping');
 export const adminGetStats       = ()           => apiCall('GET',    '/admin/stats');
 export const adminGetUsers       = ()           => apiCall('GET',    '/admin/users');
 export const adminGetJobs        = ()           => apiCall('GET',    '/admin/jobs');

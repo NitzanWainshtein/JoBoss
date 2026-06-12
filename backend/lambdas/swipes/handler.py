@@ -120,7 +120,9 @@ def get_effective_plan(user_id):
         status = sub.get("status", "EXPIRED")
         plan = sub.get("plan", "FREE")
         print(f"PLAN LOOKUP: userId={user_id}, status={status}, plan={plan}")
-        if status in ("ACTIVE", "TRIAL"):
+        # TRIAL is the legacy internal trial (with trialEndAt); TRIALING is the
+        # Stripe-managed trial — Stripe flips it via webhook when it ends.
+        if status in ("ACTIVE", "TRIAL", "TRIALING"):
             if status == "TRIAL":
                 trial_end = int(sub.get("trialEndAt", 0))
                 if datetime.now(timezone.utc).timestamp() > trial_end:
@@ -153,14 +155,20 @@ def count_today_applications(user_id):
     except Exception:
         count_from = today_iso
 
-    result = applications_table.scan(
-        FilterExpression=boto3.dynamodb.conditions.Attr("userId").eq(user_id)
-        & boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso),
-        ConsistentRead=True,
-        ProjectionExpression="createdAt",
-    )
-    items = result.get("Items", [])
-    count = len(items)
+    # Query by partition key (userId) instead of scanning the whole table.
+    count = 0
+    kwargs = {
+        "KeyConditionExpression": boto3.dynamodb.conditions.Key("userId").eq(user_id),
+        "FilterExpression": boto3.dynamodb.conditions.Attr("createdAt").between(count_from, tomorrow_iso),
+        "ConsistentRead": True,
+        "Select": "COUNT",
+    }
+    while True:
+        result = applications_table.query(**kwargs)
+        count += result.get("Count", 0)
+        if "LastEvaluatedKey" not in result:
+            break
+        kwargs["ExclusiveStartKey"] = result["LastEvaluatedKey"]
     print(f"QUOTA COUNT: userId={user_id}, from={count_from}, count={count}")
     return count
 
@@ -289,6 +297,21 @@ def delete_swipe(event):
     job_id = path.rstrip("/").split("/")[-1]
     if not job_id or job_id == "swipes":
         return resp(400, {"message": "jobId required"})
+
+    # If auto-apply already submitted this application for real, deleting the
+    # record would erase the only trace of a submission that actually happened.
+    try:
+        app = applications_table.get_item(
+            Key={"userId": user_id, "jobId": job_id},
+            ProjectionExpression="autoApplyStatus",
+        ).get("Item", {})
+        if app.get("autoApplyStatus") == "success":
+            return resp(409, {
+                "message": "Application was already submitted by Auto Apply and cannot be undone",
+                "code": "ALREADY_APPLIED",
+            })
+    except Exception as e:
+        print(f"UNDO CHECK ERROR: userId={user_id}, jobId={job_id}, error={e}")
 
     swipes_table.delete_item(Key={"userId": user_id, "jobId": job_id})
 

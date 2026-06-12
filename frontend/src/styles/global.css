@@ -19,7 +19,7 @@
   --primary: #6C4FD4;
   --secondary: #4CC9F0;
   --dark: #1E2A4A;
-  --background: rgba(240, 238, 255, 0.65);
+  --background: rgba(240, 238, 255, 0.25);
   --card-bg: #FFFFFF;
   --text-dark: #1E2A4A;
   --text-light: #6B7280;
@@ -32,8 +32,9 @@
 body {
   background-image: url('/icons/swipes_icons/screen_base_background.png');
   background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
   background-color: #E8E5FF;
   color: var(--text-dark);
   min-height: 100vh;

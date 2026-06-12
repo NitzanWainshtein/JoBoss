@@ -363,6 +363,46 @@ function MatchBadge({ score, onClick }) {
 }
 
 // ── Job card ─────────────────────────────────────────────────────────────────
+// ── Job background image mapping ─────────────────────────────────────────────
+const JOB_BG_IMAGES = {
+  frontend:   'https://images.unsplash.com/photo-1547658719-da2b51169166?w=480&auto=format&q=75',
+  backend:    'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=480&auto=format&q=75',
+  fullstack:  'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=480&auto=format&q=75',
+  mobile:     'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=480&auto=format&q=75',
+  data:       'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=480&auto=format&q=75',
+  ai:         'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=480&auto=format&q=75',
+  devops:     'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=480&auto=format&q=75',
+  design:     'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=480&auto=format&q=75',
+  marketing:  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=480&auto=format&q=75',
+  management: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=480&auto=format&q=75',
+  finance:    'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=480&auto=format&q=75',
+  security:   'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=480&auto=format&q=75',
+  sales:      'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=480&auto=format&q=75',
+  hr:         'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=480&auto=format&q=75',
+  qa:         'https://images.unsplash.com/photo-1518349619113-03114f06ac3a?w=480&auto=format&q=75',
+  default:    'https://images.unsplash.com/photo-1497366216548-37526070297c?w=480&auto=format&q=75',
+};
+
+function getJobBgImage(title = '', tech = []) {
+  const t = (title + ' ' + tech.join(' ')).toLowerCase();
+  if (/front.?end|ui.?dev|react|vue|angular|css|html|svelte/.test(t))          return JOB_BG_IMAGES.frontend;
+  if (/back.?end|node|python|java |spring|\.net|ruby|php|api.?dev|server/.test(t)) return JOB_BG_IMAGES.backend;
+  if (/full.?stack/.test(t))                                                    return JOB_BG_IMAGES.fullstack;
+  if (/mobile|android|ios|flutter|swift|kotlin|react.?native/.test(t))         return JOB_BG_IMAGES.mobile;
+  if (/\bdata\b|analyst|bi |sql|spark|hadoop|tableau|power.?bi/.test(t))        return JOB_BG_IMAGES.data;
+  if (/\bai\b|ml |machine.?learn|deep.?learn|nlp|llm|computer.?vision/.test(t)) return JOB_BG_IMAGES.ai;
+  if (/devops|sre|cloud|aws|azure|gcp|kubernetes|docker|infra|platform/.test(t)) return JOB_BG_IMAGES.devops;
+  if (/design|ux|ui\/ux|product.?design|figma|sketch|creative/.test(t))        return JOB_BG_IMAGES.design;
+  if (/market|growth|seo|content|brand|social.?media|digital/.test(t))         return JOB_BG_IMAGES.marketing;
+  if (/manag|lead|director|\bvp\b|head of|cto|cpo|coo|scrum|agile|product/.test(t)) return JOB_BG_IMAGES.management;
+  if (/financ|account|invest|trading|quant|fintech|audit/.test(t))             return JOB_BG_IMAGES.finance;
+  if (/security|cyber|pentest|soc|infosec|cryptograph/.test(t))                return JOB_BG_IMAGES.security;
+  if (/sales|account.?exec|bdr|sdr|business.?dev/.test(t))                     return JOB_BG_IMAGES.sales;
+  if (/\bhr\b|human.?resource|recruit|talent|people.?ops/.test(t))             return JOB_BG_IMAGES.hr;
+  if (/qa|quality|test.?eng|automation.?test/.test(t))                         return JOB_BG_IMAGES.qa;
+  return JOB_BG_IMAGES.default;
+}
+
 function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
   const [isDragging, setIsDragging] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
@@ -411,41 +451,63 @@ function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
       {!locked && <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity, pointerEvents: 'none' }}><img src="/icons/yes_icon.png" alt="YES" draggable="false" style={{ height: `${ICON_SIZES.stampYes}px`, objectFit: 'contain' }} /></motion.div>}
       {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity, pointerEvents: 'none' }}><img src="/icons/nope_icon.png" alt="NOPE" draggable="false" style={{ height: `${ICON_SIZES.stampNope}px`, objectFit: 'contain' }} /></motion.div>}
 
-      <div style={styles.cardHeader}>
-        <CompanyLogo company={job.company} style={styles.logo_img} />
-        <div style={{ flex: 1 }}>
-          <h2 style={styles.company}>{job.company}</h2>
-          <p style={styles.location}>📍 {job.location}</p>
+      {/* Hero — full-image with overlaid content */}
+      <div style={styles.cardHero}>
+        <img
+          src={getJobBgImage(job.title, job.technologies || job.requirements || [])}
+          alt=""
+          style={styles.cardHeroImg}
+          draggable="false"
+          loading="lazy"
+        />
+        <div style={styles.cardHeroOverlay} />
+
+        {/* Top-left: match badge */}
+        {job.matchScore != null && (
+          <div style={styles.cardHeroMatchBadge}>
+            <MatchBadge score={job.matchScore} onClick={handleBadgeClick} />
+          </div>
+        )}
+
+        {/* Bottom row: title+location on left, company chip on right */}
+        <div style={styles.cardHeroBottom}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={styles.cardHeroTitle}>{job.title}</h3>
+            <p style={styles.cardHeroMeta}>
+              📍 {job.location}
+              {job.distanceKm != null && ` · ${job.distanceKm.toFixed(1)} ק"מ`}
+              {locationFilter && ` · עד ${locationFilter.radius} ק"מ`}
+            </p>
+          </div>
+          <div style={styles.cardHeroLogoChip}>
+            <CompanyLogo company={job.company} style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain', background: 'white', flexShrink: 0 }} />
+            <span style={styles.cardHeroCompany}>{job.company}</span>
+          </div>
         </div>
-        {job.matchScore != null && <MatchBadge score={job.matchScore} onClick={handleBadgeClick} />}
       </div>
-      <h3 style={styles.title}>{job.title}</h3>
-      {job.matchesPreferences === false && (
-        <DomainTags domains={job.jobDomains} levels={job.jobLevel} />
-      )}
-      {job.distanceKm != null && <p style={styles.distance}>🗺 {job.distanceKm.toFixed(1)} ק"מ ממך</p>}
-      {locationFilter && (
-        <p style={styles.locationFilter}>📍 {shortenLocation(locationFilter.name)} · עד {locationFilter.radius} ק"מ</p>
-      )}
-      <div style={styles.shortSummaryBlock}>
-        <p style={styles.shortSummaryTitle}>Short Summary</p>
+
+      {/* Card body — chips + description + tech */}
+      <div style={styles.cardBody}>
+        {job.matchesPreferences === false && (
+          <DomainTags domains={job.jobDomains} levels={job.jobLevel} />
+        )}
         <p style={styles.description}>{job.shortDescription || getJobSummary(job.description)}</p>
-      </div>
-      <div style={styles.techContainer}>
-        {(job.technologies || job.requirements || []).map(t => <span key={t} style={styles.techBadge}>{t}</span>)}
-      </div>
-      {!locked && (
-        <div style={styles.tapHint}>
-          <motion.img
-            src="/icons/clickHere_icon.png"
-            alt="לחץ לפרטים נוספים"
-            style={{ width: 'min(220px, 70%)', height: 'auto', objectFit: 'contain' }}
-            draggable="false"
-            animate={!isDragging ? { y: [0, -5, 0], opacity: [0.85, 1, 0.85] } : {}}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          />
+        <div style={styles.techContainer}>
+          {(job.technologies || job.requirements || []).slice(0, 4).map(t => <span key={t} style={styles.techBadge}>{t}</span>)}
         </div>
-      )}
+        {!locked && (
+          <div style={styles.tapHint}>
+            <motion.img
+              src="/icons/clickHere_icon.png"
+              alt="לחץ לפרטים נוספים"
+              style={{ width: 'min(200px, 65%)', height: 'auto', objectFit: 'contain' }}
+              draggable="false"
+              animate={!isDragging ? { y: [0, -5, 0], opacity: [0.85, 1, 0.85] } : {}}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
+        )}
+      </div>
     </motion.div>
     {matchOpen && job.matchBreakdown && (
       <MatchModal score={job.matchScore} breakdown={job.matchBreakdown} onClose={() => setMatchOpen(false)} />
@@ -841,11 +903,16 @@ function SwipePage() {
             {/* Next card preview */}
             {nextJob && (
               <motion.div style={{ ...styles.card, position: 'absolute', zIndex: 0, top: '10px', filter: 'blur(1.5px)', opacity: 0.6, transform: 'scale(0.95)', pointerEvents: 'none' }}>
-                <div style={styles.cardHeader}>
-                  <div style={{ ...styles.logo_placeholder }}>{nextJob.company?.charAt(0).toUpperCase()}</div>
-                  <div><h2 style={styles.company}>{nextJob.company}</h2><p style={styles.location}>📍 {nextJob.location}</p></div>
+                <div style={styles.cardHero}>
+                  <img src={getJobBgImage(nextJob.title, nextJob.technologies || nextJob.requirements || [])} alt="" style={styles.cardHeroImg} draggable="false" />
+                  <div style={styles.cardHeroOverlay} />
+                  <div style={styles.cardHeroBottom}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={styles.cardHeroTitle}>{nextJob.title}</h3>
+                      <p style={styles.cardHeroMeta}>📍 {nextJob.location}</p>
+                    </div>
+                  </div>
                 </div>
-                <h3 style={styles.title}>{nextJob.title}</h3>
               </motion.div>
             )}
 
@@ -1014,7 +1081,7 @@ function SwipePage() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
-  container: { height: 'calc(100svh - 120px)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '8px', paddingBottom: '4px', boxSizing: 'border-box', overflow: 'hidden' },
+  container: { height: 'calc(100svh - 126px)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '8px', paddingBottom: '4px', boxSizing: 'border-box', overflow: 'hidden' },
   quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 12px rgba(108,79,212,0.15)', border: '1px solid rgba(237,233,254,0.7)' },
   quotaBarTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
   quotaUpgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 },
@@ -1025,8 +1092,18 @@ const styles = {
   tailorQuotaLabel: { fontSize: '11px', fontWeight: 600, color: '#888', display: 'flex', alignItems: 'center', gap: '4px' },
   tailorQuotaCount: { fontSize: '12px', fontWeight: 800 },
   locationFilter: { fontSize: '12px', fontWeight: 600, color: '#2E7D32', margin: 0, textAlign: 'right' },
-  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '280px', maxHeight: '520px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
-  card: { width: 'min(360px, 95vw)', backgroundImage: 'url(/icons/swipes_icons/slider_background.png)', backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '20px', padding: '16px 20px', boxShadow: '0 8px 40px rgba(108,79,212,0.18)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
+  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '0', maxHeight: 'min(480px, calc(100svh - 280px))', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
+  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: 0, boxShadow: '0 8px 40px rgba(108,79,212,0.18)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
+  cardHero: { width: '100%', height: 'clamp(150px, 34svh, 210px)', position: 'relative', overflow: 'hidden', flexShrink: 0 },
+  cardHeroImg: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  cardHeroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 28%, rgba(0,0,0,0.52) 62%, rgba(0,0,0,0.84) 100%)' },
+  cardHeroMatchBadge: { position: 'absolute', top: '12px', left: '12px', zIndex: 2 },
+  cardHeroBottom: { position: 'absolute', bottom: '12px', left: '12px', right: '12px', display: 'flex', alignItems: 'flex-end', gap: '10px', zIndex: 2, direction: 'ltr' },
+  cardHeroLogoChip: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '16px', padding: '12px 14px', flexShrink: 0, minWidth: '72px' },
+  cardHeroCompany: { color: 'white', fontSize: '12px', fontWeight: 700, maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' },
+  cardHeroTitle: { color: 'white', fontSize: '18px', fontWeight: 800, margin: '0 0 4px', lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.5)', direction: 'ltr', textAlign: 'left' },
+  cardHeroMeta: { color: 'rgba(255,255,255,0.88)', fontSize: '12px', fontWeight: 500, margin: 0, direction: 'ltr', textAlign: 'left' },
+  cardBody: { padding: '10px 16px 12px', display: 'flex', flexDirection: 'column', gap: '7px', flex: 1, overflow: 'hidden', minHeight: 0 },
   stamp: { position: 'absolute', top: '24px', zIndex: 10 },
   likeStamp: { right: '24px', transform: 'rotate(15deg)' },
   nopeStamp: { left: '24px', transform: 'rotate(-15deg)' },

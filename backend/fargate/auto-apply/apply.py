@@ -304,28 +304,65 @@ def wait_for_settle(page, timeout=15_000):
         pass
 
 
+CONSENT_KEYWORDS = ["agree", "consent", "privacy", "terms", "policy",
+                    "מסכים", "מאשר", "תקנון", "פרטיות", "הסכמה"]
+
+
+def check_consent_checkboxes(page):
+    """Tick required/consent checkboxes (privacy policy etc.) — many forms
+    (e.g. Comeet) refuse to submit until the consent box is checked."""
+    for frame in iter_frames(page):
+        try:
+            boxes = frame.locator("input[type='checkbox']")
+            for i in range(min(boxes.count(), 10)):
+                box = boxes.nth(i)
+                try:
+                    # Custom-styled checkboxes often fail Playwright's
+                    # visibility check, so inspect and click via JS instead.
+                    info = box.evaluate("""el => ({
+                        checked: el.checked,
+                        required: el.required || el.getAttribute('aria-required') === 'true',
+                        visible: !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length),
+                        label: (((el.closest('label') || el.parentElement || {}).innerText || '')
+                                + ' ' + (el.name || '') + ' ' + (el.id || '')).toLowerCase().slice(0, 400),
+                    })""")
+                    if info["checked"] or not info["visible"]:
+                        continue
+                    if info["required"] or any(k in info["label"] for k in CONSENT_KEYWORDS):
+                        box.evaluate("el => el.click()")
+                        log.info("Checked consent checkbox (required=%s)", info["required"])
+                except Exception:
+                    continue
+        except Exception:
+            continue
+
+
 def fill_common_fields(page, user, resume_path):
     """Fill name/email/phone/resume with the user's REAL details.
     Returns True if at least one field was filled."""
     full_name = user.get("fullName") or "Applicant"
     first_name, _, last_name = full_name.partition(" ")
+    last_name = last_name.strip() or first_name
     email = user.get("email") or ""
     phone = user.get("phone") or ""
 
     filled_any = False
-    if try_fill_field(page, FIELD_PATTERNS["name"], full_name, "name"):
+    # Split first/last fields FIRST: the generic name*='name' selector greedily
+    # matches firstName/lastName inputs and used to dump the full name into
+    # firstName while leaving the (required) lastName empty.
+    fn = try_fill_field(page, FIELD_PATTERNS["first_name"], first_name, "first_name")
+    ln = try_fill_field(page, FIELD_PATTERNS["last_name"], last_name, "last_name")
+    if fn or ln:
         filled_any = True
-    else:
-        fn = try_fill_field(page, FIELD_PATTERNS["first_name"], first_name, "first_name")
-        ln = try_fill_field(page, FIELD_PATTERNS["last_name"], last_name or first_name, "last_name")
-        if fn or ln:
-            filled_any = True
+    elif try_fill_field(page, FIELD_PATTERNS["name"], full_name, "name"):
+        filled_any = True
     if email and try_fill_field(page, FIELD_PATTERNS["email"], email, "email"):
         filled_any = True
     if phone:
         try_fill_field(page, FIELD_PATTERNS["phone"], phone, "phone")
     if resume_path and try_upload_resume(page, resume_path):
         filled_any = True
+    check_consent_checkboxes(page)
     return filled_any
 
 
@@ -623,6 +660,42 @@ def _submit_and_finish(page):
 MAX_WIZARD_STEPS = 4
 
 
+def _form_signature(page):
+    """Cheap fingerprint of the current form state — used to tell a real
+    wizard-step change apart from a submit that was blocked by validation."""
+    parts = []
+    for frame in iter_frames(page):
+        try:
+            url = (frame.url or "").split("?")[0]
+            count = frame.locator("input:not([type='hidden']), textarea").count()
+            parts.append(f"{url}#{count}")
+        except Exception:
+            continue
+    return "|".join(parts)
+
+
+def _collect_validation_errors(page):
+    """Visible validation error texts — so failures report WHAT was missing
+    ('Phone is required') instead of a generic wizard message."""
+    texts = []
+    for frame in iter_frames(page):
+        try:
+            errs = frame.locator("[class*='error'], [role='alert'], [class*='invalid']")
+            for i in range(min(errs.count(), 12)):
+                el = errs.nth(i)
+                try:
+                    if not el.is_visible():
+                        continue
+                    text = " ".join((el.inner_text() or "").split())[:80]
+                    if len(text) > 3 and text not in texts:
+                        texts.append(text)
+                except Exception:
+                    continue
+        except Exception:
+            continue
+    return texts[:4]
+
+
 def _wizard_fill_and_submit(page, user, resume_path):
     """Walk a (possibly multi-step) application wizard: fill the visible
     fields, submit if a submit button exists, otherwise advance with
@@ -635,16 +708,22 @@ def _wizard_fill_and_submit(page, user, resume_path):
             fill_common_fields(page, user, resume_path)
 
         page.wait_for_timeout(1_000)
+        signature_before = _form_signature(page)
         if try_click_first(page, SUBMIT_PATTERNS):
             wait_for_settle(page)
             captcha = detect_captcha(page)
             if captcha:
                 return False, f"captcha_detected: {captcha}"
-            # If submitting only advanced the wizard (form fields still
-            # visible), keep walking instead of declaring success.
             page.wait_for_timeout(1_500)
             if not has_form_fields(page):
                 return True, None
+            # Form still visible. If nothing changed, the submit was BLOCKED
+            # (client-side validation) — report the actual errors instead of
+            # spinning on the same page.
+            if _form_signature(page) == signature_before:
+                errors = _collect_validation_errors(page)
+                detail = "; ".join(errors) if errors else "unknown validation error"
+                return False, f"form blocked submission — missing/invalid fields: {detail}"
             log.info("Wizard: submit advanced to another step (%d)", step + 1)
             continue
 

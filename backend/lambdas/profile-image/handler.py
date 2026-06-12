@@ -10,7 +10,9 @@ s3 = boto3.client('s3', region_name='us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 users_table = dynamodb.Table(os.environ.get('USERS_TABLE_NAME', 'joboss-users'))
 
-BUCKET = os.environ.get('BUCKET_NAME', 'joboss-resumes')
+# Default must match the real bucket — a stale 'joboss-resumes' default once
+# caused AccessDenied on every upload when the env var wasn't set.
+BUCKET = os.environ.get('BUCKET_NAME', 'joboss-resumes-171109860478')
 
 CORS = {
     'Content-Type': 'application/json',

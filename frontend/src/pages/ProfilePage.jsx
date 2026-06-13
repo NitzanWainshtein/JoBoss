@@ -244,6 +244,8 @@ function ProfilePage() {
     try {
       const r = await uploadProfileImage(file);
       setProfileImage(r.imageUrl);
+      // Tell the Navbar (and anyone else) to refresh its avatar live.
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profileImageUrl: r.imageUrl } }));
     } catch {
       alert('שגיאה בהעלאת התמונה');
       setProfileImage(profile?.profileImageUrl || null);
@@ -260,6 +262,7 @@ function ProfilePage() {
     setProfileImage(null);
     try {
       await removeProfileImage();
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profileImageUrl: null } }));
     } catch {
       setProfileImage(previous);
       alert('שגיאה בהסרת התמונה');

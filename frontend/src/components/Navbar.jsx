@@ -68,9 +68,11 @@ function Navbar({ isAdmin = false, planKey = '' }) {
 
     // התעדכנות מיידית כשהפרטים נערכו מכל מקום באפליקציה (Navbar או ProfilePage).
     const onProfileUpdated = (e) => {
-      const { fullName, email } = e.detail || {};
+      const { fullName, email, profileImageUrl } = e.detail || {};
       if (fullName) setUserName(fullName);
-      setProfileData(prev => prev ? { ...prev, ...(fullName && { fullName }), ...(email && { email }) } : prev);
+      // profileImageUrl === null means "removed"; undefined means "not in this event".
+      if (profileImageUrl !== undefined) setProfileImage(profileImageUrl);
+      setProfileData(prev => prev ? { ...prev, ...(fullName && { fullName }), ...(email && { email }), ...(profileImageUrl !== undefined && { profileImageUrl }) } : prev);
     };
     window.addEventListener('profile-updated', onProfileUpdated);
     return () => window.removeEventListener('profile-updated', onProfileUpdated);
@@ -101,6 +103,7 @@ function Navbar({ isAdmin = false, planKey = '' }) {
     try {
       const r = await uploadProfileImage(file);
       setProfileImage(r.imageUrl);
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profileImageUrl: r.imageUrl } }));
     } catch {
       alert('שגיאה בהעלאת התמונה');
       setProfileImage(profileData?.profileImageUrl || null);

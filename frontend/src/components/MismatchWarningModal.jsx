@@ -1,3 +1,6 @@
+// JoBoss feature:
+// - F-22: Preference Mismatch Warning Modal
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 

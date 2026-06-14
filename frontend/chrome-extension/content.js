@@ -1,3 +1,7 @@
+// JoBoss features:
+// - F-19: Chrome Extension - ATS Auto-Fill
+// - F-33: Chrome Extension - Floating Fill Button
+
 /**
  * JoBoss content script — injected into job application pages.
  * Detects form fields and fills them from the user's stored profile.

@@ -1,3 +1,6 @@
+# JoBoss feature:
+# - F-08: Auto-Apply Automation
+
 """
 JoBoss Auto Apply — Fargate Playwright script (Phase 2)
 

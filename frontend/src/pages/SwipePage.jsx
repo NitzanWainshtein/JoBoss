@@ -1,3 +1,14 @@
+// JoBoss features:
+// - F-03: Job Discovery & Swipe Interface
+// - F-05: Swipe Recording - Like & Pass
+// - F-06: Undo Last Swipe
+// - F-09: AI Resume Tailoring
+// - F-13: Daily Swipe Quota Enforcement
+// - F-22: Preference Mismatch Warning Modal
+// - F-26: Discovery Mode - 30-Minute Window
+// - F-27: Match Score Breakdown Modal
+// - F-28: Show All Jobs Toggle
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';

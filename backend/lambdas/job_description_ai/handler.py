@@ -1,3 +1,6 @@
+# JoBoss feature:
+# - F-17: Job Importer - Telegram Channel
+
 """
 Lambda entry point for AI job description normalization.
 

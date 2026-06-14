@@ -1,3 +1,8 @@
+// JoBoss features:
+// - F-14: Admin Dashboard & Statistics
+// - F-15: Admin User Management
+// - F-16: Admin Job Management
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {

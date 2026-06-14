@@ -1,3 +1,6 @@
+// JoBoss feature:
+// - F-01: User Registration & Authentication
+
 // Official install path: run infrastructure/setup_all.py — it writes frontend/.env with all values.
 // Fallback values below are for existing local dev only and must not be used on a clean account.
 const awsConfig = {

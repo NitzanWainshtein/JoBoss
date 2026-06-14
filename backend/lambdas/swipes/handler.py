@@ -1,3 +1,8 @@
+# JoBoss features:
+# - F-05: Swipe Recording - Like & Pass
+# - F-06: Undo Last Swipe
+# - F-13: Daily Swipe Quota Enforcement
+
 """
 joBoss Swipes Lambda
 Feature #SWP-001 — swipe right/left

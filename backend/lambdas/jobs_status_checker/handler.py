@@ -1,3 +1,6 @@
+# JoBoss feature:
+# - F-18: Job Status Monitoring & Cleanup
+
 """
 Lambda entry point for deleting inactive jobs.
 

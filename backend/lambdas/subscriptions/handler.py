@@ -1,3 +1,6 @@
+# JoBoss feature:
+# - F-12: Subscription & Stripe Payment
+
 """
 joBoss Subscriptions Lambda — Stripe-integrated
 Routes:

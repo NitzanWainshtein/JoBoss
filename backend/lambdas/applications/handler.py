@@ -1,3 +1,8 @@
+# JoBoss features:
+# - F-05: Swipe Recording - Like & Pass
+# - F-07: Application Tracking (Dual-Track Status)
+# - F-21: Personal Dashboard
+
 import json
 import boto3
 import os

@@ -1,3 +1,7 @@
+# JoBoss features:
+# - F-16: Admin Job Management
+# - F-17: Job Importer - Telegram Channel
+
 import os
 import uuid
 import asyncio

@@ -1,3 +1,7 @@
+# JoBoss features:
+# - F-03: Job Discovery & Swipe Interface
+# - F-04: Job Filtering & Matching Algorithm
+
 import json
 import re
 import boto3

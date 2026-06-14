@@ -1,3 +1,7 @@
+// JoBoss features:
+// - F-19: Chrome Extension - ATS Auto-Fill
+// - F-31: Chrome Extension - SSO Auth Bridge
+
 import React, { useEffect, useState } from 'react';
 import { fetchAuthSession } from 'aws-amplify/auth';
 

@@ -1,3 +1,7 @@
+# JoBoss features:
+# - F-08: Auto-Apply Automation
+# - F-20: Email Notification (Amazon SES)
+
 """
 joBoss Auto Apply Lambda — Phase 2
 SQS-triggered. For each LIKE with autoApply enabled:

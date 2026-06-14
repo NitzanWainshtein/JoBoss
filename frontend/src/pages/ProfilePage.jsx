@@ -1,3 +1,11 @@
+// JoBoss features:
+// - F-10: Resume Upload & Management
+// - F-11: Profile Image Upload & Removal
+// - F-12: Subscription & Stripe Payment
+// - F-23: Edit Profile & Change Password
+// - F-28: Show All Jobs Toggle
+// - F-29: GPS Location Auto-Detection
+
 import React, { useState, useEffect, useRef } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { getCurrentUser } from 'aws-amplify/auth';

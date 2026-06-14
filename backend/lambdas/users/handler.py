@@ -1,3 +1,11 @@
+# JoBoss features:
+# - F-01: User Registration & Authentication
+# - F-02: Onboarding Flow (5-Step Wizard)
+# - F-10: Resume Upload & Management
+# - F-23: Edit Profile & Change Password
+# - F-24: Account Suspension Screen
+# - F-28: Show All Jobs Toggle
+
 import json
 import re
 import boto3

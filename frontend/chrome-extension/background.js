@@ -1,3 +1,6 @@
+// JoBoss feature:
+// - F-31: Chrome Extension - SSO Auth Bridge
+
 // Service worker — handles messages between popup and content scripts.
 
 const API_BASE = "https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod";

@@ -1,3 +1,6 @@
+// JoBoss feature:
+// - F-24: Account Suspension Screen
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';

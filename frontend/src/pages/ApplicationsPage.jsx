@@ -1,3 +1,7 @@
+// JoBoss features:
+// - F-07: Application Tracking (Dual-Track Status)
+// - F-09: AI Resume Tailoring
+
 ﻿import React, { useState, useEffect } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';

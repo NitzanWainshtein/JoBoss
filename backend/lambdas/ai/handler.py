@@ -1,3 +1,7 @@
+# JoBoss features:
+# - F-02: Onboarding Flow (5-Step Wizard)
+# - F-09: AI Resume Tailoring
+
 import base64
 import json
 import os

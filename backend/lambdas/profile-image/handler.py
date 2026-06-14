@@ -1,3 +1,6 @@
+# JoBoss feature:
+# - F-11: Profile Image Upload & Removal
+
 ﻿import json
 import boto3
 import base64

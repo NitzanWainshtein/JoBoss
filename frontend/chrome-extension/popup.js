@@ -1,3 +1,9 @@
+// JoBoss features:
+// - F-19: Chrome Extension - ATS Auto-Fill
+// - F-30: Chrome Extension - Direct Login
+// - F-31: Chrome Extension - SSO Auth Bridge
+// - F-32: Chrome Extension - Tailored CV Selector
+
 const API_BASE = "https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod";
 const COGNITO_REGION = "us-east-1";
 const COGNITO_CLIENT_ID = "5o1mg9dtkh7kjuvqu145oafv00";

@@ -1,3 +1,6 @@
+// JoBoss feature:
+// - F-23: Edit Profile & Change Password
+
 import React, { useState } from 'react';
 import { updatePassword } from 'aws-amplify/auth';
 import { updateMyProfile } from '../api';

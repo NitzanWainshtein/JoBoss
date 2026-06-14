@@ -644,6 +644,10 @@ def step_7_routes(api_id, auth_id):
     _cors(api_id, subs_checkout, "POST")
     _method(api_id, subs_consume, "POST", _lambda_uri(f"{APP}-subscriptions"), auth_id)
     _cors(api_id, subs_consume, "POST")
+    # /subscriptions/webhook — called by Stripe directly, no Cognito auth
+    subs_webhook = _resource(api_id, subs, "webhook")
+    _method(api_id, subs_webhook, "POST", _lambda_uri(f"{APP}-subscriptions"))
+    _cors(api_id, subs_webhook, "POST")
     _allow_invoke(api_id, f"{APP}-subscriptions", "/subscriptions*", "AllowApigwSubs")
     ok("/subscriptions")
 

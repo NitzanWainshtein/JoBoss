@@ -112,11 +112,17 @@ def insert_jobs(messages):
             # position URL; flag the job when we couldn't.
             apply_url, url_is_specific, page_html = resolve_apply_url(apply_url, parsed["title"])
 
-            raw_description = fetch_full_description(
-                apply_url,
-                extract_preview_description(msg, parsed["description"]),
-                prefetched_html=page_html,
-            )
+            telegram_fallback = extract_preview_description(msg, parsed["description"])
+            if url_is_specific:
+                # Verified position page — use prefetched HTML to avoid a second fetch.
+                raw_description = fetch_full_description(apply_url, telegram_fallback, prefetched_html=page_html)
+            elif page_html:
+                # Listing/generic page detected — scraping it returns unrelated job
+                # content. Use the Telegram preview directly instead.
+                raw_description = telegram_fallback
+            else:
+                # Resolver fetch failed — let the fetcher try from scratch.
+                raw_description = fetch_full_description(apply_url, telegram_fallback)
 
             normalized_description = normalize_description_with_ai(
                 parsed["title"],

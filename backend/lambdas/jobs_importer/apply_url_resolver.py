@@ -138,6 +138,9 @@ def resolve_apply_url(apply_url, title):
                         return cand_final, True, cand_html
                 except Exception as e:
                     print(f"Resolver candidate fetch failed {candidate}: {e}")
+            # listing_like but couldn't recover a specific position URL
+            print(f"Resolver: {final_url} is a listing page, couldn't recover position URL for {title!r}")
+            return final_url, False, html_text
         return final_url, True, html_text
 
     # Title not on page — try to find a matching position link (SSR listings).

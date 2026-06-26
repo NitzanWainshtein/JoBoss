@@ -124,7 +124,13 @@ def normalize_job_description(body, invoke_bedrock, response):
     raw_description = (body.get("rawDescription") or body.get("raw_description") or "").strip()
 
     if not raw_description:
-        return response(400, {"error": "rawDescription is required"})
+        fallback = build_metadata_fallback_result(title, company, location)
+        return response(200, {
+            "message": "Job description metadata fallback (no raw description)",
+            "description": fallback["description"],
+            "shortDescription": fallback["shortDescription"],
+            "mode": "fallback",
+        })
 
     prompt = build_normalize_job_description_prompt(
         title,

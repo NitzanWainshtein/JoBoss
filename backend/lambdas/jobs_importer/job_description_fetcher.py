@@ -14,7 +14,7 @@ import urllib.request
 from html.parser import HTMLParser
 
 
-MAX_DESCRIPTION_LENGTH = 5000
+MAX_DESCRIPTION_LENGTH = 7000
 FETCH_TIMEOUT_SECONDS = 12
 
 
@@ -116,10 +116,20 @@ def extract_full_description_from_html(html_text: str) -> str:
         "Your Impact",
         "Key Responsibilities",
         "What You’ll Do",
-        "What You'll Do",
+        "What You’ll Do",
+        "What will you do",
+        "What you will do",
         "About the Role",
         "About The Role",
         "Minimum Qualifications",
+        "What we are looking for",
+        "What We Are Looking For",
+        "The Role",
+        "Position Overview",
+        "Role Overview",
+        "Job Summary",
+        "About this position",
+        "About This Position",
     ]
 
     end_markers = [

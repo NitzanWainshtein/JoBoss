@@ -287,11 +287,13 @@ function AutoApplyResult({ app, planKey, canExplain, isActiveTailoring }) {
   }
 
   // ── pending_tailoring: AI tailoring in progress before Fargate launch ────────
-  // isActiveTailoring is derived from the server record (pending_tailoring +
-  // recent updatedAt); stale records simply don't render a spinner.
+  // Staleness is derived directly from the server record's timestamp — no
+  // dependency on the tailoringJobs set so the spinner shows on first render.
   if (app.autoApplyStatus === 'pending_tailoring') {
-    if (app.tailoredResumeUrl) return null; // already completed
-    if (!isActiveTailoring) return null;    // stale / not tracked locally
+    if (app.tailoredResumeUrl) return null;
+    const TAILORING_ACTIVE_WINDOW_MS = 15 * 60 * 1000;
+    const startedAt = new Date(app.updatedAt || app.createdAt || 0).getTime();
+    if (Date.now() - startedAt >= TAILORING_ACTIVE_WINDOW_MS) return null;
     return (
       <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
         <img src="/icons/robot_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
@@ -1025,7 +1027,7 @@ function ApplicationsPage() {
                     </div>
                   )}
 
-                  {!app.tailoredResumeUrl && !tailoringJobs.has(app.jobId) && (
+                  {!app.tailoredResumeUrl && !tailoringJobs.has(app.jobId) && app.autoApplyStatus !== 'pending_tailoring' && (
                     <button
                       type="button"
                       style={canTailorCV ? styles.manualTailorBtn : styles.manualTailorBtnLocked}

@@ -654,14 +654,23 @@ function ApplicationsPage() {
       // shouldn't show an infinite spinner.
       const TAILORING_ACTIVE_WINDOW_MS = 15 * 60 * 1000;
       const now = Date.now();
-      const nextTailoring = new Set(
-        apps
+      // Include both server-tracked (pending_tailoring) and client-tracked
+      // (sessionStorage) tailoring jobs. loadApplications must never evict a
+      // sessionStorage job just because the server record says 'manual' —
+      // that status means autoApply is off, not that tailoring isn't running.
+      const sessionIds = getPendingTailoringFromSession();
+      const nextTailoring = new Set([
+        ...apps
           .filter(app =>
             app.autoApplyStatus === 'pending_tailoring' &&
             !app.tailoredResumeUrl &&
             now - new Date(app.updatedAt || app.createdAt || 0).getTime() < TAILORING_ACTIVE_WINDOW_MS)
-          .map(app => app.jobId)
-      );
+          .map(app => app.jobId),
+        ...sessionIds.filter(id => {
+          const app = apps.find(a => a.jobId === id);
+          return !app || !app.tailoredResumeUrl;
+        }),
+      ]);
       setTailoringJobs(prev =>
         (prev.size === nextTailoring.size && [...nextTailoring].every(id => prev.has(id)))
           ? prev

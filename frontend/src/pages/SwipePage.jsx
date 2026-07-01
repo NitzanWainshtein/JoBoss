@@ -1101,7 +1101,7 @@ function SwipePage() {
             ? activeTailorJobs.some(j => j.jobId === lastSwipe.job.jobId)
               ? autoApply
                 ? `⏳ הגשה אוטומטית תתבצע לאחר סיום התאמת קורות החיים`
-                : `⏳ מתאים קורות חיים ל-${lastSwipe.job.company}...`
+                : `💾 נשמר — ${lastSwipe.job.company}`
               : autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
             : `👋 דולגה — ${lastSwipe.job.company}`}
         </motion.p>

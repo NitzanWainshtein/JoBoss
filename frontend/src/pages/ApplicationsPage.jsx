@@ -813,14 +813,22 @@ function ApplicationsPage() {
     return () => clearInterval(interval);
   }, [tailoringJobs.size]);
 
-  // When navigating back to this page, poll for any tailoring jobs that were
-  // started before the navigation and may not have completed yet.
+  // When navigating back to this page, pick up tailoring jobs that were started
+  // in SwipePage (or earlier on this page) and haven't finished yet.
   useEffect(() => {
     const pendingJobIds = getPendingTailoringFromSession();
     if (!pendingJobIds.length) return;
+
+    // Add them to tailoringJobs immediately so the button is hidden and the
+    // in-progress indicator shows without waiting for the first poll.
+    setTailoringJobs(prev => {
+      const next = new Set(prev);
+      pendingJobIds.forEach(id => next.add(id));
+      return next;
+    });
+
     const interval = setInterval(async () => {
       await loadApplications(true);
-      // Stop polling once all pending jobs have results in the loaded data.
       setApplications(prev => {
         const stillPending = pendingJobIds.filter(jid => {
           const app = prev.find(a => a.jobId === jid);
@@ -829,6 +837,11 @@ function ApplicationsPage() {
         if (!stillPending.length) {
           clearInterval(interval);
           pendingJobIds.forEach(jid => removeTailoringFromSession(jid));
+          setTailoringJobs(prev2 => {
+            const next = new Set(prev2);
+            pendingJobIds.forEach(id => next.delete(id));
+            return next;
+          });
         }
         return prev;
       });

@@ -549,6 +549,37 @@ function ApplicationsPage() {
   // state survives device/browser switches and can't go stale locally.
   const [tailoringJobs, setTailoringJobs] = useState(new Set());
 
+  // Track manual tailoring across page navigation via sessionStorage.
+  // Key: 'tailoringInProgress', Value: JSON array of { jobId, startedAt }
+  const TAILOR_SESSION_KEY = 'tailoringInProgress';
+  const TAILOR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+
+  const addTailoringToSession = (jobId) => {
+    try {
+      const existing = JSON.parse(sessionStorage.getItem(TAILOR_SESSION_KEY) || '[]');
+      const now = Date.now();
+      const updated = existing.filter(e => now - e.startedAt < TAILOR_MAX_AGE_MS);
+      if (!updated.find(e => e.jobId === jobId)) updated.push({ jobId, startedAt: now });
+      sessionStorage.setItem(TAILOR_SESSION_KEY, JSON.stringify(updated));
+    } catch {}
+  };
+
+  const removeTailoringFromSession = (jobId) => {
+    try {
+      const existing = JSON.parse(sessionStorage.getItem(TAILOR_SESSION_KEY) || '[]');
+      sessionStorage.setItem(TAILOR_SESSION_KEY, JSON.stringify(existing.filter(e => e.jobId !== jobId)));
+    } catch {}
+  };
+
+  const getPendingTailoringFromSession = () => {
+    try {
+      const now = Date.now();
+      return JSON.parse(sessionStorage.getItem(TAILOR_SESSION_KEY) || '[]')
+        .filter(e => now - e.startedAt < TAILOR_MAX_AGE_MS)
+        .map(e => e.jobId);
+    } catch { return []; }
+  };
+
   useEffect(() => {
     loadApplications();
     getSubscription()
@@ -737,20 +768,24 @@ function ApplicationsPage() {
 
   const handleTailorCV = async (app, force = false) => {
     setTailoringJobId(app.jobId);
+    addTailoringToSession(app.jobId);
     try {
       const result = await tailorCVForJob(app.jobId, force);
 
       if (result.isRelevant === false) {
+        removeTailoringFromSession(app.jobId);
         setMismatchState({ app, reason: result.reason });
         return;
       }
 
+      removeTailoringFromSession(app.jobId);
       setApplications(prev => prev.map(a =>
         a.jobId === app.jobId
           ? { ...a, tailoredResumeUrl: result.tailoredResumeUrl, tailoredResume: result.tailoredResume }
           : a
       ));
     } catch (err) {
+      removeTailoringFromSession(app.jobId);
       if (err?.code === 'AI_LIMIT_REACHED' || err?.status === 429) {
         if (planKey !== 'FREE') {
           setPremiumAtLimit(true);
@@ -759,8 +794,11 @@ function ApplicationsPage() {
         }
       } else if (err?.code === 'AI_NOT_AVAILABLE' || err?.status === 403) {
         setShowUpsell(true);
+      } else if (err?.status === 404) {
+        alert('לא נמצאו קורות חיים פעילים. נסה להעלות קורות חיים מחדש בעמוד הפרופיל.');
       } else {
-        alert('שגיאה בהתאמת קורות החיים. ודא שיש קורות חיים פעילים בפרופיל.');
+        const detail = err?.data?.details || err?.data?.error || '';
+        alert(`שגיאה בהתאמת קורות החיים.${detail ? `\n${detail}` : ' נסה שוב או פנה לתמיכה.'}`);
       }
     } finally {
       setTailoringJobId(null);
@@ -772,6 +810,30 @@ function ApplicationsPage() {
     const interval = setInterval(loadApplications, 6000);
     return () => clearInterval(interval);
   }, [tailoringJobs.size]);
+
+  // When navigating back to this page, poll for any tailoring jobs that were
+  // started before the navigation and may not have completed yet.
+  useEffect(() => {
+    const pendingJobIds = getPendingTailoringFromSession();
+    if (!pendingJobIds.length) return;
+    const interval = setInterval(async () => {
+      await loadApplications(true);
+      // Stop polling once all pending jobs have results in the loaded data.
+      setApplications(prev => {
+        const stillPending = pendingJobIds.filter(jid => {
+          const app = prev.find(a => a.jobId === jid);
+          return app && !app.tailoredResumeUrl;
+        });
+        if (!stillPending.length) {
+          clearInterval(interval);
+          pendingJobIds.forEach(jid => removeTailoringFromSession(jid));
+        }
+        return prev;
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>

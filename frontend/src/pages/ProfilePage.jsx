@@ -52,6 +52,7 @@ function ProfilePage() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState('');
   const [planKey, setPlanKey] = useState('FREE');
   const [preferredRoles, setPreferredRoles] = useState([]);
   const [showRoleEditor, setShowRoleEditor] = useState(false);
@@ -141,7 +142,10 @@ function ProfilePage() {
         // genuine user changes.
         setTimeout(() => { profileLoaded.current = true; }, 0);
       })
-      .catch(() => setLoadingProfile(false));
+      .catch(() => {
+        setLoadingProfile(false);
+        setProfileError('שגיאה בטעינת הפרופיל. נסה לרענן את הדף.');
+      });
   }, []);
 
   useEffect(() => {
@@ -408,6 +412,21 @@ function ProfilePage() {
         }}
       >
         <p style={{ color: '#6C4FD4', fontWeight: 600 }}>טוען פרופיל...</p>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '80vh',
+        }}
+      >
+        <p style={{ color: '#e53e3e', fontWeight: 600 }}>{profileError}</p>
       </div>
     );
   }

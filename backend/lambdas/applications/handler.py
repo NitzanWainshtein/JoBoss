@@ -6,7 +6,7 @@
 import json
 import boto3
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -76,7 +76,7 @@ def resp(status, body):
 
 
 def now_iso():
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def heal_legacy_application(user_id, item):

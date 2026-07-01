@@ -404,8 +404,12 @@ def update_user_profile(event):
     )
 
     current_user = response.get("Item") or {"userId": user_id}
+    is_new_user = "Item" not in response
     updated_user = build_updated_user_from_body(current_user, body)
-    updated_user["updatedAt"] = get_now_iso()
+    now = get_now_iso()
+    updated_user["updatedAt"] = now
+    if is_new_user and "createdAt" not in updated_user:
+        updated_user["createdAt"] = now
 
     users_table.put_item(Item=updated_user)
 

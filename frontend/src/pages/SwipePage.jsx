@@ -755,15 +755,39 @@ function SwipePage() {
         const tailorJob = { jobId: currentJob.jobId, company: currentJob.company };
         setActiveTailorJobs(prev => [...prev, tailorJob]);
 
+        // Write to sessionStorage so ApplicationsPage can show in-progress state
+        // if the user navigates there before tailoring finishes.
+        try {
+          const TAILOR_SESSION_KEY = 'tailoringInProgress';
+          const TAILOR_MAX_AGE_MS = 5 * 60 * 1000;
+          const existing = JSON.parse(sessionStorage.getItem(TAILOR_SESSION_KEY) || '[]');
+          const now = Date.now();
+          const updated = existing.filter(e => now - e.startedAt < TAILOR_MAX_AGE_MS);
+          if (!updated.find(e => e.jobId === currentJob.jobId)) {
+            updated.push({ jobId: currentJob.jobId, startedAt: now });
+          }
+          sessionStorage.setItem(TAILOR_SESSION_KEY, JSON.stringify(updated));
+        } catch {}
+
         tailorCVForJob(currentJob.jobId, true)
           .then(result => {
             setActiveTailorJobs(prev => prev.filter(j => j.jobId !== currentJob.jobId));
+            try {
+              const TAILOR_SESSION_KEY = 'tailoringInProgress';
+              const existing = JSON.parse(sessionStorage.getItem(TAILOR_SESSION_KEY) || '[]');
+              sessionStorage.setItem(TAILOR_SESSION_KEY, JSON.stringify(existing.filter(e => e.jobId !== currentJob.jobId)));
+            } catch {}
             window.dispatchEvent(new CustomEvent('tailorComplete', {
               detail: { jobId: currentJob.jobId, tailoredResume: result.tailoredResume, tailoredResumeUrl: result.tailoredResumeUrl }
             }));
           })
           .catch((err) => {
             setActiveTailorJobs(prev => prev.filter(j => j.jobId !== currentJob.jobId));
+            try {
+              const TAILOR_SESSION_KEY = 'tailoringInProgress';
+              const existing = JSON.parse(sessionStorage.getItem(TAILOR_SESSION_KEY) || '[]');
+              sessionStorage.setItem(TAILOR_SESSION_KEY, JSON.stringify(existing.filter(e => e.jobId !== currentJob.jobId)));
+            } catch {}
             window.dispatchEvent(new CustomEvent('tailorError', { detail: { jobId: currentJob.jobId } }));
             if (err?.code === 'AI_LIMIT_REACHED' || err?.status === 429) {
               setTailorLimitToast(true);
@@ -1075,7 +1099,9 @@ function SwipePage() {
         <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
           {lastSwipe.direction === 'right'
             ? activeTailorJobs.some(j => j.jobId === lastSwipe.job.jobId)
-              ? `⏳ הגשה אוטומטית תתבצע לאחר סיום התאמת קורות החיים`
+              ? autoApply
+                ? `⏳ הגשה אוטומטית תתבצע לאחר סיום התאמת קורות החיים`
+                : `⏳ מתאים קורות חיים ל-${lastSwipe.job.company}...`
               : autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
             : `👋 דולגה — ${lastSwipe.job.company}`}
         </motion.p>

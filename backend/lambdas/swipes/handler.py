@@ -27,12 +27,27 @@ jobs_table = dynamodb.Table(os.environ.get("JOBS_TABLE", "joboss-jobs"))
 sqs = boto3.client("sqs", region_name="us-east-1")
 SQS_QUEUE_URL = os.environ.get("SQS_QUEUE_URL", "")
 
-CORS = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-}
+# CORS: reflect the request Origin only when allowlisted (CloudFront prod +
+# local dev). The Chrome extension is unaffected — host_permissions bypass CORS.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://d231wno34rvped.cloudfront.net")
+ALLOWED_ORIGINS = {FRONTEND_URL, "http://localhost:5173"}
+_cors_origin = FRONTEND_URL
+
+
+def _set_cors_origin(event):
+    global _cors_origin
+    headers = event.get("headers") or {}
+    origin = headers.get("origin") or headers.get("Origin") or ""
+    _cors_origin = origin if origin in ALLOWED_ORIGINS else FRONTEND_URL
+
+
+def _cors_headers():
+    return {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": _cors_origin,
+        "Access-Control-Allow-Headers": "Content-Type,Authorization",
+        "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    }
 
 # ── Single source of truth for per-tier daily limits ─────────────────────────
 # daily_swipes  → max counted swipes per day; -1 = unlimited.
@@ -99,7 +114,7 @@ def send_to_auto_apply_queue(user_id, job_id, body, plan, apply_url=""):
 
 
 def resp(status, body):
-    return {"statusCode": status, "headers": CORS, "body": json.dumps(body, default=str)}
+    return {"statusCode": status, "headers": _cors_headers(), "body": json.dumps(body, default=str)}
 
 
 def get_user_id(event):
@@ -399,6 +414,7 @@ def get_quota_status(event):
 
 
 def handler(event, context):
+    _set_cors_origin(event)
     method = (
         event.get("httpMethod")
         or event.get("requestContext", {}).get("http", {}).get("method", "")

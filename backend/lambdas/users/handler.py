@@ -30,12 +30,26 @@ def decimal_to_native(obj):
     raise TypeError
 
 
+# CORS: reflect the request Origin only when allowlisted (CloudFront prod +
+# local dev). The Chrome extension is unaffected — host_permissions bypass CORS.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://d231wno34rvped.cloudfront.net")
+ALLOWED_ORIGINS = {FRONTEND_URL, "http://localhost:5173"}
+_cors_origin = FRONTEND_URL
+
+
+def _set_cors_origin(event):
+    global _cors_origin
+    headers = event.get("headers") or {}
+    origin = headers.get("origin") or headers.get("Origin") or ""
+    _cors_origin = origin if origin in ALLOWED_ORIGINS else FRONTEND_URL
+
+
 def build_response(status_code, body):
     return {
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": _cors_origin,
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS"
         },
@@ -420,6 +434,7 @@ def update_user_profile(event):
 
 
 def handler(event, context):
+    _set_cors_origin(event)
     try:
         method = get_http_method(event)
 

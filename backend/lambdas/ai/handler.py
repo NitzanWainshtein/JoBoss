@@ -41,12 +41,26 @@ def decimal_to_native(obj):
     raise TypeError
 
 
+# CORS: reflect the request Origin only when allowlisted (CloudFront prod +
+# local dev). The Chrome extension is unaffected — host_permissions bypass CORS.
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://d231wno34rvped.cloudfront.net")
+ALLOWED_ORIGINS = {FRONTEND_URL, "http://localhost:5173"}
+_cors_origin = FRONTEND_URL
+
+
+def _set_cors_origin(event):
+    global _cors_origin
+    headers = event.get("headers") or {}
+    origin = headers.get("origin") or headers.get("Origin") or ""
+    _cors_origin = origin if origin in ALLOWED_ORIGINS else FRONTEND_URL
+
+
 def response(status_code, body):
     return {
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": _cors_origin,
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "POST,OPTIONS",
         },
@@ -61,38 +75,15 @@ def get_body(event):
 
 
 def get_user_id(event, body):
-    claims = (
+    # Identity comes ONLY from the API Gateway Cognito authorizer (verified
+    # signature). All /ai/* routes have the authorizer attached; never decode
+    # the Authorization header manually and never trust body["userId"].
+    return (
         event.get("requestContext", {})
         .get("authorizer", {})
         .get("claims", {})
+        .get("sub")
     )
-    user_id = claims.get("sub")
-    if user_id:
-        return user_id
-
-    # NOTE: the Authorization-header decode below is unverified — it only
-    # stands in until POST /ai/tailor gets a Cognito authorizer at the gateway.
-    # Never fall back to body["userId"]: that let anyone act as any user.
-    return get_user_id_from_authorization_header(event)
-
-
-def get_user_id_from_authorization_header(event):
-    headers = event.get("headers") or {}
-    token = headers.get("Authorization") or headers.get("authorization") or ""
-    token = token.replace("Bearer ", "", 1).strip()
-
-    parts = token.split(".")
-    if len(parts) < 2:
-        return None
-
-    try:
-        payload = parts[1]
-        payload += "=" * (-len(payload) % 4)
-        decoded = base64.urlsafe_b64decode(payload.encode("utf-8"))
-        claims = json.loads(decoded.decode("utf-8"))
-        return claims.get("sub")
-    except Exception:
-        return None
 
 
 def parse_s3_url(url):
@@ -839,7 +830,9 @@ def get_effective_plan(user_id, user):
     try:
         result = subscriptions_table.get_item(Key={"userId": user_id})
         sub = result.get("Item")
-        if sub and sub.get("status", "").upper() in ("ACTIVE", "TRIAL"):
+        # TRIALING = Stripe-managed trial (webhook). Must match the swipes
+        # Lambda's status set, or trial users lose Premium AI features.
+        if sub and sub.get("status", "").upper() in ("ACTIVE", "TRIAL", "TRIALING"):
             plan = sub.get("planKey") or sub.get("plan")
             if plan:
                 return str(plan).upper()
@@ -997,6 +990,7 @@ def _maybe_dispatch_auto_apply(user_id, job_id, tailored_resume_url, job):
 
 
 def lambda_handler(event, context):
+    _set_cors_origin(event)
     path = event.get("path") or event.get("rawPath") or ""
 
     if event.get("httpMethod") == "OPTIONS":

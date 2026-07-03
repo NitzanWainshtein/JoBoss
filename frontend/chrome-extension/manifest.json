@@ -33,10 +33,9 @@
         "https://*.icims.com/*",
         "https://*.myworkdayjobs.com/*",
         "https://*.linkedin.com/jobs/*",
-        "https://*/*"
-      ],
-      "exclude_matches": [
-        "https://d231wno34rvped.cloudfront.net/*"
+        "https://*.comeet.co/*",
+        "https://*.workable.com/*",
+        "https://*.bamboohr.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

@@ -10,7 +10,43 @@ import json
 import re
 
 
+_MIN_MEANINGFUL_RAW_LENGTH = 300
+
+
 def build_normalize_job_description_prompt(title, company, location, raw_description):
+    raw = (raw_description or "").strip()
+
+    if len(raw) < _MIN_MEANINGFUL_RAW_LENGTH:
+        # Not enough raw content — ask the AI to generate from its domain knowledge
+        return f"""
+You are a job description writer for a job-matching app.
+
+The job posting page for this role was unavailable or returned too little content to extract.
+Generate a realistic, useful job description based on your knowledge of typical roles with this title
+at a company like {company or "this company"}.
+
+Job metadata:
+Title: {title}
+Company: {company}
+Location: {location}
+
+Rules:
+- Write plausible, typical content for this kind of role. Do NOT invent specific internal projects, team names, or proprietary tools you are not confident about.
+- Keep the language English.
+- Be concise but useful.
+- Do not include markdown fences.
+- Return plain text only.
+- Omit any section you are genuinely unsure about rather than guessing wildly.
+- Never return a refusal or explanation.
+
+Return ONLY a valid JSON object with this exact structure:
+{{
+  "shortDescription": "1 to 2 concise sentences, about 35 to 55 words, written for a swipe card. It should summarize the role, company/team, and main work without bullets.",
+  "description": "Summary\\nWrite about 4 concise lines explaining the role, domain/team, and main work.\\n\\nResponsibilities\\n- 3 to 6 typical bullets for this role\\n\\nRequirements\\n- 3 to 7 typical bullets for this role\\n\\nNice to have\\n- 0 to 4 bullets, only if clearly applicable\\n\\nTechnologies\\nComma-separated list of technologies typically used in this role (omit if too uncertain)."
+}}
+""".strip()
+
+    # Normal mode: extract and structure from the raw page content
     return f"""
 You are a job description editor for a job-matching app.
 
@@ -42,7 +78,7 @@ Return ONLY a valid JSON object with this exact structure:
 }}
 
 Raw job page text:
-{raw_description[:7000]}
+{raw[:7000]}
 """.strip()
 
 

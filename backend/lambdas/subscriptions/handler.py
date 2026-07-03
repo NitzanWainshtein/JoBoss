@@ -89,10 +89,24 @@ subs_table = dynamodb.Table(SUBSCRIPTIONS_TABLE)
 applications_table = dynamodb.Table(APPLICATIONS_TABLE)
 
 
+# CORS: reflect the request Origin only when allowlisted (CloudFront prod +
+# local dev). Stripe webhooks are server-to-server (no Origin header) and are
+# unaffected by CORS.
+ALLOWED_ORIGINS = {FRONTEND_URL, "http://localhost:5173"}
+_cors_origin = FRONTEND_URL
+
+
+def _set_cors_origin(event):
+    global _cors_origin
+    headers = event.get("headers") or {}
+    origin = headers.get("origin") or headers.get("Origin") or ""
+    _cors_origin = origin if origin in ALLOWED_ORIGINS else FRONTEND_URL
+
+
 def cors():
     return {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": _cors_origin,
         "Access-Control-Allow-Headers": "Content-Type,Authorization,Stripe-Signature",
         "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     }
@@ -305,42 +319,9 @@ def handle_checkout(event):
         return resp(500, {"error": "Stripe error", "details": str(e)})
 
 
-def handle_consume(event):
-    user_id = get_user_id(event)
-    if not user_id:
-        return resp(401, {"error": "Unauthorized"})
-
-    sub = get_or_create_subscription(user_id)
-    sub = reset_daily_if_needed(user_id, sub)
-    plan = effective_plan(sub)
-    limit = PLAN_LIMITS.get(plan, 5)
-    used = int(sub.get("dailyApplications", 0))
-
-    if limit != -1 and used >= limit:
-        return resp(429, {
-            "error": "Daily application limit reached",
-            "plan": plan,
-            "dailyLimit": limit,
-            "used": used,
-            "resetAt": sub.get("limitResetAt"),
-        })
-
-    now = datetime.now(timezone.utc).isoformat()
-    updated = subs_table.update_item(
-        Key={"userId": user_id},
-        UpdateExpression="SET dailyApplications = if_not_exists(dailyApplications, :zero) + :one, updatedAt = :now",
-        ExpressionAttributeValues={":zero": 0, ":one": 1, ":now": now},
-        ReturnValues="ALL_NEW",
-    )["Attributes"]
-
-    new_used = int(updated.get("dailyApplications", used + 1))
-    return resp(200, {
-        "plan": plan,
-        "dailyLimit": limit,
-        "used": new_used,
-        "remaining": max(0, limit - new_used) if limit != -1 else -1,
-        "resetAt": sub.get("limitResetAt"),
-    })
+# NOTE: POST /subscriptions/consume was removed — nothing called it, and its
+# private dailyApplications counter drifted from the real quota source
+# (count_today_applications, mirroring the swipes Lambda).
 
 
 def handle_cancel(event):
@@ -425,8 +406,16 @@ def handle_webhook(event):
 
         if items:
             user_id = items[0]["userId"]
-            new_plan = "FREE" if status in ("canceled", "unpaid", "past_due") else items[0].get("plan", "FREE")
-            new_status = "FREE" if status in ("canceled", "unpaid") else status.upper()
+            # Terminal states wipe the plan. past_due is NOT terminal — keep the
+            # purchased plan and let effective_plan() gate access while status
+            # is PAST_DUE; if we wiped the plan here, a recovered payment
+            # (status back to active) would restore an ACTIVE subscription with
+            # plan=FREE and the paying user would stay downgraded forever.
+            if status in ("canceled", "unpaid"):
+                new_plan, new_status = "FREE", "FREE"
+            else:
+                new_plan = items[0].get("plan", "FREE")
+                new_status = status.upper()  # ACTIVE / TRIALING / PAST_DUE / ...
 
             subs_table.update_item(
                 Key={"userId": user_id},
@@ -451,6 +440,7 @@ def handle_webhook(event):
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def lambda_handler(event, context):
+    _set_cors_origin(event)
     method = event.get("httpMethod", "GET").upper()
     path = event.get("path", "")
 
@@ -463,7 +453,7 @@ def lambda_handler(event, context):
         if method == "POST" and "webhook" in path:
             return handle_webhook(event)
         if method == "POST" and "consume" in path:
-            return handle_consume(event)
+            return resp(410, {"error": "Endpoint removed — quota is counted from applications"})
         if method == "POST":
             return handle_checkout(event)
         if method == "DELETE":

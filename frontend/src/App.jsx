@@ -1,7 +1,7 @@
 // JoBoss feature:
 // - F-24: Account Suspension Screen
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
@@ -133,7 +133,7 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
   );
 }
 
-export function isAdminUser(session) {
+function isAdminUser(session) {
   try {
     const token = session?.tokens?.idToken?.toString();
     if (!token) return false;
@@ -218,9 +218,24 @@ function App() {
           setIsLoggedIn(false);
           return;
         }
-        // 404 = new user, no profile yet → must go through onboarding
-        // Any other error (network, 500) → assume done to not block returning users
-        setOnboardingCompleted(e?.status !== 404);
+        // 404 = no profile record → create one right away so the user exists
+        // in the system (and is visible to admin) even if they abandon
+        // onboarding. Normally the Cognito Post Confirmation trigger already
+        // created it; this covers legacy/edge cases.
+        if (e?.status === 404) {
+          try {
+            const { fetchUserAttributes } = await import('aws-amplify/auth');
+            const attrs = await fetchUserAttributes().catch(() => ({}));
+            await createMyProfile({
+              fullName: (attrs.name || attrs.given_name || '').trim(),
+              email: attrs.email || '',
+            });
+          } catch { /* backend trigger/backfill is the primary path */ }
+          setOnboardingCompleted(false);
+        } else {
+          // Any other error (network, 500) → assume done to not block returning users
+          setOnboardingCompleted(true);
+        }
       }
     } catch {
       setIsLoggedIn(false);
@@ -231,6 +246,10 @@ function App() {
   };
 
   useEffect(() => {
+    // One-time auth bootstrap: checkAuth is async, so its setStates run after
+    // network awaits (not synchronously in the effect body) — the lint rule
+    // can't see through the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkAuth();
 
     // האזן ל-OAuth callbacks

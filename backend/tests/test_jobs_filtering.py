@@ -95,3 +95,46 @@ def test_description_boilerplate_does_not_satisfy_generic_gate():
 
 def test_no_roles_at_all_includes_everything():
     assert jobs.job_matches_roles(job("Legal Counsel"), {"preferredRoles": [], "desiredRole": ""})
+
+
+# ── _role_detail scoring ──────────────────────────────────────────────────────
+
+MANY_ROLES_PREFS = {
+    "preferredRoles": [
+        "frontend developer", "backend developer", "software engineer",
+        "full stack developer", "ui developer", "react developer",
+        "java developer", "python developer", "android developer",
+        "node.js developer", "ios developer", "mobile developer",
+        "bi developer", "cloud engineer", "aws engineer", "ai engineer",
+    ],
+    "desiredRole": "", "experienceLevel": "junior", "availability": "",
+}
+
+
+def test_role_score_not_punished_by_many_preferred_roles():
+    # A frontend job for a user with 16 roles used to score ~9/50 because the
+    # score was matched/total. A specific match must give the full 50.
+    score, matched, _, _ = jobs._role_detail(job("React Frontend Engineer"), MANY_ROLES_PREFS)
+    assert score == 50
+    assert "frontend developer" in matched
+
+
+def test_generic_only_match_gives_half_credit():
+    # Tech job outside all specific domains — only "software engineer" matches.
+    score, matched, _, _ = jobs._role_detail(job("Chip Design Software Engineer"), MANY_ROLES_PREFS)
+    assert matched == ["software engineer"]
+    assert score == 25
+
+
+def test_non_tech_job_scores_zero():
+    score, matched, _, _ = jobs._role_detail(job("Legal Counsel - Product"), MANY_ROLES_PREFS)
+    assert score == 0
+    assert matched == []
+
+
+def test_hebrew_job_matches_hebrew_keywords():
+    j = job("דרוש/ה מפתח/ת פרונטאנד", "פיתוח צד לקוח ב-React לחברת סטארטאפ")
+    assert jobs.job_matches_roles(j, MANY_ROLES_PREFS)
+    score, matched, _, _ = jobs._role_detail(j, MANY_ROLES_PREFS)
+    assert score == 50
+    assert "frontend developer" in matched

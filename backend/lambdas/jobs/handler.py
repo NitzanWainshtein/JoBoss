@@ -36,6 +36,8 @@ ROLE_KEYWORDS = {
                              "angular developer", "ui developer", "web developer",
                              "javascript developer", "typescript developer",
                              "next.js developer", "nextjs developer",
+                             # Hebrew (Telegram-imported jobs)
+                             "פרונטאנד", "פרונט-אנד", "פרונט אנד", "צד לקוח",
                              # Short tech signals — only matched against title (see TITLE_ONLY_KEYWORDS)
                              "frontend", "front-end", "front end",
                              "react", "vue", "angular"],
@@ -45,14 +47,17 @@ ROLE_KEYWORDS = {
                              "python developer", "java developer", "go developer",
                              "django developer", "flask developer",
                              "api developer", "server-side developer",
+                             # Hebrew (Telegram-imported jobs)
+                             "בקאנד", "באק-אנד", "באק אנד", "צד שרת",
                              # Single-word tech signals — safe in titles
                              "backend", "back-end"],
-    "full stack developer":["full stack", "fullstack", "full-stack", "mern", "mean stack"],
+    "full stack developer":["full stack", "fullstack", "full-stack", "mern", "mean stack",
+                             "פולסטאק", "פול סטאק", "פול-סטאק"],
     "mobile developer":    ["mobile developer", "mobile engineer",
                              "android developer", "android engineer",
                              "ios developer", "ios engineer",
                              "react native", "flutter developer", "swift developer",
-                             "kotlin developer"],
+                             "kotlin developer", "מובייל", "אנדרואיד"],
     "devops":              ["devops", "dev ops", "site reliability engineer", "sre engineer",
                              "platform engineer", "cloud engineer",
                              "ci/cd", "kubernetes engineer", "infrastructure engineer",
@@ -66,10 +71,12 @@ ROLE_KEYWORDS = {
                              "kafka engineer", "airflow", "databricks"],
     "qa engineer":         ["qa engineer", "quality assurance engineer",
                              "test engineer", "automation engineer", "sdet",
-                             "selenium", "cypress", "playwright"],
+                             "selenium", "cypress", "playwright",
+                             "בודק תוכנה", "בודקת תוכנה", "אוטומציה"],
     "security engineer":   ["security engineer", "cybersecurity engineer",
                              "penetration tester", "pentest", "appsec",
-                             "devsecops", "soc analyst", "infosec engineer"],
+                             "devsecops", "soc analyst", "infosec engineer",
+                             "סייבר", "אבטחת מידע"],
     "product manager":     ["product manager", "product owner", "product lead"],
     "designer":            ["ux designer", "ui designer", "ui/ux", "product designer",
                              "figma", "web designer"],
@@ -628,6 +635,7 @@ def _role_detail(job, prefs):
         return 25, [], [], []
 
     matched, unmatched, hints = [], [], []
+    specific_match = False
     for role in all_roles:
         keywords = role_keywords_for(role)
         if keywords is None:
@@ -645,13 +653,21 @@ def _role_detail(job, prefs):
                 break
         if hit:
             matched.append(role)
+            specific_match = True
         else:
             unmatched.append(role)
-            # Suggest the first 3 keywords the user could add to their CV
             hints.extend(kw for kw in keywords[:5]
                          if kw not in TITLE_ONLY_KEYWORDS and len(kw) > 4)
 
-    score = 0 if not matched else round((len(matched) / len(all_roles)) * 50)
+    # A job either IS one of the user's roles or it isn't — the old
+    # matched/total ratio punished users for selecting many roles (a perfect
+    # frontend job scored 9/50 for a user with 16 preferred roles).
+    if specific_match:
+        score = 50
+    elif matched:          # only a generic role ("software engineer") matched
+        score = 25
+    else:
+        score = 0
     return score, matched, unmatched, list(dict.fromkeys(hints))[:4]
 
 

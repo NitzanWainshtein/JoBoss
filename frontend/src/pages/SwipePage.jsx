@@ -232,9 +232,14 @@ function DiscoveryPreview({ jobs }) {
 }
 
 // ── Match score breakdown modal ───────────────────────────────────────────────
-function MatchModal({ score, breakdown, onClose }) {
+
+// Roles are stored and matched in lowercase English; display them Title-Cased
+// so the chips match the "תפקידים מועדפים" card instead of a Hebrew/English mix.
+const roleLabel = (r = '') => r.replace(/(^|[\s./-])[a-z]/g, (c) => c.toUpperCase());
+
+function MatchModal({ score, breakdown, domains = [], onClose }) {
   const { roleScore=0, expScore=0, distScore=0,
-          matchedRoles=[], unmatchedRoles=[], cvHintKeywords=[],
+          matchedRoles=[], unmatchedRoles=[],
           userLevel='', detectedLevels=[], distanceKm, isRemote } = breakdown || {};
 
   const Row = ({ label, score, max, children }) => {
@@ -293,22 +298,22 @@ function MatchModal({ score, breakdown, onClose }) {
           <Row label="🎯 התאמת תפקיד" score={roleScore} max={50}>
             {matchedRoles.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 4 }}>
-                {matchedRoles.map(r => <Chip key={r} label={`✓ ${DOMAIN_HE[r] || r}`} color="#2E7D32" bg="#E8F5E9" />)}
+                {matchedRoles.map(r => <Chip key={r} label={`✓ ${roleLabel(r)}`} color="#2E7D32" bg="#E8F5E9" />)}
               </div>
             )}
             {unmatchedRoles.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 4 }}>
-                {unmatchedRoles.map(r => <Chip key={r} label={`✗ ${DOMAIN_HE[r] || r}`} color="#c62828" bg="#FFEBEE" />)}
+                {unmatchedRoles.map(r => <Chip key={r} label={`✗ ${roleLabel(r)}`} color="#c62828" bg="#FFEBEE" />)}
               </div>
             )}
-            {cvHintKeywords.length > 0 && (
-              <div style={{ marginTop: 6, padding: '8px 12px', background: '#FFF8E1',
-                            borderRadius: 10, border: '1px solid #FFD54F' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#F57F17', marginBottom: 4 }}>
-                  💡 הוסף לקורות חיים כדי לשפר את הציון:
+            {domains.length > 0 && (
+              <div style={{ marginTop: 6, padding: '8px 12px', background: '#F0EEFF',
+                            borderRadius: 10, border: '1px solid #D5CDF6' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#6C4FD4', marginBottom: 4 }}>
+                  🧭 התחומים שזוהו במשרה:
                 </div>
-                <div style={{ fontSize: 12, color: '#555', direction: 'ltr', textAlign: 'left' }}>
-                  {cvHintKeywords.join(' · ')}
+                <div style={{ fontSize: 12, color: '#555' }}>
+                  {domains.map(d => DOMAIN_HE[d] || roleLabel(d)).join(' · ')}
                 </div>
               </div>
             )}
@@ -514,7 +519,7 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
       </div>
     </motion.div>
     {matchOpen && job.matchBreakdown && (
-      <MatchModal score={job.matchScore} breakdown={job.matchBreakdown} onClose={() => setMatchOpen(false)} />
+      <MatchModal score={job.matchScore} breakdown={job.matchBreakdown} domains={job.jobDomains || []} onClose={() => setMatchOpen(false)} />
     )}
     </>
   );

@@ -130,13 +130,24 @@ TITLE_ONLY_KEYWORDS = {
 
 SENIOR_TITLE_SIGNALS = [
     "senior", "sr.", "sr ", "lead", "principal", "staff",
-    "architect", "manager", "director", "vp ", "head of",
-    "distinguished", "fellow",
+    "manager", "director", "vp ", "head of",
+    "distinguished", "fellow", "בכיר",
 ]
+
+# "architect" needs a word boundary — as a plain substring it matched
+# "architecture" ("ASIC Architecture Intern" was tagged senior).
+_ARCHITECT_TITLE_RE = re.compile(r'\barchitect\b')
+
+# Corporate grade suffixes: "Software Engineer II", "Developer III".
+# Anchored to a role word so a stray roman-numeral "I" elsewhere can't match.
+_TITLE_GRADE_RE = re.compile(
+    r'\b(?:engineer|developer|analyst|scientist|designer)\s+(i{1,3}|iv|v)\b'
+)
+_GRADE_LEVEL = {"i": "junior", "ii": "mid", "iii": "senior", "iv": "senior", "v": "senior"}
 
 JUNIOR_TITLE_SIGNALS = [
     "junior", "jr.", "jr ", "entry level", "entry-level",
-    "associate ", "intern", "graduate",
+    "associate ", "intern", "graduate", "ג'וניור", "זוטר",
 ]
 
 MID_TITLE_SIGNALS = [
@@ -148,18 +159,25 @@ MID_TITLE_SIGNALS = [
 _SENIOR_YEARS_RE = re.compile(
     r'\b([5-9]|\d{2,})\+?\s*(?:to\s*\d+\s*)?years?\b'
     r'|at\s+least\s+[5-9]\s+years?'
-    r'|\b[5-9]\s*[-–]\s*\d+\s*years?',
+    r'|\b[5-9]\s*[-–]\s*\d+\s*years?'
+    r'|\b(?:[5-9]|\d{2,})\+?\s*שנות\s*ניסיון',
     re.IGNORECASE,
 )
+# Junior/mid year-phrases REQUIRE an "experience" context word. A bare
+# "2 years" matches boilerplate inside senior descriptions ("2 years with
+# Kubernetes" listed under an 8+-years role) and used to wrongly tag senior
+# jobs as junior-friendly.
 _JUNIOR_YEARS_RE = re.compile(
-    r'\b[0-2]\+?\s*(?:to\s*[0-4]\s*)?years?\s*(?:of\s*experience)?'
-    r'|fresh\s*grad|new\s*grad|0\s*[-–]\s*[12]\s*years?',
+    r'\b[0-2]\s*(?:[-–]\s*[0-4]\s*)?\+?\s*years?(?:\'|\s*of)?\s*experience'
+    r'|fresh\s*grad|new\s*grad|0\s*[-–]\s*[12]\s*years?'
+    r'|(?:שנה|שנתיים)\s*(?:של\s*)?ניסיון|ללא\s*ניסיון',
     re.IGNORECASE,
 )
 _MID_YEARS_RE = re.compile(
-    r'\b[2-4]\+?\s*(?:to\s*[4-6]\s*)?years?\s*(?:of\s*experience)?'
+    r'\b[2-4]\s*(?:[-–]\s*[4-6]\s*)?\+?\s*years?(?:\'|\s*of)?\s*experience'
     r'|\b3\s*[-–]\s*5\s*years?'
-    r'|\b2\s*[-–]\s*4\s*years?',
+    r'|\b2\s*[-–]\s*4\s*years?'
+    r'|\b[2-4]\+?\s*שנות\s*ניסיון',
     re.IGNORECASE,
 )
 
@@ -197,12 +215,26 @@ def decimal_to_native(obj):
     raise TypeError
 
 
+# CORS: reflect the request Origin only when allowlisted (CloudFront prod +
+# local dev). The Chrome extension is unaffected — host_permissions bypass CORS.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://d231wno34rvped.cloudfront.net")
+ALLOWED_ORIGINS = {FRONTEND_URL, "http://localhost:5173"}
+_cors_origin = FRONTEND_URL
+
+
+def _set_cors_origin(event):
+    global _cors_origin
+    headers = event.get("headers") or {}
+    origin = headers.get("origin") or headers.get("Origin") or ""
+    _cors_origin = origin if origin in ALLOWED_ORIGINS else FRONTEND_URL
+
+
 def build_response(status_code, body):
     return {
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": _cors_origin,
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,OPTIONS"
         },
@@ -347,25 +379,16 @@ def ensure_job_coordinates(job):
 # ── User preferences helpers ──────────────────────────────────────────────────
 
 def get_user_id_from_event(event):
-    """Extract Cognito sub from authorizer claims or JWT token."""
-    # API Gateway authorizer path (most common)
-    uid = (event.get("requestContext", {})
-           .get("authorizer", {})
-           .get("claims", {})
-           .get("sub"))
-    if uid:
-        return uid
-    # Fallback: decode JWT manually from Authorization header
-    headers = event.get("headers") or {}
-    token = (headers.get("Authorization") or headers.get("authorization") or "").replace("Bearer ", "").strip()
-    parts = token.split(".")
-    if len(parts) >= 2:
-        try:
-            payload = parts[1] + "=" * (-len(parts[1]) % 4)
-            return json.loads(base64.urlsafe_b64decode(payload)).get("sub")
-        except Exception:
-            pass
-    return None
+    """Extract Cognito sub from the API Gateway authorizer claims (verified).
+
+    GET /jobs now has the Cognito authorizer attached at the gateway, so the
+    old unverified manual JWT decode is gone — a forged token no longer
+    reaches this Lambda at all.
+    """
+    return (event.get("requestContext", {})
+            .get("authorizer", {})
+            .get("claims", {})
+            .get("sub"))
 
 
 def get_user_preferences(user_id):
@@ -446,11 +469,17 @@ def job_matches_roles(job, prefs):
 
     title_text = job_title_text(job)
 
+    # Generic roles ("software engineer", "developer") used to blanket-match
+    # EVERYTHING — a user whose CV analysis added "Software Engineer" to their
+    # roles got Recruiter/Legal/Technician jobs marked as matching. A generic
+    # role now matches only jobs recognizable as tech roles (any known domain).
+    has_generic = False
+
     for role in all_roles:
         keywords = role_keywords_for(role)
         if keywords is None:
-            # Generic term — counts as a match
-            return True
+            has_generic = True
+            continue
         for kw in keywords:
             # Title-only keywords are matched against the short title string
             # only, to avoid false positives from boilerplate in descriptions.
@@ -460,6 +489,9 @@ def job_matches_roles(job, prefs):
             else:
                 if kw in text:
                     return True
+
+    if has_generic and job_is_recognizable_tech(job):
+        return True
 
     return False
 
@@ -480,7 +512,7 @@ def detect_job_level(job):
     levels = set()
 
     # ── Title signals (authoritative) ────────────────────────────────────────
-    if any(sig in title for sig in SENIOR_TITLE_SIGNALS):
+    if any(sig in title for sig in SENIOR_TITLE_SIGNALS) or _ARCHITECT_TITLE_RE.search(title):
         levels.add("senior")
     if any(sig in title for sig in JUNIOR_TITLE_SIGNALS):
         levels.add("junior")
@@ -488,8 +520,16 @@ def detect_job_level(job):
         levels.add("mid")
     if any(sig in title for sig in STUDENT_SIGNALS):
         levels.add("student")
+    grade = _TITLE_GRADE_RE.search(title)
+    if grade:
+        levels.add(_GRADE_LEVEL[grade.group(1)])
 
-    # ── Description / years signals (additive) ────────────────────────────
+    # A title verdict is FINAL: "Senior Full Stack Engineer" must never gain a
+    # "junior" tag from a stray "2 years experience with X" in the description.
+    if levels:
+        return levels
+
+    # ── Description / years signals (only when the title says nothing) ──────
     if _SENIOR_YEARS_RE.search(desc):
         levels.add("senior")
     if _JUNIOR_YEARS_RE.search(desc):
@@ -591,7 +631,12 @@ def _role_detail(job, prefs):
     for role in all_roles:
         keywords = role_keywords_for(role)
         if keywords is None:
-            matched.append(role)
+            # Generic role — counts as matched only for recognizable tech jobs
+            # (same rule as job_matches_roles).
+            if job_is_recognizable_tech(job):
+                matched.append(role)
+            else:
+                unmatched.append(role)
             continue
         hit = False
         for kw in keywords:
@@ -673,6 +718,32 @@ def compute_match_score(job, prefs, requested_lat=None, requested_lng=None):
         "isRemote":       is_remote,
     }
     return total, breakdown
+
+
+# Title patterns that mark a job as a software role even when no specific
+# domain keyword appears (e.g. "Forward Deployed Software Engineer").
+_GENERIC_TECH_TITLE_RE = re.compile(
+    r'software\s+(?:engineer|developer)|full[- ]?stack|programmer|מפתח|מתכנת'
+)
+
+
+def job_is_recognizable_tech(job):
+    """Generic-role gate: does the TITLE identify this as a tech/software job?
+
+    Deliberately title-only — domain keywords match description boilerplate
+    ("you'll collaborate with platform engineers") on completely unrelated
+    jobs like Technical Recruiter.
+    """
+    title = job_title_text(job)
+    if not title:
+        return False
+    if _GENERIC_TECH_TITLE_RE.search(title):
+        return True
+    return any(
+        kw in title
+        for keywords in ROLE_KEYWORDS.values()
+        for kw in keywords
+    )
 
 
 def get_job_domains(job):
@@ -836,6 +907,7 @@ def get_job_by_id(job_id):
 
 
 def handler(event, context):
+    _set_cors_origin(event)
     try:
         method = get_http_method(event)
 

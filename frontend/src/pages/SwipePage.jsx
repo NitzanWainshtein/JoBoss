@@ -9,14 +9,14 @@
 // - F-27: Match Score Breakdown Modal
 // - F-28: Show All Jobs Toggle
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';
 import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
 import LimitModal from '../components/LimitModal';
-import { getJobs, createSwipe, createApplication, updateMyProfile, getMySwipes, undoSwipe, getQuotaStatus, tailorCVForJob } from '../api';
+import { getJobs, createSwipe, getMySwipes, undoSwipe, getQuotaStatus, tailorCVForJob } from '../api';
 
 const DESCRIPTION_SECTION_TITLES = new Set([
   'summary',
@@ -60,18 +60,6 @@ function getJobSummary(description = '') {
     .find(section => section.title.toLowerCase() === 'summary');
 
   return summary?.items?.join(' ') || description;
-}
-
-// Trim a long Nominatim address ("street, neighborhood, city, district, ...,
-// postcode, country") down to "street, city". Keeps already-short values as-is.
-function shortenLocation(name = '') {
-  const NOISE = /נפ[הת]|מחוז|מועצה|אזורית|ישראל|israel/i;
-  const parts = name.split(',')
-    .map(p => p.trim())
-    .filter(p => p && !NOISE.test(p) && !/^\d{4,}$/.test(p));
-  if (parts.length <= 2) return parts.join(', ');
-  // First = street, last = city; drop the middle (neighborhood/county noise).
-  return `${parts[0]}, ${parts[parts.length - 1]}`;
 }
 
 function JobDescription({ description }) {
@@ -167,9 +155,11 @@ function JobDetailModal({ job, onClose }) {
         </div>
 
         {/* ── Sticky footer ── */}
+        {/* RTL sheet: first child renders on the RIGHT — keep הגש on the right
+            and דלג on the left, matching the like/pass sides of the swipe screen. */}
         <div style={modal.stickyFooter}>
-          <button style={modal.passBtn} onClick={onClose}>דלג ✕</button>
           <button style={modal.applyBtn} onClick={() => onClose('apply')}>הגש ♥</button>
+          <button style={modal.passBtn} onClick={() => onClose('pass')}>דלג ✕</button>
         </div>
       </motion.div>
     </motion.div>
@@ -414,7 +404,7 @@ function getJobBgImage(title = '', tech = []) {
   return JOB_BG_IMAGES.default;
 }
 
-function JobCard({ job, onSwipe, onOpenDetail, locked, locationFilter }) {
+function JobCard({ job, onSwipe, onOpenDetail, locked }) {
   const [isDragging, setIsDragging] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
   const matchTapRef = useRef(false);
@@ -601,7 +591,9 @@ function SwipePage() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [locationFilter, setLocationFilter] = useState(null);
   const [locationFilterFailed, setLocationFilterFailed] = useState(false);
-  const [autoApply, setAutoApply] = useState(false);
+  // Read-only here: reflects the profile's Auto Apply toggle for the
+  // post-swipe toast text. (Setter removed — nothing ever updated it.)
+  const [autoApply] = useState(false);
   const [swipedJobs, setSwipedJobs] = useState(new Set());
   const [quota, setQuota] = useState(null);          // { plan, limit, used, remaining, unlimited, resetAt }
   const [quotaLoading, setQuotaLoading] = useState(true);
@@ -838,6 +830,7 @@ function SwipePage() {
 
   const handleModalClose = (action) => {
     if (action === 'apply') handleSwipe('right');
+    else if (action === 'pass') handleSwipe('left');
     setSelectedJob(null);
   };
 

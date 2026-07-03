@@ -2,7 +2,7 @@
 // - F-07: Application Tracking (Dual-Track Status)
 // - F-09: AI Resume Tailoring
 
-﻿import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';
 import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring, explainFailure, deleteApplications, getMyProfile } from '../api';
@@ -242,7 +242,7 @@ async function downloadCVAsPdf(text, company, jobTitle) {
 }
 
 // ── Auto-apply result block (4 states: manual / pending / success / failed) ───
-function AutoApplyResult({ app, planKey, canExplain, isActiveTailoring }) {
+function AutoApplyResult({ app, planKey, canExplain }) {
   const cfg = AUTO_APPLY_CONFIG[app.autoApplyStatus];
   const [explanation, setExplanation] = useState(app.failExplanation || null);
   const [loadingExp, setLoadingExp] = useState(false);
@@ -430,18 +430,15 @@ function ConfirmDeleteModal({ count, onConfirm, onCancel }) {
 }
 
 // ── Panel tab ─────────────────────────────────────────────────────────────────
-function PanelTab({ applications, planKey, userName }) {
+function PanelTab({ applications, userName }) {
   const total        = applications.length;
   const manualPending = applications.filter(a => a.autoApplyStatus === 'manual').length;
   const inProgress   = applications.filter(a => a.autoApplyStatus === 'pending' || a.autoApplyStatus === 'pending_tailoring').length;
   const autoSuccess  = applications.filter(a => a.autoApplyStatus === 'success').length;
-  const failed       = applications.filter(a => a.autoApplyStatus === 'failed').length;
   const reviewed     = applications.filter(a => a.status === 'REVIEWED').length;
   const interviews   = applications.filter(a => a.status === 'INTERVIEW').length;
   const accepted     = applications.filter(a => a.status === 'ACCEPTED').length;
-  const rejected     = applications.filter(a => a.status === 'REJECTED').length;
 
-  const interviewRate = total > 0 ? Math.round((interviews / total) * 100) : 0;
   const recent = [...applications].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 6);
 
   const StatCard = ({ icon, value, label, color, bg }) => (
@@ -540,11 +537,10 @@ function ApplicationsPage() {
   const [tailoringJobId, setTailoringJobId] = useState(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const [premiumAtLimit, setPremiumAtLimit] = useState(false);
-  const [clearedTailoring, setClearedTailoring] = useState(new Set());
+  const [clearedTailoring] = useState(new Set());
   const [mismatchState, setMismatchState] = useState(null);
   const [planKey, setPlanKey] = useState('FREE');
   const [userName, setUserName] = useState('');
-  const autoTailorCV = localStorage.getItem('autoTailorCV') === 'true';
   const canTailorCV = planKey !== 'FREE';
   // Derived from the server (autoApplyStatus === 'pending_tailoring') on load,
   // updated live via tailorComplete/tailorError events. No localStorage — the
@@ -910,7 +906,7 @@ function ApplicationsPage() {
 
         {/* ── Panel tab ── */}
         {pageTab === 'panel' && (
-          <PanelTab applications={applications} planKey={planKey} userName={userName} />
+          <PanelTab applications={applications} userName={userName} />
         )}
 
         {/* ── My applications tab ── */}

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'aws-amplify/auth';
 import ICON_SIZES from '../iconSizes';
@@ -119,8 +119,6 @@ function Navbar({ isAdmin = false, planKey = '' }) {
     { icon: '🔑', label: 'החלפת סיסמא',          action: () => { setMenuOpen(false); setShowChangePass(true); } },
     { icon: '🚪', label: 'התנתקות',               action: handleLogout, danger: true },
   ];
-
-  const initial = (userName || '?').charAt(0).toUpperCase();
 
   return (
     <>

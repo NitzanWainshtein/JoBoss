@@ -33,7 +33,7 @@ https://github.com/user-attachments/assets/d7e78c06-9a79-481e-9562-8e33a5dfc2ec
 
 ### AI-Assisted Resume Tailoring
 - Lambda function composes a prompt from resume text + job description.
-- Calls Amazon Bedrock (`amazon.nova-micro-v1:0` by default).
+- Calls Amazon Bedrock (Claude Haiku 4.5 — `us.anthropic.claude-haiku-4-5-20251001-v1:0` by default).
 - Returns an ATS-friendly tailored resume draft.
 
 
@@ -123,7 +123,7 @@ still running the old code.
 **Always run the master deployer before any testing/debugging session:**
 
 ```bash
-python .tmp_lambda/deploy_all.py
+python infrastructure/deploy/deploy_all.py
 ```
 
 This pushes the latest local source for every Lambda to AWS and verifies that
@@ -131,7 +131,7 @@ the deployed handler bytes match the local file. To deploy only specific
 functions, pass name fragments:
 
 ```bash
-python .tmp_lambda/deploy_all.py jobs users   # only joboss-jobs and joboss-users
+python infrastructure/deploy/deploy_all.py jobs users   # only joboss-jobs and joboss-users
 ```
 
 Notes:
@@ -140,7 +140,9 @@ Notes:
   with a code-only zip, so it can never wipe dependencies.
 - `joboss-jobs-importer` is skipped automatically (it bundles `telethon`, which
   needs Linux wheels built separately).
-- To check what's stale without deploying, run `python .tmp_lambda/audit_lambdas.py`.
+- To check what's stale without deploying, run `python infrastructure/deploy/audit_lambdas.py`.
+- Frontend deploy (build + S3 + CloudFront invalidation):
+  `powershell -File infrastructure/deploy/deploy_frontend.ps1`.
 
 ---
 
@@ -165,10 +167,21 @@ Feature-level API documentation is available here:
 
 ---
 
+## Testing & CI
+
+- Backend unit tests: `pytest backend/tests` (covers job matching/level
+  detection and upload sanitization).
+- Frontend lint: `cd frontend && npx eslint src/`.
+- GitHub Actions (`.github/workflows/ci.yml`) runs lint + build + tests on
+  every push and pull request.
+
+---
+
 ## Roadmap
 
-- Add automated test coverage (frontend + Lambda unit tests).
-- Add CI/CD workflow for lint, tests, and deployment.
+- Split the large page components (SwipePage, ApplicationsPage, ProfilePage)
+  into smaller components and hooks.
+- Move infrastructure to IaC (SAM/CDK) instead of provisioning scripts.
 - Expand admin analytics and recruiter-side tooling.
 - Improve multilingual support and i18n consistency.
 

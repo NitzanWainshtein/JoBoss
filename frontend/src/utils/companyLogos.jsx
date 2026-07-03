@@ -1,5 +1,5 @@
 // src/utils/companyLogos.jsx
-import React, { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 /**
  * מחזיר שרשרת מקורות לטעינת לוגו חברה.
@@ -68,7 +68,7 @@ export const getCompanyLogoUrls = (company, website = null) => {
  * ובסוף מציג placeholder עם האות הראשונה של החברה.
  */
 export const CompanyLogo = ({ company, website, style = {}, alt = '' }) => {
-  const sources = React.useMemo(
+  const sources = useMemo(
     () => getCompanyLogoSources(company, website),
     [company, website]
   );

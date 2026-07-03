@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -151,7 +151,7 @@ export default function SubscriptionPage({ api }) {
     try {
       const data = await api('POST', '/subscriptions/checkout', { plan: targetPlan });
       window.location.href = data.checkoutUrl;
-    } catch (e) {
+    } catch {
       showToast('שגיאה בפתיחת עמוד התשלום. נסה שוב.', 'error');
     } finally {
       setCheckoutLoading(null);

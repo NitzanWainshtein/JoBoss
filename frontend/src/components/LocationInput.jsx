@@ -1,7 +1,7 @@
 // JoBoss feature:
 // - F-29: GPS Location Auto-Detection
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import ICON_SIZES from '../iconSizes';
 
 export default function LocationInput({ value, onChange, onCoordinates }) {

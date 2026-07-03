@@ -2,7 +2,7 @@
 // - F-01: User Registration & Authentication
 // - F-25: Password Reset Flow
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { signIn, signUp, confirmSignUp, signInWithRedirect, fetchUserAttributes, resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import { getMyProfile, createMyProfile } from '../api';
 

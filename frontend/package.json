@@ -1,7 +1,7 @@
 {
-  "name": "frontend",
+  "name": "joboss-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,20 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@aws-amplify/ui-react": "^6.15.4",
-    "@react-google-maps/api": "^2.20.8",
-    "@react-spring/web": "^10.0.3",
     "aws-amplify": "^6.17.0",
-    "axios": "^1.16.1",
     "framer-motion": "^12.38.0",
     "html2pdf.js": "^0.14.0",
-    "jspdf": "^4.2.1",
     "pdfjs-dist": "^5.7.284",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.1",
-    "react-tinder-card": "^1.6.4",
-    "use-places-autocomplete": "^4.0.1"
+    "react-router-dom": "^7.15.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

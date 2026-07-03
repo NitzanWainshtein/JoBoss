@@ -1,7 +1,7 @@
 // JoBoss feature:
 // - F-21: Personal Dashboard
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getMyApplications, getMyProfile } from '../api';
 import Spinner from '../components/Spinner';
 

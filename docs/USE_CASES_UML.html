@@ -1,0 +1,2759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JoBoss — Use Cases &amp; UML Sequence Diagrams</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --primary:   #1e3a5f;
+      --accent:    #2e86de;
+      --accent2:   #48dbfb;
+      --bg:        #f4f7fb;
+      --card-bg:   #ffffff;
+      --border:    #dde3ed;
+      --text:      #1a2340;
+      --muted:     #6b7a99;
+      --tag-free:  #e8f5e9;
+      --tag-prem:  #fff8e1;
+      --tag-plus:  #fce4ec;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Cover Page ── */
+    .cover {
+      background: linear-gradient(135deg, var(--primary) 0%, #0a1f3c 60%, #162d50 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px 40px;
+      page-break-after: always;
+    }
+    .cover-logo {
+      font-size: 72px;
+      margin-bottom: 24px;
+    }
+    .cover h1 {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(90deg, #fff, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .cover .tagline {
+      font-size: 22px;
+      color: #a8c7fa;
+      margin-bottom: 48px;
+    }
+    .cover-meta {
+      border-top: 1px solid rgba(255,255,255,0.2);
+      padding-top: 40px;
+      width: 100%;
+      max-width: 600px;
+    }
+    .cover-meta h2 {
+      font-size: 28px;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .cover-meta p {
+      font-size: 16px;
+      color: #b0c8f0;
+      margin-bottom: 8px;
+    }
+    .cover-badges {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 32px;
+    }
+    .cover-badge {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 24px;
+      padding: 8px 20px;
+      font-size: 14px;
+      color: #d0e4ff;
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 32px;
+    }
+
+    /* ── TOC ── */
+    .toc-section {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 2px 16px rgba(30,58,95,0.08);
+      padding: 40px 48px;
+      margin-bottom: 56px;
+    }
+    .toc-section h2 {
+      font-size: 26px;
+      color: var(--primary);
+      margin-bottom: 28px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--accent);
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 40px;
+    }
+    .toc-item {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 15px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+      text-decoration: none;
+      color: var(--text);
+      transition: color 0.2s;
+    }
+    .toc-item:hover { color: var(--accent); }
+    .toc-num {
+      min-width: 44px;
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 13px;
+    }
+
+    /* ── Section Headers ── */
+    .section-header {
+      background: linear-gradient(90deg, var(--primary), #2e5d9a);
+      color: #fff;
+      border-radius: 12px;
+      padding: 20px 32px;
+      margin: 56px 0 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .section-header .sh-num {
+      background: rgba(255,255,255,0.18);
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .section-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+    }
+    .section-header .sh-badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      color: #d0e4ff;
+      flex-shrink: 0;
+    }
+
+    /* ── Feature Card ── */
+    .feature-card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      box-shadow: 0 2px 16px rgba(30,58,95,0.07);
+      border: 1px solid var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+    .feature-card-header {
+      background: linear-gradient(90deg, #f0f5ff, #e8eef8);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 28px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .fc-id {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .fc-title-block h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+    .fc-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      border-radius: 12px;
+      padding: 3px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .tag-actor { background: #e3f0ff; color: #1a5cb0; }
+    .tag-system { background: #f3e8ff; color: #6b21a8; }
+    .tag-tier { background: var(--tag-prem); color: #8a6000; }
+    .tag-tier-plus { background: var(--tag-plus); color: #9c0033; }
+    .tag-free { background: var(--tag-free); color: #1b5e20; }
+    .tag-aws { background: #fff3e0; color: #e65100; }
+    .tag-ai { background: #e8f5e9; color: #1b5e20; }
+
+    .feature-card-body {
+      padding: 24px 28px;
+    }
+    .fc-description {
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      line-height: 1.7;
+    }
+    .fc-files {
+      background: #f8faff;
+      border: 1px solid #dde6f5;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .fc-files strong { color: var(--primary); }
+    .fc-files code {
+      background: #e8edf8;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    /* ── Mermaid ── */
+    .mermaid-wrap {
+      background: #fafbff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 16px;
+      overflow-x: auto;
+    }
+    .mermaid-wrap .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+    .diagram-label {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 12px;
+      font-style: italic;
+    }
+
+    /* ── Notes ── */
+    .note-box {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #78350f;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+      font-size: 14px;
+      border-top: 1px solid var(--border);
+      margin-top: 80px;
+    }
+
+    @media print {
+      .cover { page-break-after: always; }
+      .feature-card { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ COVER ═══════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">💼</div>
+  <h1>JoBoss</h1>
+  <div class="tagline">AI-Powered Job Application Platform</div>
+  <div class="cover-meta">
+    <h2>Use Cases &amp; UML Sequence Diagrams</h2>
+    <p><strong>Document Type:</strong> Software Requirements Specification — Feature Catalogue</p>
+    <p><strong>Version:</strong> 1.0 &nbsp;|&nbsp; <strong>Date:</strong> June 2026</p>
+    <p><strong>Author:</strong> JoBoss Development Team</p>
+    <div class="cover-badges">
+      <span class="cover-badge">33 Features</span>
+      <span class="cover-badge">Full-Stack React + Python</span>
+      <span class="cover-badge">AWS Serverless</span>
+      <span class="cover-badge">AI / Bedrock</span>
+      <span class="cover-badge">Stripe Payments</span>
+      <span class="cover-badge">Chrome Extension</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<div class="container">
+
+  <!-- ── TOC ── -->
+  <div class="toc-section">
+    <h2>Table of Contents</h2>
+    <div class="toc-grid">
+      <a class="toc-item" href="#f01"><span class="toc-num">F-01</span> User Registration &amp; Authentication</a>
+      <a class="toc-item" href="#f11"><span class="toc-num">F-11</span> Profile Image Upload</a>
+      <a class="toc-item" href="#f02"><span class="toc-num">F-02</span> Onboarding Flow</a>
+      <a class="toc-item" href="#f12"><span class="toc-num">F-12</span> Subscription &amp; Stripe Payment</a>
+      <a class="toc-item" href="#f03"><span class="toc-num">F-03</span> Job Discovery &amp; Swipe Interface</a>
+      <a class="toc-item" href="#f13"><span class="toc-num">F-13</span> Daily Swipe Quota Enforcement</a>
+      <a class="toc-item" href="#f04"><span class="toc-num">F-04</span> Job Filtering &amp; Matching Algorithm</a>
+      <a class="toc-item" href="#f14"><span class="toc-num">F-14</span> Admin Dashboard &amp; Statistics</a>
+      <a class="toc-item" href="#f05"><span class="toc-num">F-05</span> Swipe Recording (Like / Pass)</a>
+      <a class="toc-item" href="#f15"><span class="toc-num">F-15</span> Admin User Management</a>
+      <a class="toc-item" href="#f06"><span class="toc-num">F-06</span> Undo Last Swipe</a>
+      <a class="toc-item" href="#f16"><span class="toc-num">F-16</span> Admin Job Management</a>
+      <a class="toc-item" href="#f07"><span class="toc-num">F-07</span> Application Tracking</a>
+      <a class="toc-item" href="#f17"><span class="toc-num">F-17</span> Job Importer (Telegram)</a>
+      <a class="toc-item" href="#f08"><span class="toc-num">F-08</span> Auto-Apply Automation</a>
+      <a class="toc-item" href="#f18"><span class="toc-num">F-18</span> Job Status Monitoring</a>
+      <a class="toc-item" href="#f09"><span class="toc-num">F-09</span> AI Resume Tailoring</a>
+      <a class="toc-item" href="#f19"><span class="toc-num">F-19</span> Chrome Extension Auto-Fill</a>
+      <a class="toc-item" href="#f10"><span class="toc-num">F-10</span> Resume Upload &amp; Management</a>
+      <a class="toc-item" href="#f20"><span class="toc-num">F-20</span> Email Notification (SES)</a>
+      <a class="toc-item" href="#f21"><span class="toc-num">F-21</span> Personal Dashboard</a>
+      <a class="toc-item" href="#f22"><span class="toc-num">F-22</span> Preference Mismatch Warning</a>
+      <a class="toc-item" href="#f23"><span class="toc-num">F-23</span> Edit Profile &amp; Change Password</a>
+      <a class="toc-item" href="#f24"><span class="toc-num">F-24</span> Account Suspension Screen</a>
+      <a class="toc-item" href="#f25"><span class="toc-num">F-25</span> Password Reset Flow</a>
+      <a class="toc-item" href="#f26"><span class="toc-num">F-26</span> Discovery Mode (30-min Window)</a>
+      <a class="toc-item" href="#f27"><span class="toc-num">F-27</span> Match Score Breakdown Modal</a>
+      <a class="toc-item" href="#f28"><span class="toc-num">F-28</span> Show All Jobs Toggle</a>
+      <a class="toc-item" href="#f29"><span class="toc-num">F-29</span> GPS Location Auto-Detection</a>
+      <a class="toc-item" href="#f30"><span class="toc-num">F-30</span> Chrome Ext. — Direct Login</a>
+      <a class="toc-item" href="#f31"><span class="toc-num">F-31</span> Chrome Ext. — SSO Auth Bridge</a>
+      <a class="toc-item" href="#f32"><span class="toc-num">F-32</span> Chrome Ext. — Tailored CV Selector</a>
+      <a class="toc-item" href="#f33"><span class="toc-num">F-33</span> Chrome Ext. — Floating Fill Button</a>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 1: Auth & Profile ════════════════ -->
+  <div class="section-header" id="group1">
+    <div class="sh-num">①</div>
+    <h2>Authentication &amp; User Profile</h2>
+    <span class="sh-badge">F-01 → F-03 &amp; F-10 → F-12</span>
+  </div>
+
+  <!-- F-01 -->
+  <div class="feature-card" id="f01">
+    <div class="feature-card-header">
+      <div class="fc-id">F-01</div>
+      <div class="fc-title-block">
+        <h3>User Registration &amp; Authentication</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: Visitor / User</span>
+          <span class="tag tag-system">AWS Cognito</span>
+          <span class="tag tag-aws">API Gateway</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Users authenticate via AWS Cognito using OAuth social login (Google/GitHub) or email/password.
+        A JWT access token is issued and attached to every subsequent API request.
+        On first login, users are redirected to the onboarding flow.
+        Suspended accounts receive a blocked-account error and cannot proceed.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>src/pages/LoginPage.jsx</code>
+        <code>src/aws-exports.js</code>
+        <code>lambdas/users/handler.py</code>
+        <code>lambdas/admin/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant B as Browser (React)
+    participant C as AWS Cognito
+    participant G as API Gateway
+    participant L as users Lambda
+
+    U->>B: Click "Sign in with Google"
+    B->>C: OAuth Redirect (Amplify)
+    C->>U: Google Login Page
+    U->>C: Credentials submitted
+    C->>C: Validate identity
+    C-->>B: id_token + access_token (JWT)
+    B->>G: GET /users/me (Authorization: Bearer {token})
+    G->>C: Verify JWT signature
+    C-->>G: Claims {sub, email, groups}
+    G->>L: Invoke with userId + email
+    alt First login
+        L->>L: Create user record in DynamoDB
+        L-->>G: 201 Created {onboardingComplete: false}
+        G-->>B: Redirect to /onboarding
+    else Returning user
+        L->>L: Load user from DynamoDB
+        alt Account blocked
+            L-->>G: 403 {error: "account_suspended"}
+            G-->>B: Show blocked-account screen
+        else Active account
+            L-->>G: 200 {user profile}
+            G-->>B: Render app
+        end
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-01: User Registration &amp; Authentication Flow</div>
+    </div>
+  </div>
+
+  <!-- F-02 -->
+  <div class="feature-card" id="f02">
+    <div class="feature-card-header">
+      <div class="fc-id">F-02</div>
+      <div class="fc-title-block">
+        <h3>Onboarding Flow (5-Step Setup)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: New User</span>
+          <span class="tag tag-system">Onboarding Wizard</span>
+          <span class="tag tag-ai">AI CV Analysis</span>
+          <span class="tag tag-aws">Bedrock</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        New users are guided through a 5-step modal wizard: (1) Plan selection, (2) Resume upload with AI keyword
+        extraction, (3) Role &amp; category preferences, (4) Location &amp; distance preferences,
+        (5) Confirmation. After completing all steps, <code>onboardingComplete</code> is set to
+        <code>true</code> and the user lands on the swipe page.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>src/pages/OnboardingPage.jsx</code>
+        <code>lambdas/users/handler.py</code>
+        <code>lambdas/uploads/handler.py</code>
+        <code>lambdas/ai/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as New User
+    participant OB as OnboardingPage
+    participant API as API Gateway
+    participant UL as users Lambda
+    participant UP as uploads Lambda
+    participant AI as ai Lambda
+    participant BR as Amazon Bedrock
+    participant S3 as S3 Bucket
+
+    U->>OB: Step 1 — Select Plan (FREE / PREMIUM)
+    OB->>API: POST /subscriptions/checkout (if paid)
+    API-->>OB: Stripe checkout URL
+
+    U->>OB: Step 2 — Upload Resume (PDF)
+    OB->>API: POST /uploads/presigned
+    API->>UP: Generate presigned PUT URL
+    UP-->>API: {uploadUrl, resumeId}
+    OB->>S3: PUT resume PDF (direct upload)
+    OB->>API: POST /ai/analyze-cv
+    API->>AI: Extract text + analyze keywords
+    AI->>BR: Claude Haiku — keyword suggestion prompt
+    BR-->>AI: Suggested role keywords
+    AI-->>API: {suggestedKeywords}
+    API-->>OB: Show keyword suggestions
+
+    U->>OB: Step 3 — Select roles &amp; experience level
+    U->>OB: Step 4 — Set preferred location &amp; radius
+    OB->>API: POST /geocode (Nominatim)
+    API-->>OB: {lat, lng} coordinates
+
+    U->>OB: Step 5 — Confirm &amp; finish
+    OB->>API: PATCH /users/me {preferences, onboardingComplete: true}
+    API->>UL: Update DynamoDB user record
+    UL-->>API: 200 OK
+    API-->>OB: Redirect to /jobs
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-02: 5-Step Onboarding Wizard Flow</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 2: Job Discovery ════════════════ -->
+  <div class="section-header" id="group2">
+    <div class="sh-num">②</div>
+    <h2>Job Discovery &amp; Swiping</h2>
+    <span class="sh-badge">F-03 → F-07</span>
+  </div>
+
+  <!-- F-03 -->
+  <div class="feature-card" id="f03">
+    <div class="feature-card-header">
+      <div class="fc-id">F-03</div>
+      <div class="fc-title-block">
+        <h3>Job Discovery &amp; Swipe Interface</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: Authenticated User</span>
+          <span class="tag tag-system">SwipePage</span>
+          <span class="tag tag-aws">DynamoDB</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        The main discovery screen loads a personalised stack of job cards.
+        Each card shows the company logo, job title, location, and salary range.
+        Users can swipe right (LIKE) or left (PASS), or open a full-detail modal.
+        Card animations are powered by Framer Motion with drag gestures.
+        Jobs already swiped are excluded from future loads.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>src/pages/SwipePage.jsx</code>
+        <code>lambdas/jobs/handler.py</code>
+        <code>lambdas/swipes/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SwipePage (React)
+    participant API as API Gateway
+    participant JL as jobs Lambda
+    participant DB as DynamoDB
+
+    U->>SP: Navigate to /jobs
+    SP->>API: GET /jobs?userId={id}
+    API->>JL: Fetch job pool
+    JL->>DB: Scan joboss-jobs (active=true)
+    DB-->>JL: Raw job list
+    JL->>DB: Query joboss-swipes by userId
+    DB-->>JL: Already-swiped jobIds
+    JL->>JL: Filter out swiped jobs
+    JL->>JL: Score remaining jobs (F-04 algorithm)
+    JL->>JL: Sort by score DESC
+    JL-->>API: Top 20 scored jobs
+    API-->>SP: Job list JSON
+
+    SP->>SP: Render card stack (top 3 visible)
+
+    U->>SP: Drag card RIGHT (LIKE)
+    SP->>SP: Animate card off screen
+    SP->>API: POST /swipes {jobId, direction:"LIKE"}
+    Note right of SP: Handled by F-05
+
+    U->>SP: Click card → Open detail modal
+    SP->>SP: Parse description into sections
+    SP->>SP: Show company, salary, requirements, technologies
+    U->>SP: Click "Apply" in modal
+    SP->>API: POST /swipes {jobId, direction:"LIKE"}
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-03: Job Discovery &amp; Swipe Interface</div>
+    </div>
+  </div>
+
+  <!-- F-04 -->
+  <div class="feature-card" id="f04">
+    <div class="feature-card-header">
+      <div class="fc-id">F-04</div>
+      <div class="fc-title-block">
+        <h3>Job Filtering &amp; Matching Algorithm</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: System (Internal)</span>
+          <span class="tag tag-system">Scoring Engine</span>
+          <span class="tag tag-aws">DynamoDB</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Before serving jobs to the user, a multi-component scoring algorithm (0–100) ranks each job.
+        Score components: <strong>Role match</strong> (keyword mapping across 15 categories),
+        <strong>Experience level</strong> (Junior/Mid/Senior/Student detection),
+        <strong>Distance</strong> (Haversine formula: 10 km = 40 pts, 80 km = 0 pts).
+        High-scoring jobs form the "primary pool"; the rest form the "discovery pool".
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/jobs/handler.py</code> — <code>score_job()</code>, <code>haversine()</code>, <code>ROLE_KEYWORDS</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    participant JL as jobs Lambda
+    participant DB as DynamoDB
+    participant GEO as Nominatim (Geocoding)
+
+    JL->>DB: Fetch all active jobs
+    DB-->>JL: Job list
+
+    loop For each job
+        JL->>JL: role_score = match(userRole, job keywords) [0-60]
+        JL->>JL: exp_score = match(userExp, title/desc) [0-20]
+        JL->>JL: dist_km = haversine(userLat/lng, jobLat/lng)
+        alt dist_km <= 10
+            JL->>JL: dist_score = 40
+        else dist_km <= 30
+            JL->>JL: dist_score = 30
+        else dist_km <= 50
+            JL->>JL: dist_score = 20
+        else dist_km <= 80
+            JL->>JL: dist_score = 10
+        else
+            JL->>JL: dist_score = 0
+        end
+        JL->>JL: total_score = role + exp + dist
+        JL->>JL: Tag as PRIMARY (score >= 60) or DISCOVERY
+    end
+
+    JL->>JL: Sort primary DESC, append discovery
+    JL-->>JL: Return ordered job list
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-04: Job Scoring &amp; Matching Algorithm</div>
+    </div>
+  </div>
+
+  <!-- F-05 -->
+  <div class="feature-card" id="f05">
+    <div class="feature-card-header">
+      <div class="fc-id">F-05</div>
+      <div class="fc-title-block">
+        <h3>Swipe Recording — Like &amp; Pass</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">swipes Lambda</span>
+          <span class="tag tag-aws">DynamoDB · SQS</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        When a user swipes RIGHT (LIKE), an <em>application</em> record is created with status
+        <code>pending</code>. If Auto-Apply is enabled (PREMIUM+), a message is pushed to the
+        SQS auto-apply queue. A PASS swipe records the decision without creating an application.
+        A race-condition guard prevents duplicate swipes on the same job.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/swipes/handler.py</code>
+        <code>lambdas/applications/handler.py</code>
+        <code>src/pages/SwipePage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SwipePage
+    participant API as API Gateway
+    participant SW as swipes Lambda
+    participant DB as DynamoDB
+    participant SQS as SQS Queue
+
+    U->>SP: Swipe RIGHT on job card
+    SP->>API: POST /swipes {userId, jobId, direction:"LIKE"}
+    API->>SW: Invoke handler
+
+    SW->>DB: Check existing swipe (race guard)
+    alt Already swiped
+        SW-->>API: 409 Conflict
+        API-->>SP: Ignore duplicate
+    else New swipe
+        SW->>DB: PutItem joboss-swipes {userId, jobId, direction, timestamp}
+        SW->>DB: PutItem joboss-applications {status:"pending", autoApply:false}
+        SW->>DB: Increment dailySwipeCount for user
+        alt User has autoApply enabled (PREMIUM/PREMIUM_PLUS)
+            SW->>SQS: SendMessage {userId, jobId, applicationId}
+        end
+        SW-->>API: 201 {applicationId}
+        API-->>SP: Show success toast
+    end
+
+    U->>SP: Swipe LEFT on job card
+    SP->>API: POST /swipes {userId, jobId, direction:"PASS"}
+    API->>SW: Invoke handler
+    SW->>DB: PutItem joboss-swipes {direction:"PASS"}
+    SW-->>API: 200 OK
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-05: Swipe Recording — Like &amp; Pass</div>
+    </div>
+  </div>
+
+  <!-- F-06 -->
+  <div class="feature-card" id="f06">
+    <div class="feature-card-header">
+      <div class="fc-id">F-06</div>
+      <div class="fc-title-block">
+        <h3>Undo Last Swipe</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">swipes Lambda</span>
+          <span class="tag tag-aws">DynamoDB</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Users can undo their most recent swipe. The swipe record and its associated application
+        (if any) are deleted from DynamoDB, and the job card is re-inserted at the top of the
+        visible stack. The daily swipe counter is decremented.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/swipes/handler.py</code> — <code>DELETE /swipes/last</code>
+        <code>src/pages/SwipePage.jsx</code> — Undo button
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SwipePage
+    participant API as API Gateway
+    participant SW as swipes Lambda
+    participant DB as DynamoDB
+
+    U->>SP: Click "Undo" button
+    SP->>API: DELETE /swipes/last {userId}
+    API->>SW: Invoke handler
+    SW->>DB: Query last swipe for userId (sort by timestamp DESC)
+    DB-->>SW: {jobId, direction, applicationId}
+    SW->>DB: DeleteItem joboss-swipes
+    alt Direction was LIKE
+        SW->>DB: DeleteItem joboss-applications (if not yet processed)
+        SW->>DB: Decrement dailySwipeCount
+    end
+    SW-->>API: 200 {restoredJob}
+    API-->>SP: Re-insert job card at top of stack
+    SP->>SP: Animate card back into view
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-06: Undo Last Swipe</div>
+    </div>
+  </div>
+
+  <!-- F-07 -->
+  <div class="feature-card" id="f07">
+    <div class="feature-card-header">
+      <div class="fc-id">F-07</div>
+      <div class="fc-title-block">
+        <h3>Application Tracking (Dual-Track Status)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">ApplicationsPage</span>
+          <span class="tag tag-aws">DynamoDB</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Applications have two independent status tracks.
+        <strong>Track A (User Funnel):</strong> SUBMITTED → REVIEWED → INTERVIEW → ACCEPTED / REJECTED.
+        <strong>Track B (Auto-Apply System):</strong> manual / pending / pending_tailoring / success / failed.
+        Users can view, filter by tab, annotate with notes, and batch-delete applications.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>src/pages/ApplicationsPage.jsx</code>
+        <code>lambdas/applications/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant AP as ApplicationsPage
+    participant API as API Gateway
+    participant AL as applications Lambda
+    participant DB as DynamoDB
+
+    U->>AP: Navigate to /applications
+    AP->>API: GET /applications?userId={id}
+    API->>AL: Fetch all applications
+    AL->>DB: Query joboss-applications by userId
+    DB-->>AL: Application list with job details
+    AL-->>API: Enriched application list
+    API-->>AP: Render tabs (All / Pending / Success / Candidacy)
+
+    U->>AP: Click tab "Success"
+    AP->>AP: Filter applications where autoApplyStatus="success"
+    AP->>AP: Render filtered list
+
+    U->>AP: Click application → Add note
+    AP->>API: PATCH /applications/{id} {statusNote: "Had interview"}
+    API->>AL: Update record
+    AL->>DB: UpdateItem statusNote field
+    AL-->>API: 200 OK
+
+    U->>AP: Select multiple → Delete
+    AP->>API: DELETE /applications {ids: [...]}
+    API->>AL: Batch delete
+    AL->>DB: BatchWriteItem (delete)
+    AL-->>API: 200 OK
+    API-->>AP: Remove items from list
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-07: Dual-Track Application Tracking</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 3: AI Features ════════════════ -->
+  <div class="section-header" id="group3">
+    <div class="sh-num">③</div>
+    <h2>AI &amp; Automation Features</h2>
+    <span class="sh-badge">F-08 → F-09</span>
+  </div>
+
+  <!-- F-08 -->
+  <div class="feature-card" id="f08">
+    <div class="feature-card-header">
+      <div class="fc-id">F-08</div>
+      <div class="fc-title-block">
+        <h3>Auto-Apply Automation (ECS Fargate + Playwright)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: System / User (PREMIUM+)</span>
+          <span class="tag tag-system">ECS Fargate · Playwright</span>
+          <span class="tag tag-aws">SQS · SES · S3</span>
+          <span class="tag tag-tier-plus">PREMIUM / PREMIUM_PLUS</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        When a PREMIUM user swipes LIKE with Auto-Apply enabled, the system automatically navigates
+        to the job's ATS platform using a headless Chromium browser (Playwright inside ECS Fargate),
+        fills in the application form with the user's real details and resume, and submits.
+        Supported platforms: SmartRecruiters, Lever, Greenhouse, Workday, Ashby, JobVite, Taleo, iCIMS, LinkedIn.
+        The user receives an email notification for success or failure.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/auto-apply/handler.py</code>
+        <code>fargate/auto-apply/apply.py</code>
+        <code>lambdas/swipes/handler.py</code> — SQS enqueue
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    participant SQS as SQS Queue
+    participant AA as auto-apply Lambda
+    participant ECS as ECS Fargate (Playwright)
+    participant ATS as ATS Platform (e.g. Workday)
+    participant DB as DynamoDB
+    participant SES as Amazon SES
+    actor U as User
+
+    SQS->>AA: Message {userId, jobId, applicationId}
+    AA->>DB: Fetch user profile (email, phone, fullName, resumeId)
+    AA->>DB: Fetch job details (applyUrl, title, company)
+    AA->>DB: Fetch tailored resume (if pending_tailoring done)
+    AA->>ECS: Launch Fargate task {userInfo, jobInfo, resumeUrl}
+
+    ECS->>ECS: Launch headless Chromium (playwright-stealth)
+    ECS->>ATS: Navigate to applyUrl
+    ECS->>ATS: Detect ATS platform type
+    alt SmartRecruiters / Lever / Greenhouse / Ashby
+        ECS->>ATS: Fill firstName, lastName, email, phone
+        ECS->>ATS: Attach resume PDF (presigned S3 URL)
+        ECS->>ATS: Click "Submit Application"
+        ATS-->>ECS: Success page / confirmation
+    else Workday
+        ECS->>ATS: Create account or sign in
+        ECS->>ATS: Fill multi-page form
+        ATS-->>ECS: Application submitted
+    else Unknown ATS
+        ECS-->>AA: {status: "failed", reason: "unsupported_platform"}
+    end
+
+    ECS-->>AA: {status: "success" | "failed", reason?}
+    AA->>DB: Update application {autoApplyStatus, autoApplyReason}
+    alt Success
+        AA->>SES: Send success email to user
+    else Failed
+        AA->>DB: Refund daily quota (quotaExempt = true)
+        AA->>SES: Send failure notification email
+    end
+    SES-->>U: Email notification
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-08: Auto-Apply Automation Pipeline</div>
+    </div>
+  </div>
+
+  <!-- F-09 -->
+  <div class="feature-card" id="f09">
+    <div class="feature-card-header">
+      <div class="fc-id">F-09</div>
+      <div class="fc-title-block">
+        <h3>AI Resume Tailoring (Claude via Bedrock)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User (PREMIUM+)</span>
+          <span class="tag tag-ai">Amazon Bedrock</span>
+          <span class="tag tag-system">ai Lambda · S3</span>
+          <span class="tag tag-tier">PREMIUM / PREMIUM_PLUS</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        PREMIUM users can request AI-tailored resumes for specific jobs.
+        Claude Haiku (via Amazon Bedrock) rewrites the user's active resume to highlight
+        relevant skills and keywords from the job description, producing an ATS-optimised PDF.
+        PREMIUM tier is limited to 10 tailorings per month; PREMIUM_PLUS is unlimited.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/ai/handler.py</code>
+        <code>src/pages/ApplicationsPage.jsx</code>
+        <code>src/pages/SwipePage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User (PREMIUM)
+    participant AP as ApplicationsPage
+    participant API as API Gateway
+    participant AI as ai Lambda
+    participant DB as DynamoDB
+    participant S3 as S3 Bucket
+    participant BR as Amazon Bedrock (Claude Haiku)
+
+    U->>AP: Click "Tailor Resume" for an application
+    AP->>API: POST /ai/tailor {userId, jobId, applicationId}
+    API->>AI: Invoke handler
+
+    AI->>DB: Load user (plan, monthlyTailoringCount)
+    alt Plan = FREE
+        AI-->>API: 403 Upgrade required
+    else PREMIUM monthlyCount >= 10
+        AI-->>API: 429 Monthly limit reached
+    else Eligible
+        AI->>DB: Load user's active resume (S3 key)
+        AI->>S3: Download resume PDF
+        AI->>AI: Extract plain text from PDF (pdfplumber)
+        AI->>DB: Load job description text
+        AI->>BR: Invoke claude-haiku-3 {systemPrompt, resumeText, jobDescription}
+        BR-->>AI: Tailored resume text (Markdown)
+        AI->>AI: Convert Markdown → PDF (reportlab)
+        AI->>S3: Upload tailored PDF → tailored-resumes/{userId}/{jobId}.pdf
+        AI->>DB: Update application {autoApplyStatus:"pending_tailoring→success", tailoredResumeKey}
+        AI->>DB: Increment monthlyTailoringCount
+        AI-->>API: 200 {tailoredResumeUrl (presigned)}
+        API-->>AP: Show "Download Tailored CV" button
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-09: AI Resume Tailoring with Claude</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 4: Profile & Files ════════════════ -->
+  <div class="section-header" id="group4">
+    <div class="sh-num">④</div>
+    <h2>Profile &amp; File Management</h2>
+    <span class="sh-badge">F-10 → F-12</span>
+  </div>
+
+  <!-- F-10 -->
+  <div class="feature-card" id="f10">
+    <div class="feature-card-header">
+      <div class="fc-id">F-10</div>
+      <div class="fc-title-block">
+        <h3>Resume Upload &amp; Management</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">uploads Lambda · S3</span>
+          <span class="tag tag-aws">Presigned URLs</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Users upload up to 3 resumes (PDF, max 5 MB). New uploads trigger a presigned S3 PUT URL;
+        the file is streamed directly from the browser to S3 without passing through Lambda.
+        If the user already has 3 resumes, the oldest is automatically deleted.
+        Users can set any resume as the "active" resume used for applications.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/uploads/handler.py</code>
+        <code>lambdas/users/handler.py</code>
+        <code>src/pages/ProfilePage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant PP as ProfilePage
+    participant API as API Gateway
+    participant UP as uploads Lambda
+    participant UL as users Lambda
+    participant S3 as S3 (joboss-resumes)
+    participant DB as DynamoDB
+
+    U->>PP: Select PDF file to upload
+    PP->>API: POST /uploads/presigned {fileName, contentType}
+    API->>UP: Generate presigned PUT URL
+    UP->>S3: Generate URL (expires 15 min)
+    UP-->>API: {uploadUrl, resumeId, s3Key}
+    API-->>PP: Upload URL received
+
+    PP->>S3: PUT resume PDF (direct browser → S3)
+    S3-->>PP: 200 OK
+
+    PP->>API: POST /users/resume/confirm {resumeId, fileName, s3Key}
+    API->>UL: Update user record
+    UL->>DB: Load user.resumes []
+    alt Already 3 resumes
+        UL->>S3: Delete oldest resume
+        UL->>DB: Remove oldest from list
+    end
+    UL->>DB: Append new resume {resumeId, fileName, uploadedAt, isActive:false}
+    UL-->>API: 200 {resumes[]}
+    API-->>PP: Updated resume list
+
+    U->>PP: Click "Set as Active"
+    PP->>API: PATCH /users/me/resume/active {resumeId}
+    API->>UL: Set isActive flags
+    UL->>DB: Set isActive=true on selected, false on others
+    UL-->>API: 200 OK
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-10: Resume Upload &amp; Management Flow</div>
+    </div>
+  </div>
+
+  <!-- F-11 -->
+  <div class="feature-card" id="f11">
+    <div class="feature-card-header">
+      <div class="fc-id">F-11</div>
+      <div class="fc-title-block">
+        <h3>Profile Image Upload &amp; Removal</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">profile-image Lambda</span>
+          <span class="tag tag-aws">S3 · Pillow</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Users upload a profile avatar (JPG, PNG, WebP, GIF — max 5 MB).
+        The Lambda downscales the image to a maximum of 512 px using Pillow and
+        saves it as a JPEG at 85% quality to S3. The public URL is stored in the user record.
+        Users can also remove their profile image.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/profile-image/handler.py</code>
+        <code>src/pages/ProfilePage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant PP as ProfilePage
+    participant API as API Gateway
+    participant PI as profile-image Lambda
+    participant S3 as S3 Bucket
+    participant DB as DynamoDB
+
+    U->>PP: Select image file (JPG/PNG/WebP)
+    PP->>PP: Read file as base64 string
+    PP->>API: POST /profile-image {base64Image, contentType}
+    API->>PI: Invoke with image payload
+
+    PI->>PI: Validate content type &amp; size (max 5 MB)
+    PI->>PI: Decode base64 → bytes
+    PI->>PI: Open with Pillow
+    PI->>PI: Downscale to max 512px (maintain aspect ratio)
+    PI->>PI: Convert to JPEG quality=85
+    PI->>S3: PutObject profile-images/{userId}.jpg (public-read)
+    S3-->>PI: ETag
+    PI->>DB: Update user.profileImageUrl = public S3 URL
+    PI-->>API: 200 {profileImageUrl}
+    API-->>PP: Update avatar in navbar &amp; profile
+
+    U->>PP: Click "Remove Image"
+    PP->>API: DELETE /profile-image
+    API->>PI: Delete handler
+    PI->>S3: DeleteObject profile-images/{userId}.jpg
+    PI->>DB: Set user.profileImageUrl = null
+    PI-->>API: 200 OK
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-11: Profile Image Upload &amp; Removal</div>
+    </div>
+  </div>
+
+  <!-- F-12 -->
+  <div class="feature-card" id="f12">
+    <div class="feature-card-header">
+      <div class="fc-id">F-12</div>
+      <div class="fc-title-block">
+        <h3>Subscription &amp; Stripe Payment</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">subscriptions Lambda</span>
+          <span class="tag tag-aws">Stripe · DynamoDB</span>
+          <span class="tag tag-tier">PREMIUM</span>
+          <span class="tag tag-tier-plus">PREMIUM_PLUS</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Three subscription tiers: FREE (default), PREMIUM, PREMIUM_PLUS.
+        Payment is processed by Stripe Checkout with a 7-day free trial.
+        Stripe webhooks update the DynamoDB subscription record on events:
+        <code>checkout.session.completed</code>, <code>customer.subscription.updated</code>,
+        <code>customer.subscription.deleted</code>.
+        Plan changes are propagated to the user's swipe quota and feature entitlements in real time.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/subscriptions/handler.py</code>
+        <code>src/pages/SubscriptionPage.jsx</code>
+        <code>src/pages/ProfilePage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SubscriptionPage
+    participant API as API Gateway
+    participant SL as subscriptions Lambda
+    participant STR as Stripe API
+    participant DB as DynamoDB
+    participant WH as Stripe Webhook
+
+    U->>SP: Click "Upgrade to PREMIUM"
+    SP->>API: POST /subscriptions/checkout {plan:"PREMIUM", userId}
+    API->>SL: Create checkout session
+    SL->>STR: stripe.checkout.Session.create {priceId, trial_period_days:7, metadata:{userId}}
+    STR-->>SL: {sessionId, url}
+    SL-->>API: {checkoutUrl}
+    API-->>SP: Redirect to Stripe hosted page
+    U->>STR: Enter payment details
+    STR->>STR: Charge card (after trial)
+    STR->>WH: POST checkout.session.completed
+
+    WH->>API: POST /subscriptions/webhook (Stripe-Signature header)
+    API->>SL: Validate signature &amp; handle event
+    SL->>DB: Upsert joboss-subscriptions {userId, plan:"PREMIUM", status:"TRIALING", stripeCustomerId}
+    SL->>DB: Update users.plan = "PREMIUM"
+    DB-->>SL: OK
+
+    Note over STR,WH: When trial ends → subscription.updated
+    WH->>SL: subscription.updated {status:"active"}
+    SL->>DB: Update subscription.status = "ACTIVE"
+
+    Note over STR,WH: On cancellation
+    U->>SP: Click "Cancel Subscription"
+    SP->>API: DELETE /subscriptions
+    API->>SL: Cancel subscription
+    SL->>STR: stripe.Subscription.cancel(subscriptionId)
+    STR->>WH: customer.subscription.deleted
+    SL->>DB: Set plan="FREE", status="EXPIRED"
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-12: Stripe Subscription Lifecycle</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 5: Quota ════════════════ -->
+  <div class="section-header" id="group5">
+    <div class="sh-num">⑤</div>
+    <h2>Quota &amp; Entitlement Enforcement</h2>
+    <span class="sh-badge">F-13</span>
+  </div>
+
+  <!-- F-13 -->
+  <div class="feature-card" id="f13">
+    <div class="feature-card-header">
+      <div class="fc-id">F-13</div>
+      <div class="fc-title-block">
+        <h3>Daily Swipe Quota Enforcement</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User / System</span>
+          <span class="tag tag-system">swipes Lambda</span>
+          <span class="tag tag-aws">DynamoDB</span>
+          <span class="tag tag-free">FREE: 5 &nbsp;|&nbsp; PREMIUM: 30 &nbsp;|&nbsp; PREMIUM_PLUS: ∞</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Each tier has a daily swipe limit enforced at the Lambda level.
+        FREE = 5, PREMIUM = 30, PREMIUM_PLUS = unlimited.
+        The counter resets daily at midnight UTC.
+        When a quota is reached, the frontend shows a <code>LimitModal</code> with an upgrade prompt.
+        Failed auto-applies are refunded (<code>quotaExempt</code> flag) so users are not penalised.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/swipes/handler.py</code> — quota check
+        <code>src/components/LimitModal.jsx</code>
+        <code>src/pages/SwipePage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SwipePage
+    participant API as API Gateway
+    participant SW as swipes Lambda
+    participant DB as DynamoDB
+
+    U->>SP: Attempt swipe RIGHT
+    SP->>API: POST /swipes {userId, jobId, direction:"LIKE"}
+    API->>SW: Invoke
+
+    SW->>DB: Load user {plan, dailySwipeCount, swipeResetDate}
+    SW->>SW: Determine limit: FREE→5, PREMIUM→30, PLUS→∞
+
+    alt Reset date is past midnight UTC
+        SW->>DB: Reset dailySwipeCount = 0, swipeResetDate = today
+    end
+
+    alt dailySwipeCount >= limit (and not PREMIUM_PLUS)
+        SW-->>API: 429 {error:"daily_limit_reached", resetAt: "00:00 UTC"}
+        API-->>SP: Show LimitModal with "Upgrade" CTA
+    else Within quota
+        SW->>DB: Increment dailySwipeCount
+        SW->>DB: Record swipe &amp; application
+        SW-->>API: 201 Created
+        API-->>SP: Success
+    end
+
+    Note over SW,DB: Failed auto-apply refund path
+    SW->>DB: Set application.quotaExempt = true
+    SW->>DB: Decrement dailySwipeCount (refund)
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-13: Daily Swipe Quota Enforcement</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 6: Admin ════════════════ -->
+  <div class="section-header" id="group6">
+    <div class="sh-num">⑥</div>
+    <h2>Administration</h2>
+    <span class="sh-badge">F-14 → F-16</span>
+  </div>
+
+  <!-- F-14 -->
+  <div class="feature-card" id="f14">
+    <div class="feature-card-header">
+      <div class="fc-id">F-14</div>
+      <div class="fc-title-block">
+        <h3>Admin Dashboard &amp; Statistics</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: Admin</span>
+          <span class="tag tag-system">admin Lambda · AdminPage</span>
+          <span class="tag tag-aws">Cognito ADMIN group</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Admins (Cognito ADMIN group members) access a protected dashboard showing platform-wide
+        statistics: total users, total jobs, total applications, user distribution by plan, and
+        application status breakdown. The dashboard also provides entry points to user management
+        and job management modules.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>src/pages/AdminPage.jsx</code>
+        <code>lambdas/admin/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor A as Admin
+    participant AP as AdminPage
+    participant API as API Gateway
+    participant AD as admin Lambda
+    participant DB as DynamoDB
+    participant COG as AWS Cognito
+
+    A->>AP: Navigate to /admin
+    AP->>API: GET /admin/verify (Bearer token)
+    API->>COG: Decode JWT claims
+    COG-->>API: {groups: ["ADMIN"]}
+    alt Not in ADMIN group
+        API-->>AP: 403 Forbidden → redirect /jobs
+    else Authorised
+        AP->>API: GET /admin/stats
+        API->>AD: Aggregate stats
+        AD->>DB: Count users by plan (Scan joboss-users)
+        AD->>DB: Count jobs (Scan joboss-jobs)
+        AD->>DB: Count applications by status (Scan joboss-applications)
+        AD-->>API: {totalUsers, planBreakdown, totalJobs, appBreakdown}
+        API-->>AP: Render statistics cards &amp; charts
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-14: Admin Dashboard Statistics</div>
+    </div>
+  </div>
+
+  <!-- F-15 -->
+  <div class="feature-card" id="f15">
+    <div class="feature-card-header">
+      <div class="fc-id">F-15</div>
+      <div class="fc-title-block">
+        <h3>Admin User Management</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: Admin</span>
+          <span class="tag tag-system">admin Lambda</span>
+          <span class="tag tag-aws">Cognito · DynamoDB</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Admins can view all registered users, change their subscription plan,
+        reset daily swipe quotas, block/unblock accounts, delete users with all associated data,
+        and grant or revoke admin privileges (requires password re-verification to prevent privilege escalation).
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/admin/handler.py</code>
+        <code>src/pages/AdminPage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor A as Admin
+    participant AP as AdminPage
+    participant API as API Gateway
+    participant AD as admin Lambda
+    participant DB as DynamoDB
+    participant COG as Cognito
+
+    A->>AP: View user list
+    AP->>API: GET /admin/users
+    API->>AD: Scan all users
+    AD->>DB: Scan joboss-users
+    DB-->>AD: Full user list
+    AD-->>API: Paginated user records
+    API-->>AP: Render user table
+
+    A->>AP: Change plan → PREMIUM_PLUS for user X
+    AP->>API: PATCH /admin/users/{id}/plan {plan:"PREMIUM_PLUS"}
+    API->>AD: Update plan
+    AD->>DB: Update users.plan + subscriptions.plan
+    AD-->>API: 200 OK
+
+    A->>AP: Reset quota for user X
+    AP->>API: POST /admin/users/{id}/reset-quota
+    API->>AD: Reset counters
+    AD->>DB: Set dailySwipeCount=0, swipeResetDate=today
+    AD-->>API: 200 OK
+
+    A->>AP: Block user X
+    AP->>API: POST /admin/users/{id}/block
+    API->>AD: Set status=blocked
+    AD->>DB: Update user.status = "blocked"
+    AD-->>API: 200 OK
+
+    A->>AP: Grant admin to user Y (requires password)
+    AP->>COG: Re-authenticate admin password
+    COG-->>AP: Token confirmed
+    AP->>API: POST /admin/users/{id}/grant-admin
+    API->>AD: Add to ADMIN group
+    AD->>COG: adminAddUserToGroup("ADMIN", userId)
+    AD-->>API: 200 OK
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-15: Admin User Management Actions</div>
+    </div>
+  </div>
+
+  <!-- F-16 -->
+  <div class="feature-card" id="f16">
+    <div class="feature-card-header">
+      <div class="fc-id">F-16</div>
+      <div class="fc-title-block">
+        <h3>Admin Job Management</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: Admin</span>
+          <span class="tag tag-system">admin Lambda · jobs Lambda</span>
+          <span class="tag tag-aws">DynamoDB</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Admins can view the full list of jobs in the system, toggle individual jobs
+        active/inactive (controlling visibility in the swipe feed), and manually trigger
+        the job importer Lambda to pull new postings from the Telegram channel.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/admin/handler.py</code>
+        <code>lambdas/jobs_importer/handler.py</code>
+        <code>src/pages/AdminPage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor A as Admin
+    participant AP as AdminPage
+    participant API as API Gateway
+    participant AD as admin Lambda
+    participant JL as jobs Lambda
+    participant JI as jobs_importer Lambda
+    participant DB as DynamoDB
+
+    A->>AP: View Jobs tab
+    AP->>API: GET /admin/jobs
+    API->>AD: Scan all jobs
+    AD->>DB: Scan joboss-jobs (all statuses)
+    DB-->>AD: Job list
+    AD-->>API: Job table data
+    API-->>AP: Render jobs table
+
+    A->>AP: Toggle job #XYZ → Inactive
+    AP->>API: PATCH /admin/jobs/{jobId} {active: false}
+    API->>AD: Update job status
+    AD->>DB: UpdateItem joboss-jobs {active: false}
+    AD-->>API: 200 OK
+    AP->>AP: Update toggle in UI
+
+    A->>AP: Click "Run Job Importer"
+    AP->>API: POST /admin/import-jobs
+    API->>JI: Invoke Lambda (async)
+    JI->>JI: Connect to Telegram channel (Telethon)
+    JI->>JI: Fetch recent messages
+    JI->>DB: Deduplicate by source_job_id
+    JI->>DB: PutItem new jobs
+    JI-->>API: {newJobsAdded: N}
+    API-->>AP: Show "N new jobs imported" toast
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-16: Admin Job Management &amp; Importer Trigger</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 7: Data Pipeline ════════════════ -->
+  <div class="section-header" id="group7">
+    <div class="sh-num">⑦</div>
+    <h2>Data Ingestion &amp; Maintenance</h2>
+    <span class="sh-badge">F-17 → F-18</span>
+  </div>
+
+  <!-- F-17 -->
+  <div class="feature-card" id="f17">
+    <div class="feature-card-header">
+      <div class="fc-id">F-17</div>
+      <div class="fc-title-block">
+        <h3>Job Importer (Telegram Channel Ingestion)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: System (Scheduled)</span>
+          <span class="tag tag-system">jobs_importer Lambda</span>
+          <span class="tag tag-aws">Bedrock · DynamoDB · EventBridge</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        A scheduled Lambda (via EventBridge) uses the Telethon library to read new job postings
+        from a curated Telegram channel. Each post is parsed for title, description, company, location,
+        and apply URL. The job description is normalised via Bedrock AI. Coordinates are resolved
+        via Nominatim geocoding. Duplicate jobs (by <code>source_job_id</code>) are skipped.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/jobs_importer/handler.py</code>
+        <code>lambdas/job_description_ai/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    participant EB as EventBridge (Scheduler)
+    participant JI as jobs_importer Lambda
+    participant TG as Telegram API (Telethon)
+    participant JDAI as job_description_ai Lambda
+    participant BR as Amazon Bedrock
+    participant GEO as Nominatim API
+    participant DB as DynamoDB
+
+    EB->>JI: Scheduled trigger (e.g. every 6 hours)
+    JI->>TG: Connect with API credentials (session)
+    TG-->>JI: Authenticated Telegram client
+
+    JI->>TG: GetMessages (channel, limit=100, since=lastRun)
+    TG-->>JI: List of message objects
+
+    loop For each message
+        JI->>JI: Parse title, company, description, applyUrl
+        JI->>DB: Check existing source_job_id
+        alt Duplicate
+            JI->>JI: Skip message
+        else New job
+            JI->>JDAI: Normalize description
+            JDAI->>BR: Claude Haiku prompt → structured sections
+            BR-->>JDAI: {summary, responsibilities, requirements, technologies}
+            JDAI-->>JI: Structured job description
+
+            JI->>GEO: GET /search?q={location}
+            GEO-->>JI: {lat, lng}
+
+            JI->>JI: Generate unique jobId (UUID)
+            JI->>DB: PutItem joboss-jobs {jobId, title, company, description, lat, lng, applyUrl, active:true}
+        end
+    end
+
+    JI->>DB: Update lastImportRun timestamp
+    JI-->>EB: Execution complete {imported: N}
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-17: Telegram Job Ingestion Pipeline</div>
+    </div>
+  </div>
+
+  <!-- F-18 -->
+  <div class="feature-card" id="f18">
+    <div class="feature-card-header">
+      <div class="fc-id">F-18</div>
+      <div class="fc-title-block">
+        <h3>Job Status Monitoring &amp; Cleanup</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: System (Scheduled)</span>
+          <span class="tag tag-system">jobs_status_checker Lambda</span>
+          <span class="tag tag-aws">EventBridge · DynamoDB</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        A daily scheduled Lambda checks all active job postings for staleness.
+        Jobs whose apply URL returns a non-200 HTTP response, or that are older than
+        a configured TTL (e.g. 30 days), are automatically marked inactive and removed
+        from the swipe feed.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/jobs_status_checker/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    participant EB as EventBridge (Daily)
+    participant SC as jobs_status_checker Lambda
+    participant DB as DynamoDB
+    participant WEB as Job Apply URL (HTTP)
+
+    EB->>SC: Daily trigger
+    SC->>DB: Scan joboss-jobs {active: true}
+    DB-->>SC: Active job list
+
+    loop For each active job
+        SC->>WEB: HEAD/GET {applyUrl} (timeout 5s)
+        alt HTTP 404 / 410 / timeout
+            SC->>DB: UpdateItem {active: false, deactivatedReason: "url_dead"}
+        else Job older than TTL (30 days)
+            SC->>DB: UpdateItem {active: false, deactivatedReason: "ttl_expired"}
+        else HTTP 200
+            SC->>SC: Job remains active
+        end
+    end
+
+    SC-->>EB: {deactivated: N, checked: M}
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-18: Automated Job Status Monitoring</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 8: Integrations ════════════════ -->
+  <div class="section-header" id="group8">
+    <div class="sh-num">⑧</div>
+    <h2>Integrations &amp; Notifications</h2>
+    <span class="sh-badge">F-19 → F-20</span>
+  </div>
+
+  <!-- F-19 -->
+  <div class="feature-card" id="f19">
+    <div class="feature-card-header">
+      <div class="fc-id">F-19</div>
+      <div class="fc-title-block">
+        <h3>Chrome Extension — ATS Auto-Fill</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">Chrome Extension</span>
+          <span class="tag tag-aws">S3 Presigned URLs</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        A companion Chrome extension allows users to auto-fill job application forms
+        on any ATS platform directly in the browser. The extension authenticates via
+        the main JoBoss OAuth flow, fetches the user profile from the backend API,
+        detects the current ATS platform, and injects the user's details and resume
+        into form fields.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>chrome-extension/popup.html</code>
+        <code>chrome-extension/content.js</code>
+        <code>chrome-extension/background.js</code>
+        <code>src/pages/AuthExtensionPage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant EXT as Chrome Extension
+    participant JOB as JoBoss Web App
+    participant COG as Cognito
+    participant API as API Gateway
+    participant UL as users Lambda
+    participant S3 as S3 (resumes)
+    participant ATS as ATS Website
+
+    U->>EXT: Click extension icon → "Sign In"
+    EXT->>JOB: Open /auth-extension (OAuth popup)
+    JOB->>COG: Amplify OAuth sign-in
+    COG-->>JOB: JWT tokens
+    JOB-->>EXT: postMessage {accessToken}
+    EXT->>EXT: Store token in chrome.storage
+
+    U->>ATS: Browse to job application page
+    ATS->>EXT: Page URL change (content.js detects)
+    EXT->>EXT: Detect ATS type from URL pattern
+    EXT->>API: GET /users/me (Bearer token)
+    API->>UL: Fetch user profile
+    UL-->>API: {fullName, email, phone, resumeKey}
+    API-->>EXT: User data
+
+    EXT->>S3: GET presigned URL for active resume
+    S3-->>EXT: Resume PDF download URL
+
+    U->>EXT: Click "Auto-Fill"
+    EXT->>ATS: Inject fullName into "First Name" / "Last Name" fields
+    EXT->>ATS: Inject email into email field
+    EXT->>ATS: Inject phone into phone field
+    EXT->>ATS: Trigger file input with resume PDF (Blob)
+    ATS-->>U: Form fields filled ✓
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-19: Chrome Extension Auto-Fill Flow</div>
+    </div>
+  </div>
+
+  <!-- F-20 -->
+  <div class="feature-card" id="f20">
+    <div class="feature-card-header">
+      <div class="fc-id">F-20</div>
+      <div class="fc-title-block">
+        <h3>Email Notification System (Amazon SES)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: System → User</span>
+          <span class="tag tag-system">Amazon SES</span>
+          <span class="tag tag-aws">auto-apply Lambda</span>
+          <span class="tag tag-tier">PREMIUM / PREMIUM_PLUS</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        After every Auto-Apply attempt, the system sends a transactional email to the user
+        via Amazon SES. A success email includes the job title, company name, and a
+        confirmation message. A failure email includes the reason the application could not
+        be submitted and encourages the user to apply manually.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>lambdas/auto-apply/handler.py</code> — <code>send_ses_email()</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    participant AA as auto-apply Lambda
+    participant SES as Amazon SES
+    actor U as User (email inbox)
+
+    AA->>AA: Auto-Apply attempt complete
+
+    alt Application submitted successfully
+        AA->>SES: send_email {
+            to: user.email,
+            subject: "✅ Applied to {jobTitle} at {company}",
+            body: "JoBoss successfully submitted your application..."
+        }
+        SES-->>U: Success notification email
+    else Application failed
+        AA->>SES: send_email {
+            to: user.email,
+            subject: "⚠️ Auto-Apply could not complete for {jobTitle}",
+            body: "Reason: {failureReason}. Please apply manually at: {applyUrl}"
+        }
+        SES-->>U: Failure notification with manual link
+        Note over AA: Daily quota refunded for this attempt
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-20: SES Email Notification Flow</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 9: Personal Dashboard & Profile Settings ════════════════ -->
+  <div class="section-header" id="group9">
+    <div class="sh-num">⑨</div>
+    <h2>Personal Dashboard &amp; Profile Settings</h2>
+    <span class="sh-badge">F-21 · F-23 · F-28 · F-29</span>
+  </div>
+
+  <!-- F-21 -->
+  <div class="feature-card" id="f21">
+    <div class="feature-card-header">
+      <div class="fc-id">F-21</div>
+      <div class="fc-title-block">
+        <h3>Personal Dashboard — At-a-Glance Statistics</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">DashboardPage</span>
+          <span class="tag tag-aws">DynamoDB</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        A dedicated <code>/dashboard</code> page gives users a personal snapshot of their job-search progress:
+        total applications submitted, how many were accepted / rejected / pending,
+        the number of daily swipes remaining (with plan context), and a scrollable
+        application history list with status badges. A prominent upgrade CTA is shown to FREE users.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/pages/DashboardPage.jsx</code>
+        <code>lambdas/applications/handler.py</code>
+        <code>lambdas/users/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant DP as DashboardPage
+    participant API as API Gateway
+    participant AL as applications Lambda
+    participant UL as users Lambda
+    participant DB as DynamoDB
+
+    U->>DP: Navigate to /dashboard
+    DP->>API: GET /applications (parallel)
+    DP->>API: GET /users/me (parallel)
+    API->>AL: Fetch applications
+    AL->>DB: Query joboss-applications by userId
+    DB-->>AL: Application list
+    AL-->>API: [{status, company, title, createdAt}]
+    API->>UL: Fetch profile
+    UL->>DB: GetItem joboss-users
+    DB-->>UL: {plan, dailySwipeCount, swipeLimit}
+    UL-->>API: User profile
+    API-->>DP: Both responses received
+
+    DP->>DP: Count accepted (ACCEPTED)
+    DP->>DP: Count rejected (REJECTED)
+    DP->>DP: Count pending (SUBMITTED / REVIEWED)
+    DP->>DP: Compute swipesLeft = limit - dailySwipeCount
+    DP->>DP: Render stats grid (4 cards)
+    DP->>DP: Render quota badge (color: green/red)
+    DP->>DP: Render application history list
+
+    alt plan = FREE
+        DP->>DP: Show "Upgrade to Premium" CTA button
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-21: Personal Dashboard Statistics Page</div>
+    </div>
+  </div>
+
+  <!-- F-23 -->
+  <div class="feature-card" id="f23">
+    <div class="feature-card-header">
+      <div class="fc-id">F-23</div>
+      <div class="fc-title-block">
+        <h3>Edit Profile &amp; Change Password</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">ProfileModals</span>
+          <span class="tag tag-aws">Cognito · DynamoDB</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        From a dropdown anchored to the profile avatar, users access two bottom-sheet modals:
+        <strong>Edit Profile</strong> — update full name and email stored in DynamoDB;
+        <strong>Change Password</strong> — supply current and new password, validated against
+        Cognito via AWS Amplify <code>updatePassword()</code>.
+        On save, a <code>profile-updated</code> custom event is broadcast so the Navbar
+        and all components refresh instantly without a page reload.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/components/ProfileModals.jsx</code>
+        <code>frontend/src/pages/ProfilePage.jsx</code>
+        <code>lambdas/users/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant PP as ProfilePage
+    participant EM as EditProfileModal
+    participant CP as ChangePasswordModal
+    participant API as API Gateway
+    participant UL as users Lambda
+    participant DB as DynamoDB
+    participant COG as AWS Cognito (Amplify)
+
+    U->>PP: Click avatar → dropdown → "Edit Profile"
+    PP->>EM: Open bottom-sheet modal
+    U->>EM: Change first name / last name / email
+    EM->>API: PATCH /users/me {fullName, email}
+    API->>UL: Update record
+    UL->>DB: UpdateItem joboss-users
+    DB-->>UL: OK
+    UL-->>API: 200 {user}
+    API-->>EM: Success
+    EM->>EM: window.dispatchEvent("profile-updated")
+    PP->>PP: Update displayed name instantly
+    Note right of PP: Navbar also listens and refreshes
+
+    U->>PP: Click avatar → dropdown → "Change Password"
+    PP->>CP: Open bottom-sheet modal
+    U->>CP: Enter current password + new password (min 8 chars)
+    CP->>COG: updatePassword({oldPassword, newPassword})
+    alt Incorrect current password
+        COG-->>CP: NotAuthorizedException
+        CP->>CP: Show Hebrew error message
+    else Success
+        COG-->>CP: OK
+        CP->>CP: Show success message → auto-close
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-23: Edit Profile &amp; Change Password Modals</div>
+    </div>
+  </div>
+
+  <!-- F-28 -->
+  <div class="feature-card" id="f28">
+    <div class="feature-card-header">
+      <div class="fc-id">F-28</div>
+      <div class="fc-title-block">
+        <h3>Show All Jobs Toggle (Permanent Discovery Mode)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">ProfilePage · SwipePage</span>
+          <span class="tag tag-aws">DynamoDB · localStorage</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        A toggle in the Profile settings card lets users permanently disable preference-based
+        filtering and always receive all available jobs, regardless of role or location match.
+        The setting is persisted both in <code>localStorage</code> (immediate effect) and in the
+        DynamoDB user record (cross-device sync). When active, it overrides the temporary
+        30-minute Discovery Mode (F-26).
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/pages/ProfilePage.jsx</code> — <code>showAllJobs</code> state
+        <code>frontend/src/pages/SwipePage.jsx</code> — <code>showAllJobsPref</code> / <code>discoveryActive</code>
+        <code>lambdas/users/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant PP as ProfilePage
+    participant LS as localStorage
+    participant API as API Gateway
+    participant UL as users Lambda
+    participant DB as DynamoDB
+    participant SP as SwipePage
+
+    U->>PP: Toggle "Show All Jobs" ON
+    PP->>LS: setItem("showAllJobs", "true")
+    PP->>PP: Debounce 1000ms
+
+    PP->>API: PATCH /users/me {showAllJobs: true}
+    API->>UL: Update user record
+    UL->>DB: UpdateItem {showAllJobs: true}
+    DB-->>UL: OK
+    UL-->>API: 200 OK
+
+    U->>SP: Navigate to /swipe
+    SP->>LS: getItem("showAllJobs") → "true"
+    SP->>SP: showAllJobsPref = true
+    SP->>SP: discoveryActive = true (permanent)
+    SP->>SP: filteredJobs = allUnseen (no preference filter)
+    SP->>SP: No discovery timer shown (permanent mode)
+    Note over SP: All jobs displayed regardless of match score
+
+    U->>PP: Toggle "Show All Jobs" OFF
+    PP->>LS: setItem("showAllJobs", "false")
+    PP->>API: PATCH /users/me {showAllJobs: false}
+    API->>UL: UpdateItem {showAllJobs: false}
+    UL-->>API: 200 OK
+    Note over SP: SwipePage reverts to preference-matched feed
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-28: Show All Jobs (Permanent Discovery) Toggle</div>
+    </div>
+  </div>
+
+  <!-- F-29 -->
+  <div class="feature-card" id="f29">
+    <div class="feature-card-header">
+      <div class="fc-id">F-29</div>
+      <div class="fc-title-block">
+        <h3>GPS Location Auto-Detection</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">ProfilePage · Browser Geolocation API</span>
+          <span class="tag tag-aws">Nominatim (Reverse Geocoding)</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        In the Location Preferences section of the Profile page, users can tap
+        "Detect Current Location Automatically." The browser's Geolocation API is invoked
+        to obtain GPS coordinates, which are then reverse-geocoded via Nominatim to a
+        human-readable city name. The coordinates are stored in <code>localStorage</code>
+        and the user record so the matching algorithm (F-04) can compute distances.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/pages/ProfilePage.jsx</code> — <code>handleUseCurrentLocation()</code>
+        <code>frontend/src/components/LocationInput.jsx</code>
+        <code>lambdas/users/handler.py</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant PP as ProfilePage
+    participant GEO as Browser Geolocation API
+    participant NOM as Nominatim API (OpenStreetMap)
+    participant LS as localStorage
+    participant API as API Gateway
+    participant UL as users Lambda
+    participant DB as DynamoDB
+
+    U->>PP: Click "Detect Current Location"
+    PP->>GEO: navigator.geolocation.getCurrentPosition()
+    alt Permission denied
+        GEO-->>PP: GeolocationPositionError (code=1)
+        PP->>PP: Show error "Allow location access in browser settings"
+    else Timeout
+        GEO-->>PP: GeolocationPositionError (timeout)
+        PP->>PP: Show error "Could not locate position"
+    else Success
+        GEO-->>PP: {coords: {latitude, longitude}}
+        PP->>NOM: GET /reverse?lat={lat}&lon={lng}&format=json&lang=he
+        NOM-->>PP: {address: {city, town, village}}
+        PP->>PP: Extract city name from address
+        PP->>LS: setItem("jobLatitude", lat)
+        PP->>LS: setItem("jobLongitude", lng)
+        PP->>PP: setLocation(cityName)
+        PP->>API: PATCH /users/me {preferredLocation, latitude, longitude, searchRadius}
+        API->>UL: Update DynamoDB
+        UL->>DB: UpdateItem user record
+        DB-->>UL: OK
+        UL-->>API: 200 OK
+        API-->>PP: Location saved ✓
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-29: GPS Location Auto-Detection Flow</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 10: Auth Extended ════════════════ -->
+  <div class="section-header" id="group10">
+    <div class="sh-num">⑩</div>
+    <h2>Authentication &amp; Access Control — Extended</h2>
+    <span class="sh-badge">F-24 · F-25</span>
+  </div>
+
+  <!-- F-24 -->
+  <div class="feature-card" id="f24">
+    <div class="feature-card-header">
+      <div class="fc-id">F-24</div>
+      <div class="fc-title-block">
+        <h3>Account Suspension Screen</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: Suspended User</span>
+          <span class="tag tag-system">App.jsx · SuspendedScreen</span>
+          <span class="tag tag-aws">Cognito · DynamoDB</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        When the backend returns a <code>403 ACCOUNT_SUSPENDED</code> response during the
+        app startup auth check, the entire UI is replaced with a dedicated suspension screen.
+        It displays the JoBoss logo, a Hebrew message explaining the account is blocked,
+        a support email link, and a sign-out button. The user cannot navigate to any other
+        page while suspended.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/App.jsx</code> — <code>SuspendedScreen</code> component, <code>isSuspended</code> state
+        <code>lambdas/users/handler.py</code> — <code>ACCOUNT_SUSPENDED</code> error code
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as Suspended User
+    participant APP as App.jsx
+    participant API as API Gateway
+    participant UL as users Lambda
+    participant DB as DynamoDB
+    participant SS as SuspendedScreen
+
+    U->>APP: Open app / refresh page
+    APP->>APP: checkAuth() — verify Cognito session
+    APP->>API: GET /users/me (Bearer token)
+    API->>UL: Fetch user profile
+    UL->>DB: GetItem joboss-users
+    DB-->>UL: {status: "blocked"}
+    UL-->>API: 403 {code: "ACCOUNT_SUSPENDED"}
+    API-->>APP: 403 error
+
+    APP->>APP: Detect e.status===403 && e.data.code==="ACCOUNT_SUSPENDED"
+    APP->>APP: setIsSuspended(true)
+    APP->>APP: setIsLoggedIn(false)
+    APP->>SS: Render SuspendedScreen (replaces entire UI)
+    SS-->>U: Show: logo + "Your account has been suspended" message
+    SS-->>U: Show support email link (joboss.appteam@gmail.com)
+
+    U->>SS: Click "Sign Out"
+    SS->>SS: signOut() via Amplify
+    SS->>APP: Redirect to /login
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-24: Account Suspension Detection &amp; Screen</div>
+    </div>
+  </div>
+
+  <!-- F-25 -->
+  <div class="feature-card" id="f25">
+    <div class="feature-card-header">
+      <div class="fc-id">F-25</div>
+      <div class="fc-title-block">
+        <h3>Password Reset Flow (Forgot Password)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User (unauthenticated)</span>
+          <span class="tag tag-system">LoginPage</span>
+          <span class="tag tag-aws">AWS Cognito · SES</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        A 2-step password recovery flow accessible from the Login page.
+        Step 1 (<code>forgot</code> mode): user enters their email; Cognito sends a verification
+        code via SES. Step 2 (<code>forgotConfirm</code> mode): user enters the code
+        and a new password (min 8 characters). On success the user is redirected to Login.
+        All validation messages are displayed in Hebrew.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/pages/LoginPage.jsx</code> — modes <code>forgot</code>, <code>forgotConfirm</code>
+        AWS Amplify: <code>resetPassword()</code>, <code>confirmResetPassword()</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant LP as LoginPage
+    participant AMP as AWS Amplify
+    participant COG as AWS Cognito
+    participant SES as Amazon SES
+
+    U->>LP: Click "Forgot Password" link
+    LP->>LP: setMode("forgot")
+    LP->>LP: Show email input field
+
+    U->>LP: Enter email address → Click "Send Reset Code"
+    LP->>LP: Validate email format
+    LP->>AMP: resetPassword({username: email})
+    AMP->>COG: InitiateAuth / ForgotPassword
+    COG->>SES: Send verification code email
+    SES-->>U: Email with 6-digit code
+    COG-->>AMP: CodeDeliveryDetails
+    AMP-->>LP: Success
+    LP->>LP: setMode("forgotConfirm")
+    LP->>LP: Show: "Code sent to email" message
+
+    U->>LP: Enter 6-digit code + new password
+    LP->>LP: Validate: code length >= 4, password >= 8 chars
+    LP->>AMP: confirmResetPassword({username, confirmationCode, newPassword})
+    AMP->>COG: ConfirmForgotPassword
+    alt Invalid code
+        COG-->>AMP: CodeMismatchException
+        AMP-->>LP: Error message
+        LP->>LP: Display Hebrew error
+    else Expired code
+        COG-->>AMP: ExpiredCodeException
+        AMP-->>LP: Error
+        LP->>LP: "Code expired — request a new one"
+    else Success
+        COG-->>AMP: OK
+        AMP-->>LP: Password updated
+        LP->>LP: setMode("login")
+        LP->>LP: Show success: "Password reset — log in now"
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-25: Forgot Password — 2-Step Reset Flow</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 11: Swipe UX Extended ════════════════ -->
+  <div class="section-header" id="group11">
+    <div class="sh-num">⑪</div>
+    <h2>Swipe UX — Discovery &amp; Match Insights</h2>
+    <span class="sh-badge">F-22 · F-26 · F-27</span>
+  </div>
+
+  <!-- F-22 -->
+  <div class="feature-card" id="f22">
+    <div class="feature-card-header">
+      <div class="fc-id">F-22</div>
+      <div class="fc-title-block">
+        <h3>Preference Mismatch Warning Modal</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">MismatchWarningModal · SwipePage</span>
+          <span class="tag tag-aws">DynamoDB</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        When a user attempts to apply to a job flagged as <code>matchesPreferences: false</code>
+        (i.e., the job's domain or experience level does not align with the user's profile),
+        an animated warning modal intercepts the action. The modal explains the detected
+        mismatch and offers two choices: cancel or continue anyway. If the user continues,
+        the swipe is recorded normally and AI tailoring may still run.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/components/MismatchWarningModal.jsx</code>
+        <code>frontend/src/pages/SwipePage.jsx</code> — <code>matchesPreferences</code> flag check
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SwipePage
+    participant MM as MismatchWarningModal
+    participant API as API Gateway
+
+    SP->>SP: Load job card (job.matchesPreferences === false)
+    SP->>SP: Show DomainTags (domain + level mismatch tags on card)
+
+    U->>SP: Swipe RIGHT on mismatched job
+    SP->>SP: Check job.matchesPreferences
+    alt matchesPreferences === false
+        SP->>MM: Show warning modal {reason: "AI detected significant gap"}
+        MM-->>U: Animated modal with warning message
+        U->>MM: Click "Cancel"
+        MM->>SP: onCancel() — swipe is NOT recorded
+        SP->>SP: Re-render card in stack
+    else User clicks "Continue Anyway"
+        MM->>SP: onContinue()
+        SP->>API: POST /swipes {jobId, direction:"LIKE"}
+        Note over SP: Normal swipe flow proceeds (F-05)
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-22: Preference Mismatch Warning Interception</div>
+    </div>
+  </div>
+
+  <!-- F-26 -->
+  <div class="feature-card" id="f26">
+    <div class="feature-card-header">
+      <div class="fc-id">F-26</div>
+      <div class="fc-title-block">
+        <h3>Discovery Mode — 30-Minute Temporary Window</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">SwipePage</span>
+          <span class="tag tag-aws">localStorage</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        When the user has swiped through all their preference-matched jobs but
+        there are still non-matching jobs available, a special "primary deck exhausted"
+        screen appears showing a preview of available domains and a button to
+        activate Discovery Mode for 30 minutes. During this window, all jobs are shown
+        regardless of match. A countdown banner is displayed. The window auto-expires
+        via <code>setTimeout</code> and persists across navigation via <code>localStorage</code>.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/pages/SwipePage.jsx</code> — <code>discoveryUntil</code>, <code>activateDiscovery()</code>, <code>DiscoveryPreview</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SwipePage
+    participant LS as localStorage
+
+    SP->>SP: filteredJobs = primaryJobs (matchesPreferences !== false)
+    SP->>SP: primaryJobs.length === 0 AND discoveryJobs.length > 0
+
+    SP-->>U: Show "Primary feed exhausted" screen
+    SP-->>U: Show DiscoveryPreview (domain tags of available jobs)
+    SP-->>U: Show "Show jobs outside your field — active for 30 minutes" button
+
+    U->>SP: Click "Activate Discovery"
+    SP->>SP: until = Date.now() + 30 * 60 * 1000
+    SP->>SP: setDiscoveryUntil(until)
+    SP->>LS: setItem("discoveryUntil", until)
+    SP->>SP: discoveryActive = true
+    SP->>SP: filteredJobs = allUnseen (includes discovery jobs)
+    SP-->>U: Show orange banner "Showing all jobs · expires in 30 min"
+
+    loop Every 60 seconds
+        SP->>SP: setNowTick(Date.now())
+        SP->>SP: Update banner countdown
+    end
+
+    SP->>SP: setTimeout fires after remaining time
+    SP->>SP: setDiscoveryUntil(null)
+    SP->>LS: removeItem("discoveryUntil")
+    SP->>SP: discoveryActive = false
+    SP->>SP: filteredJobs = primaryJobs again
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-26: Discovery Mode — 30-Minute Temporary Window</div>
+    </div>
+  </div>
+
+  <!-- F-27 -->
+  <div class="feature-card" id="f27">
+    <div class="feature-card-header">
+      <div class="fc-id">F-27</div>
+      <div class="fc-title-block">
+        <h3>Match Score Breakdown Modal</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">SwipePage · MatchModal</span>
+          <span class="tag tag-aws">DynamoDB (matchBreakdown)</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Each job card displays a coloured match-score badge (e.g. "78% התאמה ℹ️").
+        Tapping the badge opens an animated modal that breaks the score into three
+        weighted components: Role Match (50 pts), Experience Level (30 pts), Distance (20 pts).
+        Each component shows a colour-coded progress bar, matched/unmatched roles, detected
+        levels, and actionable CV keyword hints to improve the score.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/src/pages/SwipePage.jsx</code> — <code>MatchModal</code>, <code>MatchBadge</code> components
+        <code>lambdas/jobs/handler.py</code> — <code>matchBreakdown</code> field in response
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant SP as SwipePage
+    participant JC as JobCard
+    participant MB as MatchBadge
+    participant MM as MatchModal
+
+    SP->>JC: Render card with job.matchScore=78, job.matchBreakdown={...}
+    JC->>MB: Render badge "78% התאמה ℹ️" (green, score>=70)
+
+    U->>MB: Tap match badge
+    MB->>JC: handleBadgeClick() — stopPropagation (prevent card open)
+    JC->>JC: setMatchOpen(true)
+    JC->>MM: Render MatchModal {score:78, breakdown}
+
+    MM-->>U: Show modal with:
+    Note over MM,U: Role Match: roleScore/50 — bar + matched/unmatched role chips
+    Note over MM,U: Experience: expScore/30 — user level vs job detected levels
+    Note over MM,U: Distance: distScore/20 — X km from your location
+    Note over MM,U: CV Hint box: "Add these keywords to improve score"
+
+    alt score >= 70
+        MM->>MM: Bar color = green (#4CAF50)
+    else score >= 40
+        MM->>MM: Bar color = orange (#FF9800)
+    else
+        MM->>MM: Bar color = red (#F44336)
+    end
+
+    U->>MM: Click ✕ or backdrop
+    MM->>JC: setMatchOpen(false)
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-27: Match Score Breakdown Modal</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ GROUP 12: Chrome Extension Advanced ════════════════ -->
+  <div class="section-header" id="group12">
+    <div class="sh-num">⑫</div>
+    <h2>Chrome Extension — Advanced Features</h2>
+    <span class="sh-badge">F-30 · F-31 · F-32 · F-33</span>
+  </div>
+
+  <!-- F-30 -->
+  <div class="feature-card" id="f30">
+    <div class="feature-card-header">
+      <div class="fc-id">F-30</div>
+      <div class="fc-title-block">
+        <h3>Chrome Extension — Direct Login (Cognito in Popup)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">popup.js</span>
+          <span class="tag tag-aws">AWS Cognito (InitiateAuth)</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        Users can authenticate the Chrome extension directly inside the popup window
+        without opening a new browser tab. The popup calls Cognito's <code>InitiateAuth</code>
+        endpoint with <code>USER_PASSWORD_AUTH</code> flow, receives the <code>idToken</code>,
+        and stores it in <code>chrome.storage.local</code>. Cognito error codes are mapped
+        to localised Hebrew error messages.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/chrome-extension/popup.js</code> — <code>cognitoLogin()</code>, <code>mapCognitoError()</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant POP as Extension Popup
+    participant COG as AWS Cognito REST API
+    participant CS as chrome.storage.local
+
+    U->>POP: Enter email + password → Click "Login"
+    POP->>POP: Validate inputs
+    POP->>COG: POST /oauth2/token (InitiateAuth)
+    Note right of POP: Flow: USER_PASSWORD_AUTH
+    Note right of POP: ClientId: {COGNITO_CLIENT_ID}
+
+    alt Invalid credentials
+        COG-->>POP: NotAuthorizedException
+        POP->>POP: mapCognitoError() → "סיסמה או אימייל שגויים"
+        POP-->>U: Show Hebrew error message
+    else User not confirmed
+        COG-->>POP: UserNotConfirmedException
+        POP-->>U: "חשבון לא אומת — בדוק את האימייל"
+    else Rate limited
+        COG-->>POP: TooManyRequestsException
+        POP-->>U: "יותר מדי ניסיונות — נסה שוב בעוד מעט"
+    else Success
+        COG-->>POP: {IdToken, AccessToken, RefreshToken}
+        POP->>CS: chrome.storage.local.set({joboss_token: idToken})
+        POP->>POP: Fetch user profile from API
+        POP->>POP: showMainView() — show profile + fill button
+    end
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-30: Chrome Extension Direct Login via Cognito</div>
+    </div>
+  </div>
+
+  <!-- F-31 -->
+  <div class="feature-card" id="f31">
+    <div class="feature-card-header">
+      <div class="fc-id">F-31</div>
+      <div class="fc-title-block">
+        <h3>Chrome Extension — SSO Auth Bridge</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User (already logged into web app)</span>
+          <span class="tag tag-system">popup.js · background.js · AuthExtensionPage</span>
+          <span class="tag tag-aws">Cognito (token reuse)</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        As an alternative to direct login (F-30), users who are already authenticated in
+        the JoBoss web app can transfer their session to the extension with a single click.
+        The popup opens the <code>/auth-extension</code> page; that page reads the Cognito
+        <code>idToken</code> from <code>localStorage</code> and sends it back to the extension
+        via <code>chrome.runtime.sendMessage</code>. The background service worker receives
+        the message and stores the token.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/chrome-extension/popup.js</code> — SSO button, <code>getTokenFromTabs()</code>
+        <code>frontend/chrome-extension/background.js</code> — <code>onMessageExternal</code>
+        <code>frontend/src/pages/AuthExtensionPage.jsx</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant POP as Extension Popup
+    participant BG as background.js (Service Worker)
+    participant TAB as JoBoss Web App Tab
+    participant AEP as AuthExtensionPage (/auth-extension)
+    participant LS as localStorage (web app)
+    participant CS as chrome.storage.local
+
+    U->>POP: Click "Login with JoBoss App (SSO)"
+    POP->>TAB: chrome.tabs.create({url: "https://joboss.app/auth-extension"})
+    TAB->>AEP: Load /auth-extension page
+
+    AEP->>LS: Scan all localStorage keys for "idToken"
+    LS-->>AEP: idToken value (Cognito JWT)
+
+    AEP->>BG: chrome.runtime.sendMessage(extensionId, {type:"TOKEN", token: idToken})
+    BG->>CS: chrome.storage.local.set({joboss_token: idToken})
+    BG-->>AEP: {success: true}
+    AEP->>TAB: Close tab (or show "Connected" message)
+
+    POP->>CS: getCachedToken()
+    CS-->>POP: idToken
+    POP->>POP: Fetch profile from API
+    POP->>POP: showMainView()
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-31: Chrome Extension SSO Auth Bridge via Web App</div>
+    </div>
+  </div>
+
+  <!-- F-32 -->
+  <div class="feature-card" id="f32">
+    <div class="feature-card-header">
+      <div class="fc-id">F-32</div>
+      <div class="fc-title-block">
+        <h3>Chrome Extension — Tailored CV Selector</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User (PREMIUM)</span>
+          <span class="tag tag-system">popup.js</span>
+          <span class="tag tag-aws">S3 Presigned URLs · API Gateway</span>
+          <span class="tag tag-tier">PREMIUM / PREMIUM_PLUS</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        When the extension detects that the current page matches a known job application
+        (by exact URL or hostname), it checks if a tailored CV exists for that job in the
+        user's application records. If found, a radio-button selector appears in the popup
+        letting the user choose between their original active resume and the AI-tailored version.
+        The selected presigned S3 URL is then used when the form is auto-filled.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/chrome-extension/popup.js</code> — <code>loadCVSelector()</code>, <code>loadTailoredCV()</code>
+        <code>lambdas/applications/handler.py</code> — <code>_presign_s3()</code>
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant POP as Extension Popup
+    participant API as API Gateway
+    participant AL as applications Lambda
+    participant S3 as S3 Bucket
+
+    POP->>POP: Detect current tab URL
+    POP->>API: GET /applications (Bearer token)
+    API->>AL: Fetch user applications
+    AL-->>API: [{jobId, applyUrl, tailoredResumeKey, ...}]
+    API-->>POP: Applications list
+
+    POP->>POP: loadCVSelector() — match tab URL vs applyUrl (exact, then hostname, then most recent)
+
+    alt Tailored CV found for this job
+        POP->>API: GET /applications/{jobId}/tailored-url
+        API->>AL: Generate presigned URL
+        AL->>S3: Generate presigned GET URL (1 hour expiry)
+        S3-->>AL: Presigned URL
+        AL-->>API: {tailoredResumeUrl}
+        API-->>POP: Presigned URL
+
+        POP->>POP: Show radio buttons:
+        Note right of POP: ○ Original Resume (active)
+        Note right of POP: ● Tailored CV for this job (AI)
+
+        U->>POP: Select "Tailored CV"
+        POP->>POP: _selectedCvPresignedUrl = tailoredResumeUrl
+    else No tailored CV
+        POP->>POP: Use original resume only (no selector shown)
+    end
+
+    U->>POP: Click "Fill Form"
+    POP->>POP: Use _selectedCvPresignedUrl for resume attachment
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-32: Chrome Extension Tailored CV Selector</div>
+    </div>
+  </div>
+
+  <!-- F-33 -->
+  <div class="feature-card" id="f33">
+    <div class="feature-card-header">
+      <div class="fc-id">F-33</div>
+      <div class="fc-title-block">
+        <h3>Chrome Extension — Floating Fill Button (ATS Page Injection)</h3>
+        <div class="fc-tags">
+          <span class="tag tag-actor">Actor: User</span>
+          <span class="tag tag-system">content.js (Content Script)</span>
+          <span class="tag tag-aws">S3 · DataTransfer API</span>
+          <span class="tag tag-free">All Tiers</span>
+        </div>
+      </div>
+    </div>
+    <div class="feature-card-body">
+      <p class="fc-description">
+        The content script is injected into 15+ ATS platforms. It scans the page DOM
+        for application form signals (URL keywords, file input, name + email fields).
+        When a form is detected, a floating "⚡ Fill with JoBoss" button is injected
+        into the page. Clicking it triggers the full auto-fill sequence: field detection
+        by CSS selector patterns, value injection via React-compatible synthetic events,
+        resume attachment via the DataTransfer API, and Hebrew→English city name normalisation.
+      </p>
+      <div class="fc-files">
+        <strong>Implements:</strong>
+        <code>frontend/chrome-extension/content.js</code> — <code>hasApplicationForm()</code>, <code>injectFillButton()</code>, <code>fillForm()</code>, <code>attachResumeFromUrl()</code>
+        <code>frontend/chrome-extension/manifest.json</code> — <code>content_scripts</code> matches
+      </div>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+sequenceDiagram
+    participant CS as content.js (Content Script)
+    participant DOM as ATS Page DOM
+    participant BG as background.js
+    participant API as API Gateway
+    actor U as User
+
+    CS->>DOM: Injected at document_idle
+    CS->>CS: hasApplicationForm() — check URL keywords, file input, name+email fields
+    alt Form detected
+        CS->>DOM: injectFillButton() — append floating ⚡ button (bottom-right corner)
+        DOM-->>U: Show "Fill with JoBoss" button
+    else No form
+        CS->>CS: No button injected
+    end
+
+    U->>DOM: Click ⚡ button
+    CS->>BG: chrome.runtime.sendMessage({type:"FETCH_PROFILE"})
+    BG->>API: GET /users/me (Bearer token)
+    API-->>BG: {fullName, email, phone, location, company, linkedin}
+    BG-->>CS: Profile data
+
+    CS->>CS: normalizeLocation(location) — Hebrew→English city map
+    CS->>DOM: Fill first_name, last_name, full_name fields (React synthetic events)
+    CS->>DOM: Fill email field
+    CS->>DOM: Fill phone field
+    CS->>DOM: Fill location / city field (normalized)
+    CS->>DOM: Fill company, linkedin, website fields
+
+    CS->>BG: chrome.runtime.sendMessage({type:"FETCH_TAILORED_CV"})
+    BG-->>CS: {resumeUrl} (presigned S3 URL)
+    CS->>CS: attachResumeFromUrl(resumeUrl)
+    CS->>CS: fetch(resumeUrl) → Blob → File object
+    CS->>CS: new DataTransfer() → add File → assign to input.files
+    CS->>DOM: Dispatch "change" event on file input
+    DOM-->>U: Resume attached to form ✓
+
+    CS->>DOM: fillGenderSelect() — match option text to stored gender
+    CS-->>U: setStatus("Form filled ✓", "success")
+        </div>
+      </div>
+      <div class="diagram-label">Fig F-33: Chrome Extension Floating Fill Button &amp; Form Injection</div>
+    </div>
+  </div>
+
+  <!-- ════════════════ Summary Table ════════════════ -->
+  <div class="toc-section" style="margin-top: 56px;">
+    <h2>Feature Summary Table</h2>
+    <table style="width:100%; border-collapse: collapse; font-size: 14px; margin-top: 16px;">
+      <thead>
+        <tr style="background: linear-gradient(90deg,var(--primary),#2e5d9a); color:#fff;">
+          <th style="padding:12px 16px; text-align:left; border-radius:8px 0 0 0;">ID</th>
+          <th style="padding:12px 16px; text-align:left;">Feature Name</th>
+          <th style="padding:12px 16px; text-align:left;">Primary Actor</th>
+          <th style="padding:12px 16px; text-align:left;">Tier</th>
+          <th style="padding:12px 16px; text-align:left; border-radius:0 8px 0 0;">Key AWS Services</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-01</td><td style="padding:10px 16px;">User Registration &amp; Authentication</td><td>User / Visitor</td><td>All</td><td>Cognito, API Gateway</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-02</td><td style="padding:10px 16px;">Onboarding Flow (5 Steps)</td><td>New User</td><td>All</td><td>Lambda, S3, Bedrock</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-03</td><td style="padding:10px 16px;">Job Discovery &amp; Swipe Interface</td><td>User</td><td>All</td><td>Lambda, DynamoDB</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-04</td><td style="padding:10px 16px;">Job Filtering &amp; Matching Algorithm</td><td>System</td><td>All</td><td>Lambda, DynamoDB</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-05</td><td style="padding:10px 16px;">Swipe Recording (Like / Pass)</td><td>User</td><td>All</td><td>Lambda, DynamoDB, SQS</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-06</td><td style="padding:10px 16px;">Undo Last Swipe</td><td>User</td><td>All</td><td>Lambda, DynamoDB</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-07</td><td style="padding:10px 16px;">Application Tracking (Dual-Track)</td><td>User</td><td>All</td><td>Lambda, DynamoDB</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-08</td><td style="padding:10px 16px;">Auto-Apply Automation</td><td>System</td><td>PREMIUM+</td><td>ECS Fargate, SQS, SES, S3</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-09</td><td style="padding:10px 16px;">AI Resume Tailoring</td><td>User</td><td>PREMIUM+</td><td>Bedrock, S3, Lambda</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-10</td><td style="padding:10px 16px;">Resume Upload &amp; Management</td><td>User</td><td>All</td><td>S3, Lambda, DynamoDB</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-11</td><td style="padding:10px 16px;">Profile Image Upload &amp; Removal</td><td>User</td><td>All</td><td>S3, Lambda, DynamoDB</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-12</td><td style="padding:10px 16px;">Subscription &amp; Stripe Payment</td><td>User</td><td>PREMIUM+</td><td>Stripe, Lambda, DynamoDB</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-13</td><td style="padding:10px 16px;">Daily Swipe Quota Enforcement</td><td>System</td><td>All</td><td>Lambda, DynamoDB</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-14</td><td style="padding:10px 16px;">Admin Dashboard &amp; Statistics</td><td>Admin</td><td>Admin</td><td>Lambda, DynamoDB, Cognito</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-15</td><td style="padding:10px 16px;">Admin User Management</td><td>Admin</td><td>Admin</td><td>Lambda, DynamoDB, Cognito</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-16</td><td style="padding:10px 16px;">Admin Job Management</td><td>Admin</td><td>Admin</td><td>Lambda, DynamoDB</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-17</td><td style="padding:10px 16px;">Job Importer (Telegram)</td><td>System</td><td>—</td><td>Lambda, Bedrock, DynamoDB, EventBridge</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-18</td><td style="padding:10px 16px;">Job Status Monitoring &amp; Cleanup</td><td>System</td><td>—</td><td>Lambda, DynamoDB, EventBridge</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-19</td><td style="padding:10px 16px;">Chrome Extension Auto-Fill</td><td>User</td><td>All</td><td>S3, API Gateway, Cognito</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-20</td><td style="padding:10px 16px;">Email Notification (SES)</td><td>System</td><td>PREMIUM+</td><td>SES, Lambda</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-21</td><td style="padding:10px 16px;">Personal Dashboard — At-a-Glance Statistics</td><td>User</td><td>All</td><td>Lambda, DynamoDB</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-22</td><td style="padding:10px 16px;">Preference Mismatch Warning Modal</td><td>User</td><td>All</td><td>React (client-side)</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-23</td><td style="padding:10px 16px;">Edit Profile &amp; Change Password</td><td>User</td><td>All</td><td>Cognito, Lambda, DynamoDB</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-24</td><td style="padding:10px 16px;">Account Suspension Screen</td><td>System → User</td><td>All</td><td>Cognito, Lambda, DynamoDB</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-25</td><td style="padding:10px 16px;">Password Reset Flow (Forgot Password)</td><td>User (unauthenticated)</td><td>All</td><td>Cognito, SES</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-26</td><td style="padding:10px 16px;">Discovery Mode — 30-Minute Temporary Window</td><td>User</td><td>All</td><td>localStorage (client-side)</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-27</td><td style="padding:10px 16px;">Match Score Breakdown Modal</td><td>User</td><td>All</td><td>Lambda (matchBreakdown), React</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-28</td><td style="padding:10px 16px;">Show All Jobs Toggle (Permanent Discovery)</td><td>User</td><td>All</td><td>Lambda, DynamoDB, localStorage</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-29</td><td style="padding:10px 16px;">GPS Location Auto-Detection</td><td>User</td><td>All</td><td>Browser Geolocation API, Nominatim</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-30</td><td style="padding:10px 16px;">Chrome Ext. — Direct Login (Cognito in Popup)</td><td>User</td><td>All</td><td>Cognito REST, chrome.storage</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-31</td><td style="padding:10px 16px;">Chrome Ext. — SSO Auth Bridge</td><td>User</td><td>All</td><td>Cognito, chrome.runtime, localStorage</td></tr>
+        <tr><td style="padding:10px 16px; font-weight:700; color:var(--accent);">F-32</td><td style="padding:10px 16px;">Chrome Ext. — Tailored CV Selector</td><td>User</td><td>PREMIUM+</td><td>S3 Presigned URLs, Lambda</td></tr>
+        <tr style="background:#f8faff;"><td style="padding:10px 16px; font-weight:700; color:var(--accent); border-radius:0 0 0 8px;">F-33</td><td style="padding:10px 16px;">Chrome Ext. — Floating Fill Button (ATS Injection)</td><td>User</td><td>All</td><td>DataTransfer API, S3, API Gateway</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  <strong>JoBoss</strong> — Use Cases &amp; UML Sequence Diagrams &nbsp;|&nbsp;
+  Version 2.0 &nbsp;|&nbsp; June 2026 &nbsp;|&nbsp;
+  33 Features &middot; 12 Feature Groups &middot; Full-Stack Serverless Architecture
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#e3f0ff',
+      primaryTextColor: '#1a2340',
+      primaryBorderColor: '#2e86de',
+      lineColor: '#2e86de',
+      secondaryColor: '#f3e8ff',
+      tertiaryColor: '#f0f5ff',
+      background: '#fafbff',
+      mainBkg: '#e3f0ff',
+      nodeBorder: '#2e86de',
+      clusterBkg: '#f0f5ff',
+      titleColor: '#1e3a5f',
+      edgeLabelBackground: '#fff',
+      actorBkg: '#1e3a5f',
+      actorTextColor: '#ffffff',
+      actorLineColor: '#2e86de',
+      signalColor: '#2e86de',
+      signalTextColor: '#1a2340',
+      labelBoxBkgColor: '#e8edf8',
+      labelBoxBorderColor: '#2e86de',
+      labelTextColor: '#1a2340',
+      loopTextColor: '#1a2340',
+      noteBorderColor: '#f59e0b',
+      noteBkgColor: '#fffbeb',
+      noteTextColor: '#78350f',
+      activationBorderColor: '#2e86de',
+      activationBkgColor: '#d0e4ff',
+      sequenceNumberColor: '#fff',
+      fontFamily: 'Segoe UI, Arial, sans-serif',
+      fontSize: '14px'
+    },
+    sequence: {
+      diagramMarginX: 24,
+      diagramMarginY: 16,
+      actorMargin: 60,
+      width: 160,
+      height: 40,
+      boxMargin: 10,
+      boxTextMargin: 6,
+      noteMargin: 10,
+      messageMargin: 40,
+      mirrorActors: true,
+      bottomMarginAdj: 10,
+      useMaxWidth: true,
+      rightAngles: false,
+      showSequenceNumbers: false
+    }
+  });
+</script>
+</body>
+</html>

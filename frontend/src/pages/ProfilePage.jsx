@@ -6,7 +6,7 @@
 // - F-28: Show All Jobs Toggle
 // - F-29: GPS Location Auto-Detection
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { getCurrentUser } from 'aws-amplify/auth';
 import {

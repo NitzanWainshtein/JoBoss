@@ -1,4 +1,3 @@
-import React from 'react';
 
 function Spinner({ text = 'טוען...' }) {
   return (

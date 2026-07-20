@@ -1021,15 +1021,36 @@ def lambda_handler(event, context):
 
         user = get_user(user_id)
         if not user:
-            return response(404, {"error": "User was not found"})
+            return response(404, {"error": "User was not found", "code": "USER_NOT_FOUND"})
 
         job = get_job(job_id) or body.get("job")
         if not job:
-            return response(404, {"error": "Job was not found"})
+            # The importer replaces the jobs table over time, so older
+            # applications reference jobIds that no longer exist. Fall back to
+            # the application record (company + title) so tailoring still works
+            # instead of 404ing on every application older than the last import.
+            try:
+                app_item = applications_table.get_item(
+                    Key={"userId": user_id, "jobId": job_id}
+                ).get("Item")
+            except Exception:
+                app_item = None
+            if app_item and (app_item.get("company") or app_item.get("title")):
+                job = {
+                    "jobId": job_id,
+                    "company": app_item.get("company", ""),
+                    "title": app_item.get("title", ""),
+                    "description": "",
+                    "requirements": [],
+                }
+                print(f"[JOB_FALLBACK] jobId={job_id} gone from jobs table — "
+                      f"tailoring from application record ({job['company']} / {job['title']})")
+            else:
+                return response(404, {"error": "Job was not found", "code": "JOB_NOT_FOUND"})
 
         resume = find_resume(user, resume_id) or build_resume_from_text(resume_id, provided_resume_text)
         if not resume:
-            return response(404, {"error": "Resume was not found"})
+            return response(404, {"error": "Resume was not found", "code": "RESUME_NOT_FOUND"})
 
         # ── AI tailoring quota ─────────────────────────────────────────────
         # Use get_effective_plan() so Premium users with a stale users.plan = "FREE"

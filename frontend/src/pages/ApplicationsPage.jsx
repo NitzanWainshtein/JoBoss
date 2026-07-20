@@ -802,7 +802,16 @@ function ApplicationsPage() {
       } else if (err?.code === 'AI_NOT_AVAILABLE' || err?.status === 403) {
         setShowUpsell(true);
       } else if (err?.status === 404) {
-        alert('לא נמצאו קורות חיים פעילים. נסה להעלות קורות חיים מחדש בעמוד הפרופיל.');
+        // The backend distinguishes what exactly is missing — showing the
+        // resumes message for a deleted job used to mislead users who had
+        // perfectly valid resumes.
+        if (err?.code === 'JOB_NOT_FOUND') {
+          alert('המשרה הזו כבר לא קיימת במערכת, ולכן לא ניתן להתאים אליה קורות חיים.');
+        } else if (err?.code === 'RESUME_NOT_FOUND') {
+          alert('לא נמצאו קורות חיים פעילים. נסה להעלות קורות חיים מחדש בעמוד הפרופיל.');
+        } else {
+          alert('שגיאה בהתאמת קורות החיים — נתון חסר במערכת. נסה שוב או פנה לתמיכה.');
+        }
       } else {
         const detail = err?.data?.details || err?.data?.error || '';
         alert(`שגיאה בהתאמת קורות החיים.${detail ? `\n${detail}` : ' נסה שוב או פנה לתמיכה.'}`);

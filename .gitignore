@@ -31,6 +31,9 @@ backend/lambdas/uploads/sample.pdf
 frontend/chrome-extension.pem
 frontend/chrome-extension.crx
 
+# Design mockup playground — local only, never commit
+mock_jobos/
+
 # Temp files / Lambda test outputs - may contain AWS credentials or user data
 out*.json
 .claude/settings.local.json

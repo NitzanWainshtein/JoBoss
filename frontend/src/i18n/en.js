@@ -492,4 +492,12 @@ export default {
   'sub.confirmCancelNoDate': 'Cancel your plan? You keep access until the end of the current billing period.',
   'swipe.kbdHint': 'Keyboard: ← pass · → apply · ↑ details · Z undo',
   'swipe.deckLabel': 'Job card — use the arrow keys',
+  'a11y.title': 'Accessibility',
+  'a11y.textSize': 'Text size',
+  'a11y.bigger': 'Increase text size',
+  'a11y.smaller': 'Decrease text size',
+  'a11y.contrast': 'High contrast',
+  'a11y.noMotion': 'Stop animations',
+  'a11y.links': 'Highlight links',
+  'a11y.reset': 'Reset',
 };

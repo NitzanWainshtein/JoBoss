@@ -5,6 +5,7 @@ import ICON_SIZES from '../iconSizes';
 import { getMyProfile, uploadProfileImage } from '../api';
 import { EditProfileModal, ChangePasswordModal } from './ProfileModals';
 import useTranslation from '../i18n/useTranslation';
+import AccessibilityMenu from './AccessibilityMenu';
 
 const PLAN_LOGOS = {
   FREE:         '/icons/free_members_icon.png',
@@ -171,6 +172,9 @@ function Navbar({ isAdmin = false, planKey = '' }) {
     <>
       <div style={styles.header}>
         <img src={getHeaderLogo(isAdmin, planKey)} alt="joBoss" style={styles.logo} />
+
+        {/* Opposite the avatar, so neither crowds the logo. */}
+        <AccessibilityMenu />
 
         <div ref={menuRef} style={styles.avatarWrap}>
           <button style={styles.avatarBtn} onClick={() => setMenuOpen(v => !v)}>

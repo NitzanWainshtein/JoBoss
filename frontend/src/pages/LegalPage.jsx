@@ -125,8 +125,8 @@ const DOCS = {
       sections: [
         ['המחויבות שלנו', `${COMPANY.name} רואה חשיבות במתן שירות נגיש לכלל המשתמשים, לרבות אנשים עם מוגבלות, ופועלת להנגיש את השירות בהתאם לחוק שוויון זכויות לאנשים עם מוגבלות, התשנ"ח-1998, ולתקנות שהותקנו מכוחו.`],
         ['רמת הנגישות', 'אנו פועלים להתאמת השירות לתקן הישראלי ת"י 5568 ברמה AA, המבוסס על הנחיות WCAG 2.0. תהליך ההנגשה מתבצע באופן מתמשך.'],
-        ['מה הונגש עד כה', 'ניווט מקלדת בפקדים אינטראקטיביים; סימון מצב לפקדי הפעלה/כיבוי באמצעות תפקידי ARIA; סגירת חלונות באמצעות מקש Escape; תוויות טקסטואליות לרכיבים גרפיים; ותיקון יחסי ניגודיות בטקסט.'],
-        ['מגבלות ידועות', 'מסך סימון המשרות מבוסס על מחוות גרירה, ואנו פועלים להוסיף לו חלופה מלאה מבוססת מקלדת. ייתכנו רכיבים נוספים שטרם הונגשו במלואם. אנו נשמח לקבל דיווח על כל תקלת נגישות.'],
+        ['מה הונגש עד כה', 'ניווט מקלדת מלא, לרבות סימון משרות באמצעות מקשי החיצים; סימון מצב לפקדי הפעלה/כיבוי באמצעות תפקידי ARIA; סגירת חלונות באמצעות מקש Escape; תוויות טקסטואליות לרכיבים גרפיים; ותיקון יחסי ניגודיות בטקסט.'],
+        ['מגבלות ידועות', 'ייתכנו רכיבים שטרם הונגשו במלואם. אנו נשמח לקבל דיווח על כל תקלת נגישות.'],
         ['פניות בנושא נגישות', `רכז הנגישות: ${COMPANY.a11yContact}. דוא"ל: ${COMPANY.email}. נשתדל לטפל בכל פנייה בהקדם.`],
       ],
     },
@@ -136,8 +136,8 @@ const DOCS = {
       sections: [
         ['Our commitment', `${COMPANY.nameEn} is committed to providing an accessible service to all users, including people with disabilities, in accordance with the Israeli Equal Rights for Persons with Disabilities Law, 1998, and its regulations.`],
         ['Conformance level', 'We work to conform to Israeli Standard IS 5568 at Level AA, which is based on WCAG 2.0. Accessibility work is ongoing.'],
-        ['What has been done', 'Keyboard navigation for interactive controls; state exposure for toggles via ARIA roles; dismissal of dialogs with the Escape key; text labels for graphical elements; and corrected text contrast ratios.'],
-        ['Known limitations', 'The job-marking screen is gesture-based and a full keyboard alternative is in progress. Other components may not yet be fully accessible. We welcome reports of any accessibility issue.'],
+        ['What has been done', 'Full keyboard navigation, including marking jobs with the arrow keys; state exposure for toggles via ARIA roles; dismissal of dialogs with the Escape key; text labels for graphical elements; and corrected text contrast ratios.'],
+        ['Known limitations', 'Some components may not yet be fully accessible. We welcome reports of any accessibility issue.'],
         ['Accessibility contact', `Accessibility coordinator: ${COMPANY.a11yContact}. Email: ${COMPANY.email}. We aim to respond to every enquiry promptly.`],
       ],
     },

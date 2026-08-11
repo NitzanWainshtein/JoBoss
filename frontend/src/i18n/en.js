@@ -490,4 +490,6 @@ export default {
   'sub.cancelledNoDate': 'You keep every feature until the end of the current billing period.',
   'sub.resubscribe': 'You can resubscribe at any time — nothing is lost.',
   'sub.confirmCancelNoDate': 'Cancel your plan? You keep access until the end of the current billing period.',
+  'swipe.kbdHint': 'Keyboard: ← pass · → apply · ↑ details · Z undo',
+  'swipe.deckLabel': 'Job card — use the arrow keys',
 };

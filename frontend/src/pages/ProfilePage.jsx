@@ -26,6 +26,7 @@ import LocationInput from '../components/LocationInput';
 import { JOB_CATEGORIES } from '../data/jobCategories';
 import { EditProfileModal, ChangePasswordModal } from '../components/ProfileModals';
 import useTranslation from '../i18n/useTranslation';
+import AvatarCropper from '../components/AvatarCropper';
 
 // ── Subscription badge for profile header ────────────────────────────────────
 function PlanBadge({ planKey }) {
@@ -127,6 +128,7 @@ function ProfilePage({ initialView = null }) {
   const tab = initialView === 'subscription' ? 'subscription' : 'profile';
   const [profileImage, setProfileImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [pendingImage, setPendingImage] = useState(null);
   const [userName, setUserName] = useState('');
   const [autoApply, setAutoApply] = useState(false);
   const [autoTailorCV, setAutoTailorCV] = useState(false);
@@ -341,13 +343,20 @@ function ProfilePage({ initialView = null }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [avatarMenuOpen]);
 
-  const handleAvatarImageUpload = async (e) => {
+  const handleAvatarImageSelected = (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert(t('alert.imageTooLarge')); return; }
+    setAvatarMenuOpen(false);
+    setPendingImage(file);
+  };
+
+  const handleAvatarImageUpload = async (file) => {
+    if (!file) return;
+    setPendingImage(null);
     setProfileImage(URL.createObjectURL(file));
     setUploadingImage(true);
-    setAvatarMenuOpen(false);
     try {
       const r = await uploadProfileImage(file);
       setProfileImage(r.imageUrl);
@@ -359,7 +368,6 @@ function ProfilePage({ initialView = null }) {
     } finally {
       setUploadingImage(false);
     }
-    e.target.value = '';
   };
 
   const handleRemoveProfileImage = async () => {
@@ -574,7 +582,7 @@ function ProfilePage({ initialView = null }) {
 
           {/* Hidden file input for profile image */}
           <input ref={profileImgInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-            onChange={handleAvatarImageUpload} />
+            onChange={handleAvatarImageSelected} />
 
           <h2 style={styles.username}>{userName}</h2>
           <PlanBadge planKey={planKey} />
@@ -1091,6 +1099,14 @@ function ProfilePage({ initialView = null }) {
           <SubscriptionPage api={subApi} />
         </>)}
       </div>
+
+      {pendingImage && (
+        <AvatarCropper
+          file={pendingImage}
+          onCancel={() => setPendingImage(null)}
+          onConfirm={handleAvatarImageUpload}
+        />
+      )}
 
       {showEditModal && (
         <EditProfileModal

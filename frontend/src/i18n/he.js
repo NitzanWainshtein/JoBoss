@@ -500,4 +500,10 @@ export default {
   'a11y.noMotion': 'עצירת אנימציות',
   'a11y.links': 'הדגשת קישורים',
   'a11y.reset': 'איפוס הגדרות',
+  'crop.title': 'מיקום תמונת הפרופיל',
+  'crop.hint': 'גרור/י למיקום, והשתמש/י במחוון לשינוי גודל',
+  'crop.zoom': 'תקריב',
+  'crop.save': 'שמור',
+  'crop.saving': 'שומר...',
+  'crop.cancel': 'ביטול',
 };

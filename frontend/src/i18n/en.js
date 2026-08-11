@@ -500,4 +500,10 @@ export default {
   'a11y.noMotion': 'Stop animations',
   'a11y.links': 'Highlight links',
   'a11y.reset': 'Reset',
+  'crop.title': 'Position your photo',
+  'crop.hint': 'Drag to position, use the slider to zoom',
+  'crop.zoom': 'Zoom',
+  'crop.save': 'Save',
+  'crop.saving': 'Saving...',
+  'crop.cancel': 'Cancel',
 };

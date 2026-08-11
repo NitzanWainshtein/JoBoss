@@ -748,7 +748,17 @@ function SwipePage() {
   const allUnseen = jobs.filter(j => !swipedJobs.has(j.jobId));
   const primaryJobs   = allUnseen.filter(j => j.matchesPreferences !== false);
   const discoveryJobs = allUnseen.filter(j => j.matchesPreferences === false);
-  const filteredJobs  = discoveryActive ? allUnseen : primaryJobs;
+
+  // The deck draws from the END of the array, so sorting ASCENDING puts the
+  // best match on top. Applied after the discovery filter so "show all jobs"
+  // is still ranked rather than arriving in whatever order the API returned.
+  // Jobs with no score sort to the bottom instead of pretending to be a zero.
+  const byMatchAsc = (a, b) => {
+    const sa = a.matchScore ?? -1;
+    const sb = b.matchScore ?? -1;
+    return sa - sb;
+  };
+  const filteredJobs = [...(discoveryActive ? allUnseen : primaryJobs)].sort(byMatchAsc);
   const currentJob = filteredJobs[filteredJobs.length - 1];
   const nextJob = filteredJobs[filteredJobs.length - 2];
 
@@ -782,7 +792,8 @@ function SwipePage() {
     setShowUndo(true);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     undoTimerRef.current = setTimeout(() => setShowUndo(false), 5000);
-    setJobs(prev => prev.slice(0, -1));
+    // Remove by id, not by position: the deck is sorted independently of `jobs`.
+    setJobs(prev => prev.filter(j => j.jobId !== currentJob.jobId));
 
     try {
       const result = await createSwipe(currentJob.jobId, direction === 'right' ? 'LIKE' : 'PASS', {

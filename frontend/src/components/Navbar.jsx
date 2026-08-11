@@ -6,6 +6,7 @@ import { getMyProfile, uploadProfileImage } from '../api';
 import { EditProfileModal, ChangePasswordModal } from './ProfileModals';
 import useTranslation from '../i18n/useTranslation';
 import AccessibilityMenu from './AccessibilityMenu';
+import AvatarCropper from './AvatarCropper';
 
 const PLAN_LOGOS = {
   FREE:         '/icons/free_members_icon.png',
@@ -37,6 +38,8 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   const [showEdit,       setShowEdit]       = useState(false);
   const [showChangePass, setShowChangePass] = useState(false);
   const [uploadingImg,   setUploadingImg]   = useState(false);
+  // Staged between picking a file and confirming the crop.
+  const [pendingImage,   setPendingImage]   = useState(null);
 
   const navItems = [
     { path: '/swipe',        icon: '/icons/jobs_icon.png',       label: t('nav.jobs')         },
@@ -138,13 +141,21 @@ function Navbar({ isAdmin = false, planKey = '' }) {
     window.location.href = '/login';
   };
 
-  const handleImageUpload = async (e) => {
+  // Picking a file only opens the cropper; nothing uploads until it is confirmed.
+  const handleImageSelected = (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert(t('alert.imageTooLarge')); return; }
+    setMenuOpen(false);
+    setPendingImage(file);
+  };
+
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    setPendingImage(null);
     setProfileImage(URL.createObjectURL(file));
     setUploadingImg(true);
-    setMenuOpen(false);
     try {
       const r = await uploadProfileImage(file);
       setProfileImage(r.imageUrl);
@@ -155,7 +166,6 @@ function Navbar({ isAdmin = false, planKey = '' }) {
     } finally {
       setUploadingImg(false);
     }
-    e.target.value = '';
   };
 
   const menuItems = [
@@ -170,6 +180,14 @@ function Navbar({ isAdmin = false, planKey = '' }) {
 
   return (
     <>
+      {pendingImage && (
+        <AvatarCropper
+          file={pendingImage}
+          onCancel={() => setPendingImage(null)}
+          onConfirm={handleImageUpload}
+        />
+      )}
+
       <div style={styles.header}>
         <img src={getHeaderLogo(isAdmin, planKey)} alt="joBoss" style={styles.logo} />
 
@@ -207,7 +225,7 @@ function Navbar({ isAdmin = false, planKey = '' }) {
       </div>
 
       <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-        onChange={handleImageUpload} />
+        onChange={handleImageSelected} />
 
       <nav ref={navRef} style={styles.navbar}>
         {ready && activeIndex >= 0 && (

@@ -506,4 +506,5 @@ export default {
   'crop.save': 'שמור',
   'crop.saving': 'שומר...',
   'crop.cancel': 'ביטול',
+  'login.showPassword': 'הצג סיסמה',
 };

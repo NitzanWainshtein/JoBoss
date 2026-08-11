@@ -506,4 +506,5 @@ export default {
   'crop.save': 'Save',
   'crop.saving': 'Saving...',
   'crop.cancel': 'Cancel',
+  'login.showPassword': 'Show password',
 };

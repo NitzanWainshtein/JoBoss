@@ -1112,7 +1112,7 @@ function SwipePage() {
       {/* Action buttons — hidden while loading quota or confirmed locked */}
       {filteredJobs.length > 0 && !isBlocked && (
         <div style={styles.buttons}>
-          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')}><img src="/icons/x_icon.png" alt="Pass" style={styles.swipeIcon} /></motion.button>
+          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')} aria-label={t('swipe.pass')}><span style={styles.rejectGlyph}>✕</span></motion.button>
 
           {/* Undo — always takes the same space so X/heart never shift */}
           <div style={styles.undoBtnSlot}>
@@ -1144,13 +1144,13 @@ function SwipePage() {
                       transition={{ duration: 5, ease: 'linear' }}
                     />
                   </svg>
-                  <img src="/icons/undo_icon.png" alt="undo" style={{ width: '54px', height: '54px', objectFit: 'contain', position: 'relative', zIndex: 1 }} />
+                  <span style={styles.undoGlyph}>↩</span>
                 </motion.button>
               )}
             </AnimatePresence>
           </div>
 
-          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')}><img src="/icons/heart_icon.png" alt="Like" style={styles.swipeIcon} /></motion.button>
+          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')} aria-label={t('swipe.apply')}><span style={styles.acceptGlyph}>♥</span></motion.button>
         </div>
       )}
 
@@ -1279,11 +1279,26 @@ const styles = {
   lockedSub: { fontSize: '13px', color: '#8B82B8', margin: 0 },
   lockedBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 20px', cursor: 'pointer', fontWeight: 800, fontSize: '14px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   buttons: { display: 'flex', gap: '24px', marginTop: '8px', flexShrink: 0, alignItems: 'center', direction: 'ltr' },
-  rejectBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
-  acceptBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
-  swipeIcon: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
+  // Circles drawn in CSS rather than flat PNGs: they stay crisp at any density,
+  // scale with the button, and take a focus ring like any other control.
+  rejectBtn: {
+    width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`,
+    borderRadius: '50%', background: '#FFFFFF', border: 'none', cursor: 'pointer', padding: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 8px 22px rgba(91,61,245,0.16)',
+  },
+  rejectGlyph: { fontSize: '30px', fontWeight: 700, color: '#FF4D67', lineHeight: 1 },
+  acceptBtn: {
+    width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`,
+    borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0,
+    background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 12px 28px rgba(91,61,245,0.4)',
+  },
+  acceptGlyph: { fontSize: '30px', color: '#FFFFFF', lineHeight: 1 },
+  undoGlyph: { fontSize: '26px', color: '#F5A623', lineHeight: 1, position: 'relative', zIndex: 1 },
   undoBtnSlot: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  undoBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  undoBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, borderRadius: '50%', background: '#FFFFFF', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: '0 8px 22px rgba(91,61,245,0.16)' },
   unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   tailorLimitToast: { marginTop: '6px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#B45309', textAlign: 'center', maxWidth: 'min(360px, 95vw)' },
   tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(124,92,255,0.10)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderRadius: '14px', padding: '7px 12px', border: '1px solid rgba(124,92,255,0.2)', overflow: 'hidden' },

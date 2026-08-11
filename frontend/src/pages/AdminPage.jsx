@@ -28,7 +28,7 @@ function StatCard({ label, value, color = '#6C4FD4', sub }) {
   const isHebrew = /[֐-׿]/.test(label);
   return (
     <div style={{ background: 'white', borderRadius: 16, padding: '16px 20px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flex: 1, minWidth: 120,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flex: '1 1 132px', minWidth: 0,
       direction: isHebrew ? 'rtl' : 'ltr', textAlign: isHebrew ? 'right' : 'left' }}>
       <p style={{ fontSize: 26, fontWeight: 800, color, margin: 0, unicodeBidi: 'embed' }}>{value ?? '--'}</p>
       <p style={{ fontSize: 12, color: '#777', margin: '4px 0 0', fontWeight: 600, unicodeBidi: 'embed' }}>{label}</p>
@@ -41,11 +41,16 @@ function ActionBtn({ label, color, onClick }) {
   return (
     <button onClick={onClick}
       style={{ background: color + '18', color, border: `1px solid ${color}44`,
-        borderRadius: 10, padding: '5px 11px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>
+        borderRadius: 10, padding: '5px 11px', cursor: 'pointer', fontWeight: 700, fontSize: 12,
+        whiteSpace: 'nowrap', flexShrink: 0 }}>
       {label}
     </button>
   );
 }
+
+// Phones were scrolling sideways: nothing here capped the content width, so a
+// single wide row dragged the whole page with it.
+const PAGE_GUARD = { maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' };
 
 export default function AdminPage() {
   const [tab, setTab]     = useState('stats');
@@ -185,8 +190,8 @@ export default function AdminPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F0F2FF', direction: 'rtl' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px 90px' }}>
+    <div style={{ minHeight: '100vh', background: '#F0F2FF', direction: 'rtl', ...PAGE_GUARD }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px 90px', ...PAGE_GUARD }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
@@ -399,7 +404,7 @@ export default function AdminPage() {
                         showToast(`עברת ל-${plan} + Quota אופס`);
                       } catch { showToast('שגיאה', false); }
                     }}
-                    style={{ flex: 1, minWidth: 150, padding: '14px 14px', borderRadius: 14,
+                    style={{ flex: '1 1 150px', minWidth: 0, padding: '14px 14px', borderRadius: 14,
                       border: `2px solid ${color}`, background: color + '10',
                       cursor: 'pointer' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, direction: 'ltr' }}>

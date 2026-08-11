@@ -1437,7 +1437,7 @@ const styles = {
   // One application = row + its always-visible note / CV blocks.
   // Separator between applications is deliberately stronger than any divider
   // inside a row, so the eye groups each job as one block.
-  rowGroup: { borderBottom: '2px solid #DFD5F7', transition: 'background 0.15s' },
+  rowGroup: { borderBottom: '2px solid #DFD5F7', paddingBottom: '10px', marginBottom: '4px', transition: 'background 0.15s' },
   row: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px' },
   cellCompany: { display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 },
   rowLogo: {

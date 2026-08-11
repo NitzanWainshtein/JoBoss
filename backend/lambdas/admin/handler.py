@@ -559,6 +559,10 @@ def handle_trigger_import(admin_id):
         lam.invoke(FunctionName=IMPORTER_FN, InvocationType="Event", Payload=b"{}")
         return resp(200, {"success": True, "message": "Import triggered"})
     except Exception as e:
+        # Was returned to the client and never logged, so an AccessDenied here
+        # looked identical to any other failure. JoBossLambdaRole has no
+        # lambda:InvokeFunction, which is exactly what this catches.
+        print(f"[ADMIN_ERROR] trigger_import failed: {type(e).__name__}: {e}")
         return resp(500, {"error": str(e)})
 
 

@@ -11,6 +11,8 @@ function LoginPage() {
   const { t } = useTranslation();
   // Unticked by default and required before signup: pre-ticked consent is not consent.
   const [agreed, setAgreed] = useState(false);
+  // One toggle covers both password fields — they are never on screen together.
+  const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState('login'); // login | register | confirm | forgot | forgotConfirm
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -179,12 +181,18 @@ function LoginPage() {
         )}
 
         {/* Password field: login/register only */}
-        {(mode === 'login' || mode === 'register') && (
+        {(mode === 'login' || mode === 'register') && (<>
           <input style={{ ...styles.input, fontSize: '12px' }}
             placeholder={t('login.passHint')}
-            type="password" value={password}
+            type={showPassword ? 'text' : 'password'} value={password}
             onChange={(e) => { setPassword(e.target.value); setError(''); }} />
-        )}
+          <label style={styles.showPass}>
+            <input type="checkbox" checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+              style={{ width: 15, height: 15, cursor: 'pointer' }} />
+            <span>{t('login.showPassword')}</span>
+          </label>
+        </>)}
 
         {/* Confirm/forgot code */}
         {(mode === 'confirm' || mode === 'forgotConfirm') && (
@@ -193,10 +201,17 @@ function LoginPage() {
         )}
 
         {/* New password for forgot */}
-        {mode === 'forgotConfirm' && (
-          <input style={styles.input} placeholder={t('login.newPassHint')} type="password"
+        {mode === 'forgotConfirm' && (<>
+          <input style={styles.input} placeholder={t('login.newPassHint')}
+            type={showPassword ? 'text' : 'password'}
             value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setError(''); }} />
-        )}
+          <label style={styles.showPass}>
+            <input type="checkbox" checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+              style={{ width: 15, height: 15, cursor: 'pointer' }} />
+            <span>{t('login.showPassword')}</span>
+          </label>
+        </>)}
 
         {error && (
           <p style={{ ...styles.error, color: isSuccess ? '#12A96F' : '#FF4D67' }}>{error}</p>
@@ -266,6 +281,10 @@ const styles = {
   input: { width: '100%', padding: '13px 16px', borderRadius: '14px', border: '1.5px solid #E9E4FB', background: '#F8F6FF', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   btn: { width: '100%', padding: '15px', borderRadius: '14px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 800, cursor: 'pointer', transition: 'opacity 0.2s', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   error: { fontSize: '13px', margin: 0, textAlign: 'center' },
+  showPass: {
+    display: 'flex', alignItems: 'center', gap: '7px', width: '100%',
+    marginTop: '-4px', fontSize: '12px', fontWeight: 600, color: '#5A5478', cursor: 'pointer',
+  },
   consent: {
     display: 'flex', alignItems: 'flex-start', gap: '9px', width: '100%',
     fontSize: '12.5px', lineHeight: 1.55, color: '#5A5478', cursor: 'pointer',

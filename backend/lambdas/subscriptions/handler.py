@@ -340,11 +340,19 @@ def handle_cancel(event):
     sub = get_subscription(user_id)
     stripe_sub_id = sub.get("stripeSubscriptionId") if sub else None
 
+    print(f"[SUBS] cancel requested user={user_id} stripeSub={stripe_sub_id or 'NONE'}")
     if stripe_sub_id:
         try:
-            stripe.Subscription.modify(stripe_sub_id, cancel_at_period_end=True)
+            modified = stripe.Subscription.modify(stripe_sub_id, cancel_at_period_end=True)
+            print(f"[SUBS] cancel ok status={getattr(modified, 'status', '?')} "
+                  f"cancel_at_period_end={getattr(modified, 'cancel_at_period_end', '?')}")
         except stripe.error.StripeError as e:
+            print(f"[SUBS] cancel failed: {e}")
             return resp(500, {"error": "Stripe error", "details": str(e)})
+    else:
+        # No Stripe subscription on the record: nothing to cancel upstream, so
+        # the local status flip is all that happens. Worth seeing in the log.
+        print("[SUBS] cancel: no stripeSubscriptionId on record")
 
     now = datetime.now(timezone.utc).isoformat()
     subs_table.update_item(
@@ -377,6 +385,7 @@ def handle_webhook(event):
     parsed = json.loads(payload if isinstance(payload, str) else payload.decode())
     event_type = parsed["type"]
     data = parsed["data"]["object"]
+    print(f"[SUBS] webhook event={event_type}")
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -473,6 +482,14 @@ def handle_webhook(event):
                     new_status = "CANCELLING"
 
             period_end = data.get("current_period_end")
+            if not period_end:
+                try:
+                    period_end = data["items"]["data"][0]["current_period_end"]
+                except Exception:
+                    period_end = None
+            print(f"[SUBS] sub.updated status={status} "
+                  f"cancel_at_period_end={data.get('cancel_at_period_end')} "
+                  f"period_end={period_end} -> plan={new_plan} status={new_status}")
             subs_table.update_item(
                 Key={"userId": user_id},
                 UpdateExpression=(

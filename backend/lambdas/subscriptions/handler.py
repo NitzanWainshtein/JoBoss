@@ -395,12 +395,21 @@ def handle_webhook(event):
         if stripe_sub_id:
             try:
                 stripe_sub = stripe.Subscription.retrieve(stripe_sub_id)
-                # Third attempt, and the last time I try to outsmart this object.
-                # .get() is not guaranteed, dict(obj) raised KeyError: 0, but
-                # StripeObject.__getattr__ IS the documented access path — and
-                # getattr with a default turns its AttributeError into None.
-                period_end = getattr(stripe_sub, "current_period_end", None)
+                # stripe-python 15.x speaks a 2025+ API version, where
+                # current_period_start/end moved OFF the subscription and onto
+                # its items. That is why getattr returned None with no error:
+                # the attribute genuinely is not there any more. Read the
+                # subscription level first for older API versions, then fall
+                # back to the first item.
                 trial_end = getattr(stripe_sub, "trial_end", None)
+                period_end = getattr(stripe_sub, "current_period_end", None)
+                if not period_end:
+                    try:
+                        first_item = stripe_sub["items"]["data"][0]
+                        period_end = (getattr(first_item, "current_period_end", None)
+                                      or first_item["current_period_end"])
+                    except Exception as item_err:
+                        print(f"[SUBS] no period end on items either: {item_err}")
                 print(f"[SUBS] period_end={period_end} trial_end={trial_end}")
             except Exception as e:
                 print(f"[SUBS] could not fetch period end: {e}")

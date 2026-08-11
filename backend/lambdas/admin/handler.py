@@ -588,8 +588,9 @@ def handle_reset_my_quota(admin_id, body):
     now = datetime.now(timezone.utc).isoformat()
 
     # 1. Update joboss-users
-    user_expr = "SET dailySwipesUsed = :z, aiTailoringsUsed = :z, aiTailoringsMonth = :m"
-    user_vals = {":z": 0, ":m": ""}
+    user_expr = ("SET dailySwipesUsed = :z, aiTailoringsUsed = :z, "
+                 "aiTailoringsMonth = :m, quotaResetAt = :now")
+    user_vals = {":z": 0, ":m": "", ":now": now.replace("+00:00", "Z")}
     if plan in ("FREE", "PREMIUM", "PREMIUM_PLUS"):
         user_expr += ", #p = :p"
         user_vals[":p"] = plan

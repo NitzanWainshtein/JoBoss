@@ -54,7 +54,7 @@ function parseJobDescription(description = '') {
       currentSection.items.push(line.replace(/^[-•]\s*/, ''));
     });
 
-  return sections;
+  return sections.filter(section => section.items.length > 0);
 }
 
 function getJobSummary(description = '') {
@@ -144,7 +144,7 @@ function JobDetailModal({ job, onClose }) {
               </div>
             </div>
           )}
-          {job.description && (
+          {parseJobDescription(job.description).length > 0 && (
             <div style={modal.section}>
               <p style={modal.sectionTitle}>{t('swipe.jobDescription')}</p>
               <JobDescription description={job.description} />
@@ -1212,13 +1212,19 @@ const styles = {
   distance: { fontSize: '13px', fontWeight: 600, color: '#12A96F', margin: 0 },
   shortSummaryBlock: { marginTop: '4px' },
   shortSummaryTitle: { fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 4px'},
-  description: { fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, margin: 0 },
-  techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+  description: {
+    fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, margin: 0,
+    // Shrinkable and clamped: everything below it is flexShrink: 0, so this is
+    // the element that gives way when the card runs out of height.
+    flex: '0 1 auto', minHeight: 0, overflow: 'hidden',
+    display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical',
+  },
+  techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px', flexShrink: 0, overflow: 'hidden', maxHeight: '30px' },
   techBadge: { background: '#F1ECFF', color: '#7C5CFF', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(124,92,255,0.25)' },
-  tapHint: { display: 'flex', justifyContent: 'center', marginTop: 'auto', paddingTop: '12px' },
+  tapHint: { display: 'flex', justifyContent: 'center', marginTop: 'auto', paddingTop: '12px', flexShrink: 0 },
   detailsBtn: {
     display: 'inline-flex', alignItems: 'center', gap: '8px',
-    padding: '9px 20px', borderRadius: '999px',
+    padding: '9px 20px', borderRadius: '999px', flexShrink: 0,
     background: 'linear-gradient(135deg, #F3EEFF, #EAE1FF)',
     border: '1px solid rgba(124,92,255,0.28)',
     color: '#5B3DF5', fontSize: '13.5px', fontWeight: 800,

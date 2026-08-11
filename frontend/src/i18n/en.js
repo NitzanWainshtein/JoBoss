@@ -507,4 +507,6 @@ export default {
   'crop.saving': 'Saving...',
   'crop.cancel': 'Cancel',
   'login.showPassword': 'Show password',
+  'update.available': 'A new version is available',
+  'update.reload': 'Reload',
 };

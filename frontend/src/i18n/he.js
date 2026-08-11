@@ -507,4 +507,6 @@ export default {
   'crop.saving': 'שומר...',
   'crop.cancel': 'ביטול',
   'login.showPassword': 'הצג סיסמה',
+  'update.available': 'יש גרסה חדשה',
+  'update.reload': 'רענן',
 };

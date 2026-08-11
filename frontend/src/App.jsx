@@ -21,6 +21,7 @@ import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile, getSubscription } from './api';
 import LanguageProvider from './i18n/LanguageProvider.jsx';
+import UpdateBanner from './components/UpdateBanner.jsx';
 import './styles/global.css';
 
 function SplashScreen({ ready, onDone }) {
@@ -367,6 +368,7 @@ function App() {
 
   return (
     <LanguageProvider>
+      <UpdateBanner />
       <AnimatePresence>
         {showSplash && <SplashScreen ready={!loading} onDone={() => setShowSplash(false)} />}
       </AnimatePresence>

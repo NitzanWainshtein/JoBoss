@@ -371,19 +371,40 @@ function MatchModal({ score, breakdown, domains = [], onClose }) {
 }
 
 // ── Match score badge (stateless — parent controls open) ─────────────────────
+// Green through yellow and orange to red. Five stops rather than a continuous
+// ramp: a score should read as a band you can name, not a shade you squint at.
+function matchScoreColor(score) {
+  if (score >= 85) return '#22C55E';
+  if (score >= 70) return '#84CC16';
+  if (score >= 55) return '#EAB308';
+  if (score >= 40) return '#F97316';
+  return '#EF4444';
+}
+
 function MatchBadge({ score, onClick }) {
   const { t } = useTranslation();
-  const color = score >= 70 ? '#12A96F' : score >= 50 ? '#C2410C' : '#757575';
-  const bg    = score >= 70 ? '#EBFBF2' : score >= 50 ? '#FFF3E0' : '#F5F5F5';
+  const color = matchScoreColor(score);
   return (
     <div
       onClick={onClick}
-      style={{ fontSize: '12px', fontWeight: 700, color, background: bg,
-               border: `1px solid ${color}40`, padding: '4px 10px',
-               borderRadius: '20px', whiteSpace: 'nowrap', flexShrink: 0,
-               cursor: 'pointer', userSelect: 'none' }}
+      style={{
+        // Translucent so the job image reads through, with a dark scrim and
+        // blur so the coloured score stays legible over any photo.
+        fontSize: '12px', fontWeight: 800,
+        color: 'rgba(255,255,255,0.92)',
+        background: 'rgba(12,8,32,0.42)',
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.28)',
+        padding: '5px 11px', borderRadius: '999px',
+        whiteSpace: 'nowrap', flexShrink: 0,
+        cursor: 'pointer', userSelect: 'none',
+        display: 'inline-flex', alignItems: 'center', gap: '5px',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.28)',
+      }}
     >
-      {score}% {t('swipe.matchPct')} ℹ️
+      <span style={{ color, fontWeight: 900, textShadow: '0 1px 3px rgba(0,0,0,0.45)' }}>{score}%</span>
+      <span style={{ textShadow: '0 1px 3px rgba(0,0,0,0.45)' }}>{t('swipe.matchPct')}</span>
+      <span style={{ opacity: 0.8 }}>ℹ️</span>
     </div>
   );
 }
@@ -527,14 +548,17 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
         </div>
         {!locked && (
           <div style={styles.tapHint}>
-            <motion.img
-              src="/icons/clickHere_icon.png"
-              alt={t('swipe.tapForMore')}
-              style={{ width: 'min(200px, 65%)', height: 'auto', objectFit: 'contain' }}
-              draggable="false"
-              animate={!isDragging ? { y: [0, -5, 0], opacity: [0.85, 1, 0.85] } : {}}
+            {/* Was a PNG with "View Details" baked into the artwork, so it could
+                never follow the app language. Now real text. */}
+            <motion.div
+              style={styles.detailsBtn}
+              animate={!isDragging ? { y: [0, -3, 0] } : {}}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            />
+            >
+              <span style={styles.detailsBtnIcon}>✦</span>
+              <span>{t('swipe.fullDetails')}</span>
+              <span style={styles.detailsBtnArrow}>→</span>
+            </motion.div>
           </div>
         )}
       </div>
@@ -1192,6 +1216,18 @@ const styles = {
   techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   techBadge: { background: '#F1ECFF', color: '#7C5CFF', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(124,92,255,0.25)' },
   tapHint: { display: 'flex', justifyContent: 'center', marginTop: 'auto', paddingTop: '12px' },
+  detailsBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: '8px',
+    padding: '9px 20px', borderRadius: '999px',
+    background: 'linear-gradient(135deg, #F3EEFF, #EAE1FF)',
+    border: '1px solid rgba(124,92,255,0.28)',
+    color: '#5B3DF5', fontSize: '13.5px', fontWeight: 800,
+    boxShadow: '0 6px 18px rgba(124,92,255,0.18)',
+    whiteSpace: 'nowrap', userSelect: 'none',
+  },
+  detailsBtnIcon: { fontSize: '13px', color: '#7C5CFF' },
+  // U+2192 is bidi-mirrored, so it points the right way in both directions.
+  detailsBtnArrow: { fontSize: '15px', opacity: 0.75, lineHeight: 1 },
   lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
   lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '24px' },
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },

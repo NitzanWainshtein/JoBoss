@@ -468,4 +468,5 @@ export default {
   'settings.cat.applications': 'Applications',
   'settings.cat.general': 'General',
   'settings.back': 'Back',
+  'swipe.fullDetails': 'View full details',
 };

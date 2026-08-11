@@ -433,7 +433,7 @@ function ConfirmDeleteModal({ count, onConfirm, onCancel }) {
 }
 
 // ── Panel tab ─────────────────────────────────────────────────────────────────
-function PanelTab({ applications, userName }) {
+function PanelTab({ applications, userName, userImage }) {
   const { t } = useTranslation();
   const total        = applications.length;
   const manualPending = applications.filter(a => a.autoApplyStatus === 'manual').length;
@@ -469,7 +469,7 @@ function PanelTab({ applications, userName }) {
           </p>
         </div>
         <div style={{ width: '52px', height: '52px', borderRadius: '14px', overflow: 'hidden', background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <img src="/icons/panel_icons/male_profile.png" alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={userImage || "/icons/panel_icons/male_profile.png"} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       </div>
 
@@ -554,6 +554,7 @@ function ApplicationsPage() {
   const [mismatchState, setMismatchState] = useState(null);
   const [planKey, setPlanKey] = useState('FREE');
   const [userName, setUserName] = useState('');
+  const [userImage, setUserImage] = useState(null);
   const canTailorCV = planKey !== 'FREE';
   // Derived from the server (autoApplyStatus === 'pending_tailoring') on load,
   // updated live via tailorComplete/tailorError events. No localStorage — the
@@ -597,12 +598,17 @@ function ApplicationsPage() {
       .then(sub => setPlanKey(sub?.planKey || 'FREE'))
       .catch(() => setPlanKey('FREE'));
     getMyProfile()
-      .then(p => setUserName(p?.user?.fullName || p?.user?.email || ''))
+      .then(p => {
+        setUserName(p?.user?.fullName || p?.user?.email || '');
+        setUserImage(p?.user?.profileImageUrl || null);
+      })
       .catch(() => {});
 
     // התעדכנות מיידית כשהשם נערך מה-Navbar/פרופיל, בלי ריפרש.
     const onProfileUpdated = (e) => {
       if (e.detail?.fullName) setUserName(e.detail.fullName);
+      // null means "removed", undefined means "not part of this event".
+      if (e.detail?.profileImageUrl !== undefined) setUserImage(e.detail.profileImageUrl);
     };
     window.addEventListener('profile-updated', onProfileUpdated);
     return () => window.removeEventListener('profile-updated', onProfileUpdated);
@@ -975,7 +981,7 @@ function ApplicationsPage() {
 
         {/* ── Panel tab ── */}
         {pageTab === 'panel' && (
-          <PanelTab applications={applications} userName={userName} />
+          <PanelTab applications={applications} userName={userName} userImage={userImage} />
         )}
 
         {/* ── My applications tab ── */}

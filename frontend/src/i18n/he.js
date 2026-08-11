@@ -468,4 +468,5 @@ export default {
   'settings.cat.applications': 'הגשות',
   'settings.cat.general': 'כללי',
   'settings.back': 'חזרה',
+  'swipe.fullDetails': 'לפרטים מלאים',
 };

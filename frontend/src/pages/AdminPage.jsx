@@ -98,7 +98,10 @@ export default function AdminPage() {
 
   const doResetQuota = async (uid) => {
     try { await adminResetUserQuota(uid); showToast('Quota אופס'); load(); }
-    catch { showToast('שגיאה', false); }
+    catch (e) {
+      console.error('resetUserQuota failed:', e);
+      showToast(`שגיאה: ${e?.status || ''} ${e?.message || e?.code || 'unknown'}`, false);
+    }
   };
 
   const doBlock = async (uid, block) => {
@@ -163,9 +166,13 @@ export default function AdminPage() {
 
   const doResetMy = async () => {
     try {
-      await adminResetMyQuota(myPlan || undefined);
-      showToast('Quota שלך אופס' + (myPlan ? ` + Plan: ${myPlan}` : ''));
-    } catch { showToast('שגיאה', false); }
+      const r = await adminResetMyQuota(myPlan || undefined);
+      showToast(`Quota שלך אופס · Plan: ${r?.plan || myPlan || '?'}`);
+      await load();
+    } catch (e) {
+      console.error('resetMyQuota failed:', e);
+      showToast(`שגיאה: ${e?.status || ''} ${e?.message || e?.code || 'unknown'}`, false);
+    }
   };
 
   const confirmAction = async () => {

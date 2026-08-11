@@ -16,10 +16,21 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useTranslation from '../i18n/useTranslation';
 
+// There is no registered company yet, so the operator is the individual running
+// the service — which is legitimate and common for a solo product. Do NOT put an
+// invented company number or address here: the whole point of naming an operator
+// is so a user knows who actually holds their CV, and a fabricated identifier in
+// a document attached to real payments is a misrepresentation, not a shield.
+//
+// Whoever the Stripe account is verified against is the operator. Set that name
+// below. Once a company is registered, add `id` and `address` back and reference
+// them in the "who we are" sections.
 const COMPANY = {
-  name: 'joBoss Ltd.',
-  id: '###',
-  address: '###',
+  // Names the responsible party without claiming a legal entity that does not
+  // exist. Replace with the registered name once a company is formed.
+  name: 'צוות joBoss',
+  nameEn: 'the joBoss team',
+  brand: 'joBoss',
   email: 'joboss.appteam@gmail.com',
   a11yContact: 'רונן צרשניה',
 };
@@ -30,7 +41,7 @@ const DOCS = {
       title: 'תנאי שימוש',
       updated: 'עודכן לאחרונה: 11/08/2026',
       sections: [
-        ['כללי', `השימוש בשירות JoBoss ("השירות"), המופעל על ידי ${COMPANY.name} (ח.פ. ${COMPANY.id}), כפוף לתנאים אלה. השימוש בשירות מהווה הסכמה מלאה להם. אם אינך מסכים — אין לעשות שימוש בשירות.`],
+        ['כללי', `השימוש בשירות ${COMPANY.brand} ("השירות"), המופעל על ידי ${COMPANY.name}, כפוף לתנאים אלה. השימוש בשירות מהווה הסכמה מלאה להם. אם אינך מסכים — אין לעשות שימוש בשירות.`],
         ['מהות השירות', 'השירות מציג משרות ממקורות שונים, מאפשר סימון משרות, ומתאים קורות חיים באמצעות בינה מלאכותית. השירות אינו סוכנות השמה ואינו מתחייב למציאת עבודה, לזימון לראיון או לכל תוצאה תעסוקתית אחרת.'],
         ['הגשה אוטומטית בשמך', 'ככל שתפעיל את התכונה, אתה מסמיך אותנו במפורש להגיש מועמדות בשמך למשרות שסימנת, ולהעביר לצורך כך את קורות החיים ופרטיך למעסיקים ולצדדים שלישיים המפעילים את הליכי הגיוס. ההסמכה ניתנת לביטול בכל עת מתוך הגדרות החשבון. אינך רשאי להשתמש בתכונה זו כדי להגיש מידע כוזב או מטעה.'],
         ['התאמת קורות חיים ב-AI', 'התאמת קורות החיים נעשית באמצעים אוטומטיים ועלולה להכיל שגיאות. האחריות לבדוק את התוכן לפני שליחתו ולוודא את נכונותו מוטלת עליך בלבד. אין להשתמש בשירות כדי ליצור מצגי שווא לגבי השכלה, ניסיון או כישורים.'],
@@ -41,7 +52,7 @@ const DOCS = {
         ['שימוש אסור', 'אין לעשות שימוש בשירות באופן אוטומטי, לרבות סקרייפינג או גישה ממוכנת, אין לנסות לעקוף מגבלות מכסה, ואין להשתמש בשירות לכל מטרה בלתי חוקית.'],
         ['הגבלת אחריות', 'השירות ניתן כמות שהוא ("AS IS"). בכפוף לדין, לא נהיה אחראים לנזק עקיף, תוצאתי או אובדן הזדמנות תעסוקתית. אחריותנו הכוללת לא תעלה על הסכום ששילמת בפועל בשלושת החודשים שקדמו לאירוע.'],
         ['שינוי התנאים', 'אנו רשאים לעדכן תנאים אלה. שינוי מהותי יובא לידיעתך באמצעות השירות או בדוא"ל, ויכנס לתוקף במועד שיצוין.'],
-        ['דין וסמכות שיפוט', 'על תנאים אלה יחולו דיני מדינת ישראל, וסמכות השיפוט הבלעדית תהיה נתונה לבתי המשפט המוסמכים ב[מחוז].'],
+        ['דין וסמכות שיפוט', 'על תנאים אלה יחולו דיני מדינת ישראל, וסמכות השיפוט הבלעדית תהיה נתונה לבתי המשפט המוסמכים במחוז תל אביב.'],
         ['יצירת קשר', `לשאלות: ${COMPANY.email}`],
       ],
     },
@@ -49,7 +60,7 @@ const DOCS = {
       title: 'Terms of Use',
       updated: 'Last updated: 11/08/2026',
       sections: [
-        ['General', `Use of the JoBoss service (the "Service"), operated by ${COMPANY.name}, is subject to these terms. Using the Service constitutes full acceptance of them. If you do not agree, do not use the Service.`],
+        ['General', `Use of the JoBoss service (the "Service"), operated by ${COMPANY.nameEn}, is subject to these terms. Using the Service constitutes full acceptance of them. If you do not agree, do not use the Service.`],
         ['What the Service is', 'The Service surfaces job listings from various sources, lets you mark jobs, and tailors your CV using artificial intelligence. It is not a recruitment agency and makes no promise of employment, an interview, or any other outcome.'],
         ['Applying on your behalf', 'If you enable the feature, you expressly authorise us to submit applications on your behalf to jobs you have marked, and to transmit your CV and details to employers and to third parties operating their hiring processes. You may withdraw this authorisation at any time from your account settings. You may not use this feature to submit false or misleading information.'],
         ['AI CV tailoring', 'CV tailoring is performed automatically and may contain errors. You are solely responsible for reviewing the content before it is sent and for its accuracy. The Service must not be used to misrepresent your education, experience, or qualifications.'],
@@ -60,7 +71,7 @@ const DOCS = {
         ['Prohibited use', 'You may not access the Service by automated means, including scraping, attempt to circumvent quota limits, or use it for any unlawful purpose.'],
         ['Limitation of liability', 'The Service is provided "AS IS". Subject to law, we are not liable for indirect or consequential damage or lost employment opportunity. Our total liability shall not exceed the amount you actually paid in the three months preceding the event.'],
         ['Changes', 'We may update these terms. Material changes will be notified through the Service or by email and take effect on the date stated.'],
-        ['Governing law', 'These terms are governed by the laws of the State of Israel, with exclusive jurisdiction in the competent courts of [district].'],
+        ['Governing law', 'These terms are governed by the laws of the State of Israel, with exclusive jurisdiction in the competent courts of the Tel Aviv district.'],
         ['Contact', `Questions: ${COMPANY.email}`],
       ],
     },
@@ -71,7 +82,7 @@ const DOCS = {
       title: 'מדיניות פרטיות',
       updated: 'עודכן לאחרונה: 11/08/2026',
       sections: [
-        ['מי אנחנו', `${COMPANY.name} (ח.פ. ${COMPANY.id}), ${COMPANY.address}. לפניות בנושא פרטיות: ${COMPANY.email}`],
+        ['מי אנחנו', `השירות מופעל על ידי ${COMPANY.name}. נכון למועד זה השירות אינו מופעל על ידי חברה רשומה. לפניות בנושא פרטיות, לרבות מימוש זכות עיון, תיקון או מחיקה: ${COMPANY.email}`],
         ['איזה מידע אנו אוספים', 'פרטי חשבון (שם, כתובת דוא"ל, תמונת פרופיל); פרטי קשר ופרופיל תעסוקתי (טלפון, עיר, חברה נוכחית, רמת ניסיון, זמינות, תפקידים מועדפים, מגדר — ככל שנמסר); קורות חיים שהעלית ותוכנם; מיקום מועדף ורדיוס חיפוש; היסטוריית סימון משרות והגשות; ונתוני שימוש טכניים.'],
         ['קורות חיים', 'קורות החיים שאתה מעלה מכילים מידע אישי רחב. אנו שומרים אותם לצורך הפעלת השירות, מעבדים אותם באמצעים אוטומטיים לצורך התאמה למשרות, ומעבירים אותם למעסיקים אך ורק בהתאם לפעולה שביצעת או להסמכה שנתת.'],
         ['לשם מה אנו משתמשים במידע', 'אספקת השירות והתאמת משרות; התאמת קורות חיים; הגשת מועמדות בשמך ככל שהפעלת זאת; ניהול מנוי וחיוב; אבטחת מידע ומניעת שימוש לרעה; ושיפור השירות.'],
@@ -90,7 +101,7 @@ const DOCS = {
       title: 'Privacy Policy',
       updated: 'Last updated: 11/08/2026',
       sections: [
-        ['Who we are', `${COMPANY.name}, ${COMPANY.address}. Privacy enquiries: ${COMPANY.email}`],
+        ['Who we are', `The Service is operated by ${COMPANY.nameEn}. It is not currently operated by a registered company. Privacy enquiries, including requests to review, correct, or delete your data: ${COMPANY.email}`],
         ['What we collect', 'Account details (name, email, profile photo); contact and professional profile (phone, city, current employer, experience level, availability, preferred roles, gender — where provided); CVs you upload and their contents; preferred location and search radius; your job-marking and application history; and technical usage data.'],
         ['Your CV', 'A CV contains extensive personal information. We store it to operate the Service, process it by automated means to tailor it to jobs, and transmit it to employers only in accordance with an action you took or an authorisation you gave.'],
         ['How we use it', 'Providing the Service and matching jobs; tailoring CVs; submitting applications on your behalf where enabled; subscription and billing; security and abuse prevention; and improving the Service.'],
@@ -123,7 +134,7 @@ const DOCS = {
       title: 'Accessibility Statement',
       updated: 'Last updated: 11/08/2026',
       sections: [
-        ['Our commitment', `${COMPANY.name} is committed to providing an accessible service to all users, including people with disabilities, in accordance with the Israeli Equal Rights for Persons with Disabilities Law, 1998, and its regulations.`],
+        ['Our commitment', `${COMPANY.nameEn} is committed to providing an accessible service to all users, including people with disabilities, in accordance with the Israeli Equal Rights for Persons with Disabilities Law, 1998, and its regulations.`],
         ['Conformance level', 'We work to conform to Israeli Standard IS 5568 at Level AA, which is based on WCAG 2.0. Accessibility work is ongoing.'],
         ['What has been done', 'Keyboard navigation for interactive controls; state exposure for toggles via ARIA roles; dismissal of dialogs with the Escape key; text labels for graphical elements; and corrected text contrast ratios.'],
         ['Known limitations', 'The job-marking screen is gesture-based and a full keyboard alternative is in progress. Other components may not yet be fully accessible. We welcome reports of any accessibility issue.'],

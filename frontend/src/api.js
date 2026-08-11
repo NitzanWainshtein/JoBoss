@@ -237,6 +237,8 @@ export const adminGrantAdmin     = (uid, pass)  => apiCall('POST',   `/admin/use
 export const adminRevokeAdmin    = (uid, pass)  => apiCall('POST',   `/admin/users/${uid}/revoke-admin`, { password: pass });
 export const adminToggleJob      = (jid, act)   => apiCall('PUT',    `/admin/jobs/${jid}`,              { active: act });
 export const adminTriggerImport  = ()           => apiCall('POST',   '/admin/jobs/import',              {});
+export const adminImportStatus   = ()           => apiCall('GET',    '/admin/jobs/import-status');
+export const adminDeleteJobs     = (jobIds)     => apiCall('DELETE', '/admin/jobs',                     { jobIds });
 export const adminResetMyQuota   = (plan)       => apiCall('POST',   '/admin/reset-my-quota',           { plan });
 export const adminResetMySwipes  = ()           => apiCall('POST',   '/admin/reset-my-swipes',           {});
 

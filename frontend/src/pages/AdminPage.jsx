@@ -8,7 +8,8 @@ import { motion } from 'framer-motion';
 import {
   adminGetStats, adminGetUsers, adminGetJobs,
   adminUpdateUserPlan, adminResetUserQuota, adminBlockUser, adminDeleteUser,
-  adminGrantAdmin, adminRevokeAdmin, adminToggleJob, adminTriggerImport, adminResetMyQuota, adminResetMySwipes,
+  adminGrantAdmin, adminRevokeAdmin, adminToggleJob, adminTriggerImport,
+  adminImportStatus, adminDeleteJobs, adminResetMyQuota, adminResetMySwipes,
 } from '../api';
 
 const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: 'פרימיום', PREMIUM_PLUS: 'פרימיום+' };
@@ -62,6 +63,11 @@ export default function AdminPage() {
   const [myPlan, setMyPlan] = useState('');
   const [confirm, setConfirm] = useState(null);
   const [userSort, setUserSort] = useState('date_desc');
+  const [jobSort, setJobSort] = useState('date_desc');
+  const [jobSource, setJobSource] = useState('all');
+  const [selectedJobs, setSelectedJobs] = useState(new Set());
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [grantAdminTarget, setGrantAdminTarget] = useState(null); // { userId, email }
   const [grantAdminPass, setGrantAdminPass] = useState('');
   const [grantAdminLoading, setGrantAdminLoading] = useState(false);
@@ -165,8 +171,52 @@ export default function AdminPage() {
   };
 
   const doImport = async () => {
-    try { await adminTriggerImport(); showToast('Importer הופעל ברקע'); }
-    catch { showToast('שגיאה', false); }
+    if (importing) return;
+    setImportResult(null);
+    setImporting(true);
+    try {
+      await adminTriggerImport();
+    } catch (e) {
+      setImporting(false);
+      showToast(`שגיאה: ${e?.status || ''} ${e?.message || 'unknown'}`, false);
+      return;
+    }
+    // The importer runs async and cannot report back, so poll the delta the
+    // admin Lambda derives from a snapshot taken at trigger time.
+    const started = Date.now();
+    const poll = async () => {
+      if (Date.now() - started > 5 * 60 * 1000) { setImporting(false); return; }
+      try {
+        const st = await adminImportStatus();
+        if (st && !st.running) {
+          setImporting(false);
+          setImportResult({ added: st.added || 0, removed: st.removed || 0 });
+          load();
+          return;
+        }
+      } catch { /* keep polling; a transient failure is not a result */ }
+      setTimeout(poll, 5000);
+    };
+    setTimeout(poll, 6000);
+  };
+
+  const toggleJobSel = (jobId) => setSelectedJobs(prev => {
+    const next = new Set(prev);
+    if (next.has(jobId)) next.delete(jobId); else next.add(jobId);
+    return next;
+  });
+
+  const doDeleteJobs = async () => {
+    if (selectedJobs.size === 0) return;
+    if (!window.confirm(`למחוק ${selectedJobs.size} משרות לצמיתות?`)) return;
+    try {
+      const r = await adminDeleteJobs([...selectedJobs]);
+      showToast(`נמחקו ${r?.deleted ?? selectedJobs.size} משרות`);
+      setSelectedJobs(new Set());
+      load();
+    } catch (e) {
+      showToast(`שגיאה: ${e?.status || ''} ${e?.message || 'unknown'}`, false);
+    }
   };
 
   const doResetMy = async () => {
@@ -343,42 +393,101 @@ export default function AdminPage() {
         )}
 
         {/* JOBS */}
-        {!loading && tab === 'jobs' && (
+        {!loading && tab === 'jobs' && (() => {
+          const visibleJobs = jobs
+            .filter(j => jobSource === 'all' || j.source === jobSource)
+            .slice()
+            .sort((a, b) => {
+              if (jobSort === 'company') return (a.company || '').localeCompare(b.company || '');
+              if (jobSort === 'likes') return (b.likes || 0) - (a.likes || 0);
+              if (jobSort === 'date_asc') return (a.createdAt || '') > (b.createdAt || '') ? 1 : -1;
+              return (b.createdAt || '') > (a.createdAt || '') ? 1 : -1;
+            });
+          return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-              <button onClick={doImport}
-                style={{ background: 'linear-gradient(135deg,#6C4FD4,#1E2A4A)', color: 'white',
-                  border: 'none', borderRadius: 20, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-                ⚡ הפעל Importer
+            {/* Import result: real numbers derived from a snapshot taken when the
+                run was triggered, not a guess. */}
+            {importResult && (
+              <div style={{ background: '#EBFBF2', border: '1px solid #A9E9CB', borderRadius: 14,
+                padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#0E7A52' }}>
+                  נוספו {importResult.added} משרות חדשות · הוסרו {importResult.removed} משרות לא רלוונטיות
+                </span>
+                <button onClick={() => setImportResult(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#0E7A52' }}>✕</button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
+              <select value={jobSort} onChange={e => setJobSort(e.target.value)}
+                style={{ flex: '1 1 130px', minWidth: 0, padding: '7px 10px', borderRadius: 10,
+                  border: '1.5px solid #E9E4FB', background: 'white', fontSize: 12, fontWeight: 600, color: '#5A5478' }}>
+                <option value="date_desc">נשאבו לאחרונה</option>
+                <option value="date_asc">נשאבו ראשונים</option>
+                <option value="company">שם חברה</option>
+                <option value="likes">הכי אהובות</option>
+              </select>
+
+              <select value={jobSource} onChange={e => setJobSource(e.target.value)}
+                style={{ flex: '1 1 130px', minWidth: 0, padding: '7px 10px', borderRadius: 10,
+                  border: '1.5px solid #E9E4FB', background: 'white', fontSize: 12, fontWeight: 600, color: '#5A5478' }}>
+                <option value="all">כל המקורות</option>
+                {[...new Set(jobs.map(j => j.source).filter(Boolean))].sort().map(src => (
+                  <option key={src} value={src}>{src}</option>
+                ))}
+              </select>
+
+              {selectedJobs.size > 0 && (
+                <button onClick={doDeleteJobs}
+                  style={{ background: '#FF4D67', color: 'white', border: 'none', borderRadius: 999,
+                    padding: '7px 14px', cursor: 'pointer', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                  🗑 מחק ({selectedJobs.size})
+                </button>
+              )}
+
+              <button onClick={doImport} disabled={importing}
+                style={{ background: importing ? '#B9AEE8' : 'linear-gradient(135deg,#7C5CFF,#5B3DF5)', color: 'white',
+                  border: 'none', borderRadius: 999, padding: '8px 16px',
+                  cursor: importing ? 'default' : 'pointer', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                {importing ? '⏳ מייבא...' : '⚡ הפעל Importer'}
               </button>
             </div>
-            {jobs.map(j => (
+
+            {visibleJobs.map(j => (
               <div key={j.jobId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: j.active === false ? 0.55 : 1 }}>
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: j.isActive === false ? 0.55 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, direction: 'rtl' }}>
                   {/* button first in RTL flow = right side */}
+                  <input type="checkbox" checked={selectedJobs.has(j.jobId)}
+                    onChange={() => toggleJobSel(j.jobId)}
+                    style={{ width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
                   <ActionBtn
-                    label={j.active === false ? '▶ הפעל' : '⏸ השבת'}
-                    color={j.active === false ? '#4CAF50' : '#FF9800'}
-                    onClick={() => doToggleJob(j.jobId, j.active !== false)} />
+                    label={j.isActive === false ? '▶ הפעל' : '⏸ השבת'}
+                    color={j.isActive === false ? '#4CAF50' : '#FF9800'}
+                    onClick={() => doToggleJob(j.jobId, j.isActive !== false)} />
                   {/* info second in RTL flow = left side, all LTR */}
                   <div style={{ flex: 1, minWidth: 0, direction: 'ltr', textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <p style={{ fontWeight: 700, fontSize: 14, color: '#1E2A4A', margin: 0 }}>{j.company}</p>
-                      <Badge text={j.active === false ? 'לא פעיל' : 'פעיל'}
-                        color={j.active === false ? '#F44336' : '#4CAF50'} />
+                      <Badge text={j.isActive === false ? 'לא פעיל' : 'פעיל'}
+                        color={j.isActive === false ? '#F44336' : '#4CAF50'} />
                     </div>
                     <p style={{ fontSize: 13, color: '#6C4FD4', fontWeight: 600, margin: '2px 0' }}>{j.title}</p>
-                    <p style={{ fontSize: 11, color: '#bbb', margin: 0 }}>
+                    <p style={{ fontSize: 11, color: '#999', margin: 0 }}>
                       👍 {j.likes || 0} · 👎 {j.passes || 0} · 📍 {j.location || ''}
+                    </p>
+                    <p style={{ fontSize: 11, color: '#7C5CFF', fontWeight: 600, margin: '3px 0 0' }}>
+                      {j.source ? `🔗 ${j.source}` : '🔗 —'}
+                      {j.createdAt ? ` · 📅 נשאבה ${new Date(j.createdAt).toLocaleDateString('he-IL')}` : ''}
                     </p>
                   </div>
                 </div>
               </div>
             ))}
-            {jobs.length === 0 && <p style={{ textAlign: 'center', color: '#aaa', padding: 40 }}>אין משרות</p>}
+            {visibleJobs.length === 0 && <p style={{ textAlign: 'center', color: '#aaa', padding: 40 }}>אין משרות</p>}
           </div>
-        )}
+          );
+        })()}
 
         {/* SELF */}
         {tab === 'self' && (

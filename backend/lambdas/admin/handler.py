@@ -5,6 +5,7 @@
 
 import json
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -18,6 +19,15 @@ SWIPES_TABLE  = os.getenv("SWIPES_TABLE",  "joboss-swipes")
 JOBS_TABLE    = os.getenv("JOBS_TABLE",    "joboss-jobs")
 SUBS_TABLE    = os.getenv("SUBS_TABLE",    "joboss-subscriptions")
 IMPORTER_FN   = os.getenv("IMPORTER_FN",  "joboss-jobs-importer")
+IMPORT_SNAPSHOT_KEY = "lastImport"
+IMPORT_RUN_WINDOW_SECS = 240  # generous: observed runs take 45-190s
+
+# Reuses the jobs table with a reserved key rather than adding infrastructure
+# for a single row.
+try:
+    state_table = jobs_table
+except NameError:
+    state_table = None
 USER_POOL_ID  = os.getenv("USER_POOL_ID",  "us-east-1_a8enAwcyl")
 APP_CLIENT_ID = os.getenv("APP_CLIENT_ID", "5o1mg9dtkh7kjuvqu145oafv00")
 
@@ -516,9 +526,11 @@ def handle_delete_user(admin_id, user_id):
 
 def handle_list_jobs(admin_id):
     log_action(admin_id, "LIST_JOBS")
+    # The field is isActive, not active — the old projection asked for a name
+    # that does not exist, so every job came back with no status at all.
     jobs = scan_all(jobs_table, ProjectionExpression=
-                    "jobId, company, title, #loc, active, createdAt",
-                    ExpressionAttributeNames={"#loc": "location"})
+                    "jobId, company, title, #loc, isActive, createdAt, #src, applyUrl",
+                    ExpressionAttributeNames={"#loc": "location", "#src": "source"})
 
     swipe_counts = {}
     all_swipes = scan_all(swipes_table, ProjectionExpression="jobId, decision")
@@ -535,8 +547,70 @@ def handle_list_jobs(admin_id):
         j["likes"]  = swipe_counts.get(jid, {}).get("likes", 0)
         j["passes"] = swipe_counts.get(jid, {}).get("passes", 0)
 
-    jobs.sort(key=lambda j: j.get("likes", 0), reverse=True)
+    jobs.sort(key=lambda j: j.get("createdAt", ""), reverse=True)
     return resp(200, {"jobs": jobs, "total": len(jobs)})
+
+
+def handle_delete_jobs(admin_id, body):
+    """Bulk delete. Also clears the swipes that referenced them, otherwise a
+    user's history points at jobs that no longer exist."""
+    job_ids = body.get("jobIds") or []
+    if not isinstance(job_ids, list) or not job_ids:
+        return resp(400, {"error": "jobIds required"})
+    if len(job_ids) > 200:
+        return resp(400, {"error": "too many at once (max 200)"})
+
+    log_action(admin_id, "DELETE_JOBS", f"count={len(job_ids)}")
+
+    deleted = 0
+    with jobs_table.batch_writer() as batch:
+        for jid in job_ids:
+            batch.delete_item(Key={"jobId": jid})
+            deleted += 1
+
+    # Best effort: a failure here must not make the delete look unsuccessful.
+    swipes_removed = 0
+    try:
+        targets = set(job_ids)
+        stale = [sw for sw in scan_all(swipes_table, ProjectionExpression="userId, jobId")
+                 if sw.get("jobId") in targets]
+        with swipes_table.batch_writer() as batch:
+            for sw in stale:
+                batch.delete_item(Key={"userId": sw["userId"], "jobId": sw["jobId"]})
+                swipes_removed += 1
+    except Exception as e:
+        print(f"[ADMIN_ERROR] swipe cleanup after job delete: {e}")
+
+    return resp(200, {"success": True, "deleted": deleted, "swipesRemoved": swipes_removed})
+
+
+def _job_counts():
+    total = 0
+    active = 0
+    for j in scan_all(jobs_table, ProjectionExpression="jobId, isActive"):
+        total += 1
+        if j.get("isActive") is not False:
+            active += 1
+    return {"total": total, "active": active}
+
+
+def handle_import_status(admin_id):
+    """Delta between the snapshot taken at trigger time and now."""
+    snap = state_table.get_item(Key={"key": IMPORT_SNAPSHOT_KEY}).get("Item") if state_table else None
+    now = _job_counts()
+    if not snap:
+        return resp(200, {"running": False, "before": None, "now": now})
+
+    started = float(snap.get("startedAt", 0))
+    age = time.time() - started
+    return resp(200, {
+        "running": age < IMPORT_RUN_WINDOW_SECS,
+        "ageSecs": int(age),
+        "before": {"total": int(snap.get("total", 0)), "active": int(snap.get("active", 0))},
+        "now": now,
+        "added": max(0, now["total"] - int(snap.get("total", 0))),
+        "removed": max(0, int(snap.get("active", 0)) - now["active"]),
+    })
 
 
 def handle_toggle_job(admin_id, job_id, body):
@@ -555,6 +629,21 @@ def handle_toggle_job(admin_id, job_id, body):
 
 def handle_trigger_import(admin_id):
     log_action(admin_id, "TRIGGER_IMPORT")
+    # Snapshot first: the importer runs async and cannot report back to us
+    # (it is deploy-mode manual and bundles telethon), so the delta is derived
+    # here instead.
+    try:
+        counts = _job_counts()
+        if state_table:
+            state_table.put_item(Item={
+                "key": IMPORT_SNAPSHOT_KEY,
+                "startedAt": Decimal(str(time.time())),
+                "total": counts["total"],
+                "active": counts["active"],
+            })
+    except Exception as e:
+        print(f"[ADMIN_ERROR] import snapshot failed: {e}")
+
     try:
         lam.invoke(FunctionName=IMPORTER_FN, InvocationType="Event", Payload=b"{}")
         return resp(200, {"success": True, "message": "Import triggered"})
@@ -684,6 +773,12 @@ def lambda_handler(event, context):
         # Jobs list
         if method == "GET" and path.endswith("/admin/jobs"):
             return handle_list_jobs(admin_id)
+
+        if method == "GET" and path.endswith("/admin/jobs/import-status"):
+            return handle_import_status(admin_id)
+
+        if method == "DELETE" and path.endswith("/admin/jobs"):
+            return handle_delete_jobs(admin_id, body)
 
         # Trigger import
         if method == "POST" and path.endswith("/admin/jobs/import"):

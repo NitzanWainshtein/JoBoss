@@ -34,8 +34,20 @@ function LanguageProvider({ children }) {
 
   // Falls back to the Hebrew string, then to the key itself, so a missing
   // translation degrades to readable text instead of blank UI.
+  //
+  // `params` fills {placeholders}. Without it every string containing a number
+  // had to be built by concatenating fragments around the value, which does not
+  // survive translation — word order differs between Hebrew and English.
   const t = useCallback(
-    (key) => DICTIONARIES[language]?.[key] ?? DICTIONARIES.he[key] ?? key,
+    (key, params) => {
+      const raw = DICTIONARIES[language]?.[key] ?? DICTIONARIES.he[key] ?? key;
+      if (!params) return raw;
+      return raw.replace(/\{(\w+)\}/g, (match, name) =>
+        // An unknown placeholder is left verbatim — that reads as an obvious bug
+        // in the string, which is easier to spot than a silent empty gap.
+        Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match,
+      );
+    },
     [language],
   );
 

@@ -1,2 +1,15 @@
-telethon
-geopy
+# Bundled dependencies for the jobs-importer package.
+#
+# This Lambda is "manual" mode in infrastructure/deploy/deploy_all.py because
+# telethon needs Linux wheels — build the zip on Linux (or in a manylinux
+# container), not on Windows, or the import fails at runtime.
+#
+#   pip install -r requirements.txt -t package/
+#
+# boto3 is intentionally absent: the Lambda runtime provides it.
+#
+# Upper bounds keep a surprise major release from breaking a rebuild months from
+# now. Tighten to exact == pins by running `pip freeze` on the machine that built
+# the currently-deployed package if you want fully reproducible builds.
+telethon>=1.36,<2.0
+geopy>=2.4.1,<3.0

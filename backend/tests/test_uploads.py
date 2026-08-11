@@ -1,15 +1,9 @@
 # Unit tests for pure helpers in the uploads Lambda.
 
-import importlib.util
-import sys
-from pathlib import Path
+from conftest import load_lambda
 
-# uploads/ has no __init__.py and the file is lambda_function.py — load directly.
-_path = Path(__file__).resolve().parents[1] / "lambdas" / "uploads" / "lambda_function.py"
-_spec = importlib.util.spec_from_file_location("uploads_lambda", _path)
-uploads = importlib.util.module_from_spec(_spec)
-sys.modules["uploads_lambda"] = uploads
-_spec.loader.exec_module(uploads)
+# This Lambda's entry file is lambda_function.py, not handler.py.
+uploads = load_lambda("uploads", entry="lambda_function.py")
 
 
 def test_sanitize_strips_path_traversal():

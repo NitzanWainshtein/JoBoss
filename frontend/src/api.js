@@ -9,10 +9,37 @@ const getToken = async () => {
   return token;
 };
 
+// A request that never settles is worse than one that fails: the UI keeps its
+// spinner forever with no error to react to. Cap every call.
+const REQUEST_TIMEOUT_MS = 30000;
+
+// Session expiry used to surface as a wall of generic errors on every screen,
+// because each caller had to notice 401 for itself (and only one did). Handle it
+// once, here: sign out and bounce to /login so the user gets an explicable state.
+//
+// Guarded by a module-level flag — a screen that fires several calls in parallel
+// would otherwise trigger a signOut + redirect per failure.
+let signingOut = false;
+
+const forceSignOut = async () => {
+  if (signingOut) return;
+  signingOut = true;
+  try {
+    const { signOut } = await import('aws-amplify/auth');
+    await signOut();
+  } catch {
+    // Even if Amplify can't reach Cognito, still get the user to a sane screen.
+  }
+  window.location.href = '/login';
+};
+
 const apiCall = async (method, path, body = null) => {
   if (BASE_URL === 'mock') {
     return mockResponse(method, path, body);
   }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const token = await getToken();
@@ -23,6 +50,7 @@ const apiCall = async (method, path, body = null) => {
         'Authorization': token,
       },
       body: body ? JSON.stringify(body) : null,
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -31,13 +59,30 @@ const apiCall = async (method, path, body = null) => {
       error.status = response.status;
       error.code = err.code;
       error.data = err;
+
+      // 401 = the token is gone or no longer valid. Nothing the caller can do.
+      // A suspended account is a 403 with its own code and is deliberately left
+      // to App.jsx, which has a dedicated screen for it.
+      if (response.status === 401) {
+        forceSignOut();
+      }
+
       throw error;
     }
 
     return response.json();
   } catch (error) {
+    if (error.name === 'AbortError') {
+      const timeout = new Error('הבקשה ארכה יותר מדי — נסה שוב');
+      timeout.code = 'TIMEOUT';
+      timeout.status = 408;
+      console.error('API call timed out:', method, path);
+      throw timeout;
+    }
     console.error('API call failed:', method, path, error.message);
     throw error;
+  } finally {
+    clearTimeout(timer);
   }
 };
 
@@ -61,8 +106,6 @@ export const getJobs = async () => {
   return apiCall('GET', '/jobs');
 };
 
-export const getJobById = (jobId) => apiCall('GET', `/jobs/${jobId}`);
-
 // ===== SWIPES =====
 export const createSwipe = async (jobId, decision, extra = {}) => {
   return apiCall('POST', '/swipes', { jobId, decision, ...extra });
@@ -75,10 +118,8 @@ export const undoSwipe = async (jobId) => apiCall('DELETE', `/swipes/${jobId}`);
 export const getQuotaStatus = async () => apiCall('GET', '/swipes/quota');
 
 // ===== APPLICATIONS =====
-export const createApplication = async (jobId, { company = '', title = '', tailoredResumeUrl = '' } = {}) => {
-  return apiCall('POST', '/applications', { jobId, company, title, tailoredResumeUrl });
-};
-
+// Applications are created server-side by the swipes Lambda on a LIKE, so there
+// is deliberately no client-side create here.
 export const getMyApplications = async () => apiCall('GET', '/applications');
 
 export const updateApplication = async (jobId, status) => {
@@ -196,26 +237,13 @@ export const uploadResume = async (file) => {
 // ===== SUBSCRIPTIONS =====
 export const getSubscription = async () => apiCall('GET', '/subscriptions/me');
 
-export const getSubscriptionPlans = async () => apiCall('GET', '/subscriptions/plans');
-
 export const createCheckoutSession = async (plan) => {
   return apiCall('POST', '/subscriptions/checkout', { plan });
 };
 
 export const cancelSubscription = async () => apiCall('DELETE', '/subscriptions/me');
 
-// Aliases for SubscriptionPage compatibility
-export const getMySubscription = getSubscription;
-export const checkoutSubscription = createCheckoutSession;
-
 // ===== AI =====
-export const tailorResume = async (resumeText, jobDescription) => {
-  return apiCall('POST', '/ai/tailor', {
-    resume_text: resumeText,
-    job_description: jobDescription,
-  });
-};
-
 export const analyzeCV = async (resumeUrl) => {
   return apiCall('POST', '/ai/analyze-cv', { resumeUrl });
 };

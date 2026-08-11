@@ -1,5 +1,15 @@
-// Hebrew strings. Flat key → string map.
-// TODO: extend to other pages — currently only Navbar + ProfilePage are wired.
+// Hebrew strings. Flat key → string map. This is the reference dictionary: `t()`
+// falls back to it when a key is missing from the active language.
+//
+// Values may contain {placeholders} (filled by the second argument to `t`) and
+// <b>…</b> emphasis (rendered via i18n/richText.jsx — plain `t()` leaves the tags
+// as literal text, so only use them with renderRich).
+//
+// en.js must carry the same keys with the same placeholders. `npm run check:i18n`
+// enforces that, and CI runs it.
+//
+// Not yet wired (deliberate): AdminPage, and the DEV-only design playgrounds
+// (SwipeMockupPage, JobCardPreviewPage) — all internal, Hebrew-only surfaces.
 export default {
   // ── Navbar: bottom tabs ──
   'nav.jobs': 'משרות',
@@ -509,4 +519,76 @@ export default {
   'login.showPassword': 'הצג סיסמה',
   'update.available': 'יש גרסה חדשה',
   'update.reload': 'רענן',
+
+  // ── Limit modal (quota / AI gate) ──
+  'limit.titleSwipes': 'הגעת למגבלת ההחלקות היומית',
+  'limit.titleTailor': 'התאמת קורות חיים',
+  'limit.titleAiMonthly': 'הגעת למגבלת ה-AI החודשית',
+  'limit.aiMonthlyBody': 'הגעת ל-<b>10 התאמות AI</b> הכלולות בחבילת הפרימיום שלך החודש.',
+  'limit.aiMonthlyUpsell': 'שדרג לפרימיום+ וקבל התאמות AI ללא הגבלה.',
+  'limit.tailorPremiumOnly': "פיצ'ר התאמת קורות חיים חכמה על ידי AI זמין <b>למנויי פרימיום בלבד</b>.",
+  'limit.usedOfFree': 'השתמשת ב-<b>{used}</b> מתוך <b>{limit}</b> ההחלקות החינמיות שלך להיום.',
+  'limit.usedAllPremium': 'השתמשת בכל <b>{limit}</b> ההחלקות היומיות שלך במסלול פרימיום.',
+  'limit.resetsIn': 'המגבלה מתאפסת בעוד',
+  'limit.aiResetsNextMonth': 'מגבלת ה-AI מתאפסת ב-1 לחודש הבא',
+  'limit.later': 'אחר כך',
+  'limit.planPremium': 'פרימיום',
+  'limit.planPremiumPlus': 'פרימיום+',
+  'limit.perMonth': 'לחודש',
+  'limit.mostPopular': '🔥 הכי פופולרי',
+  'limit.upgradeNow': 'שדרג עכשיו',
+  'limit.featPremiumSwipes': '30 החלקות ביום',
+  'limit.featPremiumAi': '10 התאמות AI לחודש',
+  'limit.featAutoApply': 'Auto Apply',
+  'limit.featUnlimitedSwipes': 'החלקות ללא הגבלה',
+  'limit.featUnlimitedAi': 'AI ללא הגבלה',
+  'limit.featPriorityMatching': 'Priority Matching',
+  'limit.featAnalytics': 'Analytics מתקדם',
+
+  // ── Suspended account screen ──
+  'suspended.title': 'חשבונך הושהה',
+  'suspended.body': 'נחסמת על ידי צוות JoBoss.',
+  'suspended.contact': 'לפרטים ניתן לפנות לצוות:',
+  'suspended.logout': 'התנתק',
+
+  // ── Preference mismatch warning ──
+  'mismatch.title': 'המשרה אולי לא מתאימה',
+  'mismatch.defaultReason': 'ה-AI זיהה פערים משמעותיים בין הרקע שלך לדרישות המשרה.',
+  'mismatch.note': 'תוכל להמשיך בכל זאת ולקבל קורות חיים מותאמים ככל האפשר.',
+  'mismatch.cancel': 'בטל',
+  'mismatch.continue': 'המשך בכל זאת',
+
+  // ── Chrome extension auth bridge ──
+  'authExt.connecting': 'מתחבר לתוסף...',
+  'authExt.connected': 'מחובר!',
+  'authExt.closing': 'אפשר לסגור את החלון — הוא ייסגר אוטומטית.',
+  'authExt.failedTitle': 'לא ניתן להתחבר לתוסף',
+  'authExt.failedBody': 'ודא שתוסף JoBoss מותקן ופתח את החלון מתוך התוסף.',
+
+  // ── Dashboard ──
+  'dash.loading': 'טוען נתונים...',
+  'dash.noConnection': 'אין חיבור לשרת. אנא נסה שוב מאוחר יותר.',
+  'dash.retry': 'נסה שוב',
+  'dash.totalApplications': 'סה"כ הגשות',
+  'dash.accepted': 'התקבלו',
+  'dash.pending': 'ממתינות',
+  'dash.rejected': 'נדחו',
+  'dash.swipesLeftToday': 'החלקות שנותרו היום',
+  'dash.planUnlimited': 'ללא הגבלה',
+  'dash.planDailyLimit': 'מסלול {plan} — {limit} החלקות ביום',
+  'dash.upgradeCta': '⭐ שדרג לפרימיום — יותר החלקות ביום',
+  'dash.history': 'היסטוריית הגשות',
+  'dash.emptyTitle': 'אין הגשות עדיין',
+  'dash.emptySubtitle': 'התחל להחליק משרות כדי לראות אותן כאן',
+  'dash.statusAccepted': 'התקבלת',
+  'dash.statusPending': 'ממתין',
+  'dash.statusRejected': 'נדחה',
+  'dash.statusReviewed': 'נסקר',
+  'dash.statusInterview': 'ראיון',
+
+  // ── Error boundary ──
+  'error.title': 'משהו נשבר',
+  'error.body': 'נתקלנו בשגיאה בלתי צפויה. רענון הדף בדרך כלל פותר את זה.',
+  'error.reload': 'רענון הדף',
+  'error.backToJobs': 'חזרה למשרות',
 };

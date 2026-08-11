@@ -2,18 +2,38 @@
 <html lang="he" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/icons/app_icon_appstore.png" />
-    <link rel="apple-touch-icon" href="/icons/app_icon_appstore.png" />
+    <!-- Sized icons, not the 1254px source: the favicon and the iOS home-screen
+         icon are both rendered small, and pointing them at the app-store export
+         made every visit download 1.6MB of PNG for a 32px tab icon. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/app_icon_192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/app_icon_192.png" />
     <link rel="manifest" href="/manifest.json" />
+    <!-- NOTE: the app already uses env(safe-area-inset-*) in its layout padding,
+         but those resolve to 0 without `viewport-fit=cover`. Adding it makes the
+         insets take effect (correct clearance around a notch / home indicator)
+         and therefore changes layout on such devices — verify on a real iPhone
+         before enabling. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1E2A4A" />
+    <meta name="description" content="JoBoss — מצא את העבודה הבאה שלך בסוויפ. גלה משרות, הגש בלחיצה אחת, ועקוב אחרי כל התהליך במקום אחד." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="JoBoss" />
     <title>JoBoss</title>
+    <!-- Self-hosting would be better still, but at minimum stop the stylesheet
+         from blocking first paint: load it async and let the swap happen. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

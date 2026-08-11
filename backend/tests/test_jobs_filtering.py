@@ -4,12 +4,12 @@
 #
 # Run:  pytest backend/tests
 
-import sys
-from pathlib import Path
+from conftest import load_lambda
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lambdas" / "jobs"))
-
-import handler as jobs  # noqa: E402
+# Loaded by path rather than `sys.path` + `import handler`: every Lambda's entry
+# file is named handler.py, so with the plain import the second test file to ask
+# for one would silently receive whichever module loaded first.
+jobs = load_lambda("jobs")
 
 
 def job(title, description=""):

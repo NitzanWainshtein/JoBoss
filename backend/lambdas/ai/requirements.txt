@@ -1,1 +1,11 @@
-boto3
+# Nothing to install.
+#
+# This Lambda deploys in "single" mode (see infrastructure/deploy/deploy_all.py):
+# the package is just handler.py. boto3 is already present in the Python Lambda
+# runtime, so it must NOT be vendored — bundling it only inflates the package and
+# risks pinning an older client than the runtime provides.
+#
+# Kept as a file so the intent is recorded rather than looking like an omission.
+# If this handler ever needs a real third-party dependency, switch its entry in
+# deploy_all.py to "bundle" mode and add a vendor dir — adding a line here alone
+# will NOT get it deployed.

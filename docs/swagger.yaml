@@ -364,6 +364,65 @@ paths:
                   mode:              { type: string }
         '400':
           description: Job not relevant to candidate profile
+        '403':
+          description: |
+            AI tailoring is not available on the caller's plan (`AI_NOT_AVAILABLE`),
+            or the monthly tailoring quota is exhausted.
+
+  /ai/analyze-cv:
+    post:
+      summary: Analyse an uploaded CV
+      description: |
+        Extracts structured profile fields (role, seniority, skills, location) from
+        the stored resume via Bedrock, and backfills them onto the user record.
+        Used by the onboarding wizard to pre-fill preferences.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resumeUrl: { type: string, description: 's3:// URL of the resume to analyse' }
+      responses:
+        '200':
+          description: Extracted profile fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis: { type: object }
+        '404':
+          description: Resume not found
+
+  /ai/explain-failure:
+    post:
+      summary: Explain why an auto-apply attempt failed
+      description: |
+        Generates (and caches on the application record) a human-readable Hebrew
+        explanation for a failed Auto Apply run. Premium-only. The explanation is
+        generated at most once per failure — subsequent calls return the cached copy.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jobId: { type: string }
+      responses:
+        '200':
+          description: Explanation (freshly generated or cached)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  explanation: { type: object }
+                  cached:      { type: boolean }
+        '403':
+          description: Free plan — `NOT_AVAILABLE`
 
 # ── Subscriptions ─────────────────────────────────────────────────────────────
   /subscriptions/me:
@@ -411,24 +470,59 @@ paths:
 
   /subscriptions/consume:
     post:
-      summary: Consume one AI tailoring credit
+      deprecated: true
+      summary: '[REMOVED] Consume one AI tailoring credit'
+      description: |
+        Always returns 410. Daily usage is derived by counting today's applications
+        rather than kept in a separate counter, so there is nothing to consume.
+        Retained in the spec only so callers understand the 410.
+      responses:
+        '410':
+          description: Endpoint removed — quota is counted from applications
+
+  /subscriptions/webhook:
+    post:
+      summary: Stripe webhook
+      description: |
+        Receives Stripe subscription lifecycle events. Unauthenticated by design —
+        Stripe cannot present a Cognito token. Authenticity is established instead by
+        verifying the `Stripe-Signature` header against `STRIPE_WEBHOOK_SECRET`
+        (`stripe.Webhook.construct_event`); an unsigned or mis-signed body is
+        rejected with 400 before any state is touched.
+      security: []
+      parameters:
+        - in: header
+          name: Stripe-Signature
+          required: true
+          schema: { type: string }
       responses:
         '200':
-          description: Credit consumed
+          description: Event processed (or deliberately ignored)
+        '400':
+          description: Invalid webhook signature
 
 # ── Admin ─────────────────────────────────────────────────────────────────────
   /admin/{proxy+}:
     x-amazon-apigateway-any-method:
-      summary: Admin operations (internal use)
+      summary: Admin operations
       description: |
-        Endpoints for admin dashboard. No Cognito auth required — protect via network controls.
-        Includes: job management, user management, swipe reset, analytics.
+        Admin dashboard endpoints, routed through a single Lambda.
+
+        Requires a Cognito ID token **and** membership of the `ADMIN` group. The
+        Lambda rejects every non-OPTIONS request with 403 before routing if
+        `is_admin()` fails — checked from the authorizer claims, with a direct
+        Cognito `admin_list_groups_for_user` fallback for tokens issued before the
+        group was assigned. Every mutating action is written to the log as
+        `[ADMIN_AUDIT]`.
+
+        Includes: job management, user management, quota/swipe reset, analytics.
       parameters:
         - in: path
           name: proxy
           required: true
           schema: { type: string }
-      security: []
       responses:
         '200':
           description: Admin response
+        '403':
+          description: Caller is not in the ADMIN group

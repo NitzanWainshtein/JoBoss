@@ -2,50 +2,69 @@
 // - F-21: Personal Dashboard
 
 import { useState, useEffect } from 'react';
-import { getMyApplications, getMyProfile } from '../api';
+import { getMyApplications, getQuotaStatus } from '../api';
 import Spinner from '../components/Spinner';
+import useTranslation from '../i18n/useTranslation';
 
-const statusConfig = {
-  accepted:  { color: '#12A96F', label: 'התקבלת' },
-  pending:   { color: '#F5A623', label: 'ממתין' },
-  rejected:  { color: '#FF4D67', label: 'נדחה' },
-  SUBMITTED: { color: '#F5A623', label: 'ממתין' },
-  REVIEWED:  { color: '#3D8BF5', label: 'נסקר' },
-  INTERVIEW: { color: '#9C4DD4', label: 'ראיון' },
-  REJECTED:  { color: '#FF4D67', label: 'נדחה' },
-  ACCEPTED:  { color: '#12A96F', label: 'התקבלת' },
+// Status keys are whatever the backend has written over time — both the early
+// lowercase set and the current uppercase one. Colour here, label via i18n.
+const STATUS_COLORS = {
+  accepted:  '#12A96F',
+  pending:   '#F5A623',
+  rejected:  '#FF4D67',
+  SUBMITTED: '#F5A623',
+  REVIEWED:  '#3D8BF5',
+  INTERVIEW: '#9C4DD4',
+  REJECTED:  '#FF4D67',
+  ACCEPTED:  '#12A96F',
 };
 
-const DAILY_LIMIT = 10;
+const STATUS_LABEL_KEYS = {
+  accepted:  'dash.statusAccepted',
+  pending:   'dash.statusPending',
+  rejected:  'dash.statusRejected',
+  SUBMITTED: 'dash.statusPending',
+  REVIEWED:  'dash.statusReviewed',
+  INTERVIEW: 'dash.statusInterview',
+  REJECTED:  'dash.statusRejected',
+  ACCEPTED:  'dash.statusAccepted',
+};
 
 function DashboardPage() {
+  const { t } = useTranslation();
   const [applications, setApplications] = useState([]);
-  const [userPlan, setUserPlan] = useState('free');
-  const [swipesUsedToday] = useState(3);
+  // Quota comes from the API. It used to be a hardcoded `useState(3)` against a
+  // DAILY_LIMIT of 10 — neither matched the real per-tier limits (5/30/∞), so
+  // this card confidently displayed a number that was simply invented.
+  const [quota, setQuota] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    Promise.all([getMyApplications(), getMyProfile()])
-      .then(([appData, profileData]) => {
+    Promise.all([getMyApplications(), getQuotaStatus()])
+      .then(([appData, quotaData]) => {
         setApplications(appData.applications || []);
-        setUserPlan(profileData.user?.plan?.toLowerCase() || 'free');
+        setQuota(quotaData);
         setLoading(false);
       })
       .catch(() => {
-        setError('אין חיבור לשרת. אנא נסה שוב מאוחר יותר.');
+        setError(t('dash.noConnection'));
         setLoading(false);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const accepted = applications.filter(a => ['accepted', 'ACCEPTED'].includes(a.status)).length;
   const rejected = applications.filter(a => ['rejected', 'REJECTED'].includes(a.status)).length;
   const pending  = applications.filter(a => ['pending', 'SUBMITTED', 'REVIEWED'].includes(a.status)).length;
-  const swipesLeft = userPlan === 'premium' ? '∞' : DAILY_LIMIT - swipesUsedToday;
+
+  const isUnlimited = quota?.unlimited === true || quota?.limit === -1;
+  const swipesLeft = isUnlimited ? '∞' : (quota?.remaining ?? 0);
+  const isFreePlan = (quota?.plan || 'FREE') === 'FREE';
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-      <Spinner text="טוען נתונים..." />
+      <Spinner text={t('dash.loading')} />
     </div>
   );
 
@@ -57,7 +76,7 @@ function DashboardPage() {
         style={{ background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '12px 24px', cursor: 'pointer', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' }}
         onClick={() => window.location.reload()}
       >
-        נסה שוב
+        {t('dash.retry')}
       </button>
     </div>
   );
@@ -69,45 +88,49 @@ function DashboardPage() {
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
             <p style={styles.statNumber}>{applications.length}</p>
-            <p style={styles.statLabel}>סה"כ הגשות</p>
+            <p style={styles.statLabel}>{t('dash.totalApplications')}</p>
           </div>
           <div style={styles.statCard}>
             <p style={{ ...styles.statNumber, color: '#12A96F' }}>{accepted}</p>
-            <p style={styles.statLabel}>התקבלו</p>
+            <p style={styles.statLabel}>{t('dash.accepted')}</p>
           </div>
           <div style={styles.statCard}>
             <p style={{ ...styles.statNumber, color: '#F5A623' }}>{pending}</p>
-            <p style={styles.statLabel}>ממתינות</p>
+            <p style={styles.statLabel}>{t('dash.pending')}</p>
           </div>
           <div style={styles.statCard}>
             <p style={{ ...styles.statNumber, color: '#FF4D67' }}>{rejected}</p>
-            <p style={styles.statLabel}>נדחו</p>
+            <p style={styles.statLabel}>{t('dash.rejected')}</p>
           </div>
         </div>
 
         <div style={styles.quotaCard}>
           <div style={styles.quotaInfo}>
-            <p style={styles.quotaTitle}>הגשות שנותרו היום</p>
+            <p style={styles.quotaTitle}>{t('dash.swipesLeftToday')}</p>
             <p style={styles.quotaSubtitle}>
-              {userPlan === 'premium' ? 'מנוי פרימיום — ללא הגבלה' : `מנוי חינמי — ${DAILY_LIMIT} הגשות ביום`}
+              {isUnlimited
+                ? t('dash.planUnlimited')
+                : t('dash.planDailyLimit', { plan: quota?.plan || 'FREE', limit: quota?.limit ?? 0 })}
             </p>
           </div>
-          <div style={{ ...styles.quotaBadge, background: userPlan === 'premium' ? '#12A96F' : swipesLeft > 3 ? '#12A96F' : '#FF4D67' }}>
+          <div style={{ ...styles.quotaBadge, background: isUnlimited || swipesLeft > 3 ? '#12A96F' : '#FF4D67' }}>
             <p style={styles.quotaNumber}>{swipesLeft}</p>
           </div>
         </div>
 
-        {userPlan === 'free' && (
-          <button style={styles.upgradeBtn}>⭐ שדרג לפרימיום — הגשות ללא הגבלה</button>
+        {isFreePlan && (
+          <button style={styles.upgradeBtn} onClick={() => { window.location.href = '/subscription'; }}>
+            {t('dash.upgradeCta')}
+          </button>
         )}
 
-        <h2 style={styles.sectionTitle}>היסטוריית הגשות</h2>
+        <h2 style={styles.sectionTitle}>{t('dash.history')}</h2>
 
         {applications.length === 0 ? (
           <div style={styles.emptyApplications}>
             <p style={{ fontSize: '48px', margin: 0 }}>📋</p>
-            <p style={styles.emptyTitle}>אין הגשות עדיין</p>
-            <p style={styles.emptySubtitle}>התחל להחליק משרות כדי לראות אותן כאן</p>
+            <p style={styles.emptyTitle}>{t('dash.emptyTitle')}</p>
+            <p style={styles.emptySubtitle}>{t('dash.emptySubtitle')}</p>
           </div>
         ) : (
           <div style={styles.applicationsList}>
@@ -118,8 +141,8 @@ function DashboardPage() {
                   <p style={styles.appTitle}>{app.title}</p>
                   <p style={styles.appDate}>{app.createdAt?.slice(0, 10) || app.date || ''}</p>
                 </div>
-                <div style={{ ...styles.statusBadge, background: statusConfig[app.status]?.color || '#F5A623' }}>
-                  {statusConfig[app.status]?.label || 'ממתין'}
+                <div style={{ ...styles.statusBadge, background: STATUS_COLORS[app.status] || '#F5A623' }}>
+                  {t(STATUS_LABEL_KEYS[app.status] || 'dash.statusPending')}
                 </div>
               </div>
             ))}

@@ -1,1 +1,6 @@
-boto3
+# Nothing to install — boto3 ships with the Lambda Python runtime.
+#
+# NOTE: this directory has no entry in infrastructure/deploy/deploy_all.py, so it
+# is not covered by the standard deployer. Its code reaches AWS only as part of
+# the jobs_importer package (which imports job_description_ai.py) or by a manual
+# upload. Add it to LAMBDAS there if it ever becomes its own function.

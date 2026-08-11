@@ -36,7 +36,7 @@ LAMBDAS = [
     {"fn": "joboss-upload-resume",       "dir": "backend/lambdas/uploads",            "mode": "single", "entry": "lambda_function.py"},
     {"fn": "joboss-jobs-status-checker", "dir": "backend/lambdas/jobs_status_checker","mode": "dir",    "entry": "handler.py"},
     {"fn": "joboss-subscriptions",       "dir": "backend/lambdas/subscriptions",      "mode": "bundle", "entry": "handler.py",
-     "deps": ".tmp_lambda/stripe_pkg"},  # local artifact: pip install stripe -t .tmp_lambda/stripe_pkg
+     "deps": "backend/lambdas/subscriptions/vendor"},  # gitignored; rebuild: pip install stripe -t backend/lambdas/subscriptions/vendor
     {"fn": "joboss-admin",                "dir": "backend/lambdas/admin",              "mode": "single", "entry": "handler.py"},
     {"fn": "joboss-auto-apply",           "dir": "backend/lambdas/auto-apply",         "mode": "single", "entry": "handler.py"},
     {"fn": "joboss-jobs-importer",        "dir": "backend/lambdas/jobs_importer",      "mode": "manual", "entry": "handler.py",
@@ -63,6 +63,15 @@ def build_zip(entry_cfg):
                 z.write(p, p.name)
                 arcnames.add(p.name)
             deps = ROOT / entry_cfg["deps"]
+            # The deps dir is a gitignored local pip artifact, so on a fresh clone
+            # it simply is not there. Without this check we would upload a
+            # handler-only zip and strip stripe out of the running function —
+            # every checkout and webhook would start failing on ImportError.
+            if not deps.is_dir() or not any(deps.iterdir()):
+                raise FileNotFoundError(
+                    f"bundle deps dir '{entry_cfg['deps']}' is missing or empty. "
+                    f"Rebuild it first:  pip install stripe -t {entry_cfg['deps']}"
+                )
             for p in deps.rglob("*"):
                 if p.is_file():
                     arc = str(p.relative_to(deps)).replace("\\", "/")

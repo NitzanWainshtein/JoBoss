@@ -1,39 +1,53 @@
-# Local environment and secrets
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# Never relax these. The extension signing key was committed twice before these
+# patterns were broad enough to stop it (see 9235f1f) — a filename-specific rule
+# only protects the one filename you thought of.
 .env
 .env.*
 !.env.example
 *.session
+*.pem
+*.key
+*.p12
+*.pfx
+*.crx
 
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 .venv/
 venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# Node dependencies
+# ── Node ──────────────────────────────────────────────────────────────────────
 node_modules/
+.npm-cache/
 
-# Lambda deployment artifacts
+# ── Build output ──────────────────────────────────────────────────────────────
+frontend/dist/
+
+# ── Lambda deployment artifacts ───────────────────────────────────────────────
+# Deploy packages are built from source by infrastructure/deploy/deploy_all.py;
+# a zip in the tree is always stale and only invites deploying the wrong code.
+*.zip
 backend/lambdas/**/package/
-backend/lambdas/**/*.zip
+# Vendored pip deps for the subscriptions bundle. Rebuild with:
+#   pip install stripe -t backend/lambdas/subscriptions/vendor
+backend/lambdas/subscriptions/vendor/
 
-# Local IDE and OS files
+# ── Local IDE and OS files ────────────────────────────────────────────────────
 .idea/
+.vscode/
 .DS_Store
+Thumbs.db
 
-# Local test files
+# ── Local scratch ─────────────────────────────────────────────────────────────
 sample.pdf
 backend/lambdas/uploads/sample.pdf
-.npm-cache/
+# Ad-hoc probe/deploy scripts. The real deployers live in infrastructure/deploy/.
 .tmp_lambda/
-*.zip
-frontend/chrome-extension.pem
-frontend/chrome-extension.crx
-
 # Design mockup playground — local only, never commit
 mock_jobos/
-
-# Temp files / Lambda test outputs - may contain AWS credentials or user data
+# Temp files / Lambda test outputs — may contain AWS credentials or user data
 out*.json
 .claude/settings.local.json

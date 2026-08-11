@@ -1,7 +1,7 @@
 // JoBoss feature:
 // - F-24: Account Suspension Screen
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
@@ -10,19 +10,25 @@ import LoginPage from './pages/LoginPage.jsx';
 import SwipePage from './pages/SwipePage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
-import AdminPage from './pages/AdminPage.jsx';
 import ApplicationsPage from './pages/ApplicationsPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import AuthExtensionPage from './pages/AuthExtensionPage.jsx';
-import SwipeMockupPage from './pages/SwipeMockupPage.jsx';
-import JobCardPreviewPage from './pages/JobCardPreviewPage.jsx';
 import LegalPage from './pages/LegalPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
-import { createMyProfile, getSubscription } from './api';
+import Spinner from './components/Spinner.jsx';
+import { adminPing, createMyProfile, getMyProfile, getSubscription } from './api';
 import LanguageProvider from './i18n/LanguageProvider.jsx';
+import useTranslation from './i18n/useTranslation';
 import UpdateBanner from './components/UpdateBanner.jsx';
 import './styles/global.css';
+
+// Split out of the main bundle: none of these are on a path a normal user takes,
+// so there is no reason for every visitor to download them up front.
+// AdminPage in particular is admin-only and one of the largest pages in the app.
+const AdminPage = lazy(() => import('./pages/AdminPage.jsx'));
+const SwipeMockupPage = lazy(() => import('./pages/SwipeMockupPage.jsx'));
+const JobCardPreviewPage = lazy(() => import('./pages/JobCardPreviewPage.jsx'));
 
 function SplashScreen({ ready, onDone }) {
   // Show for a short minimum (branding) but dismiss as soon as auth resolved —
@@ -153,7 +159,12 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
         {/* Reachable signed-out too: consent links on the signup form point here. */}
         <Route path="/legal" element={<LegalPage />} />
         <Route path="/legal/:doc" element={<LegalPage />} />
-        <Route path="/swipe-mockup" element={<SwipeMockupPage />} />
+        {/* Design playgrounds — DEV only. They render static mockup art rather
+            than real data, so exposing them in production just invites confusion
+            about which screen is the real one. */}
+        {import.meta.env.DEV && (
+          <Route path="/swipe-mockup" element={<SwipeMockupPage />} />
+        )}
         {import.meta.env.DEV && (
           <Route path="/job-card-preview" element={<JobCardPreviewPage />} />
         )}
@@ -208,8 +219,21 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
           </PageTransition>
         } />
         <Route path="/" element={<Navigate to={home} />} />
+        {/* Anything unrecognised goes home rather than rendering nothing — a
+            stale bookmark or a mistyped deep link used to show a blank page. */}
+        <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </AnimatePresence>
+  );
+}
+
+// Fallback while a lazy route chunk loads. Full-height so the page does not
+// collapse and shift the layout underneath the navbar.
+function RouteFallback() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <Spinner />
+    </div>
   );
 }
 
@@ -224,6 +248,8 @@ function isAdminUser(session) {
 }
 
 function SuspendedScreen() {
+  const { t } = useTranslation();
+
   const handleSignOut = async () => {
     const { signOut } = await import('aws-amplify/auth');
     await signOut();
@@ -233,18 +259,18 @@ function SuspendedScreen() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 32, textAlign: 'center', background: 'var(--background)' }}>
       <img src="/app_logo.png" alt="JoBoss" style={{ width: 90, marginBottom: 24 }} />
-      <h2 style={{ color: '#1E2A4A', fontSize: 22, fontWeight: 800, margin: '0 0 12px' }}>חשבונך הושהה</h2>
+      <h2 style={{ color: '#1E2A4A', fontSize: 22, fontWeight: 800, margin: '0 0 12px' }}>{t('suspended.title')}</h2>
       <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6, margin: '0 0 4px' }}>
-        נחסמת על ידי צוות JoBoss.
+        {t('suspended.body')}
       </p>
       <p style={{ color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6, margin: '0 0 4px' }}>
-        לפרטים ניתן לפנות לצוות:
+        {t('suspended.contact')}
       </p>
       <a href="mailto:joboss.appteam@gmail.com" style={{ color: '#6C4FD4', fontWeight: 600, fontSize: 15, margin: '0 0 28px' }}>
         joboss.appteam@gmail.com
       </a>
       <button onClick={handleSignOut} style={{ background: '#1E2A4A', color: 'white', border: 'none', borderRadius: 12, padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-        התנתק
+        {t('suspended.logout')}
       </button>
     </div>
   );
@@ -289,7 +315,6 @@ function App() {
       let adminStatus = jwtAdmin;
       if (!jwtAdmin) {
         try {
-          const { adminPing } = await import('./api');
           await adminPing();
           adminStatus = true;
         } catch { /* 403 = not admin, any other error = ignore */ }
@@ -297,7 +322,6 @@ function App() {
       setIsAdmin(adminStatus);
       // Check onboarding status — keep loading=true until we know
       try {
-        const { getMyProfile } = await import('./api');
         const data = await getMyProfile();
         setOnboardingCompleted(data?.user?.onboardingCompleted === true);
         try {
@@ -387,12 +411,14 @@ function App() {
           <Router>
             {isLoggedIn && onboardingCompleted && !isAuthExtRoute && <Navbar isAdmin={isAdmin} planKey={planKey} />}
             <div style={{ paddingBottom: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? 'calc(72px + env(safe-area-inset-bottom, 0px))' : '0', paddingTop: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? 'calc(66px + env(safe-area-inset-top, 0px))' : '0' }}>
-              <AnimatedRoutes
-                isLoggedIn={isLoggedIn}
-                isAdmin={isAdmin}
-                onboardingCompleted={onboardingCompleted}
-                onOnboardingComplete={() => setOnboardingCompleted(true)}
-              />
+              <Suspense fallback={<RouteFallback />}>
+                <AnimatedRoutes
+                  isLoggedIn={isLoggedIn}
+                  isAdmin={isAdmin}
+                  onboardingCompleted={onboardingCompleted}
+                  onOnboardingComplete={() => setOnboardingCompleted(true)}
+                />
+              </Suspense>
             </div>
           </Router>
         )

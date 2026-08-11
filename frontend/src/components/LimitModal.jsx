@@ -4,10 +4,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import useTranslation from '../i18n/useTranslation';
+import renderRich from '../i18n/richText.jsx';
 
 function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mode = 'swipe', premiumAtLimit = false }) {
   const isTailorMode = mode === 'tailor';
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
@@ -54,52 +57,65 @@ function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mod
 
             <h2 style={styles.title}>
               {isTailorMode
-                ? premiumAtLimit ? 'הגעת למגבלת ה-AI החודשית' : 'התאמת קורות חיים'
-                : 'הגעת למגבלת ההחלקות היומית'}
+                ? t(premiumAtLimit ? 'limit.titleAiMonthly' : 'limit.titleTailor')
+                : t('limit.titleSwipes')}
             </h2>
             <p style={styles.sub}>
               {isTailorMode ? (
                 premiumAtLimit ? (
-                  <>הגעת ל-<strong>10 התאמות AI</strong> הכלולות בחבילת הפרימיום שלך החודש.<br />שדרג לפרימיום+ וקבל התאמות AI ללא הגבלה.</>
+                  <>
+                    {renderRich(t('limit.aiMonthlyBody'))}
+                    <br />
+                    {t('limit.aiMonthlyUpsell')}
+                  </>
                 ) : (
-                  <>פיצ'ר התאמת קורות חיים חכמה על ידי AI זמין <strong>למנויי פרימיום בלבד</strong>.</>
+                  renderRich(t('limit.tailorPremiumOnly'))
                 )
               ) : plan === 'FREE' ? (
-                <>השתמשת ב-<strong>{used}</strong> מתוך <strong>{limit}</strong> ההחלקות החינמיות שלך להיום.</>
+                renderRich(t('limit.usedOfFree', { used, limit }))
               ) : (
-                <>השתמשת בכל <strong>{limit}</strong> ההחלקות היומיות שלך במסלול פרימיום.</>
+                renderRich(t('limit.usedAllPremium', { limit }))
               )}
             </p>
 
             {!isTailorMode && (
               <div style={styles.countdownBox}>
-                <p style={styles.countdownLabel}>המגבלה מתאפסת בעוד</p>
+                <p style={styles.countdownLabel}>{t('limit.resetsIn')}</p>
                 <p style={styles.countdown}>{timeLeft || '--:--:--'}</p>
               </div>
             )}
 
             {isTailorMode && premiumAtLimit && (
               <div style={{ ...styles.countdownBox, background: '#FFF8E1' }}>
-                <p style={{ ...styles.countdownLabel, color: '#B45309' }}>מגבלת ה-AI מתאפסת ב-1 לחודש הבא</p>
+                <p style={{ ...styles.countdownLabel, color: '#B45309' }}>{t('limit.aiResetsNextMonth')}</p>
               </div>
             )}
 
             <div style={styles.plansRow}>
               {!premiumAtLimit && plan !== 'PREMIUM' && (
                 <PlanCard
-                  name="פרימיום"
+                  name={t('limit.planPremium')}
                   price="₪36"
-                  perMonth="לחודש"
-                  features={['30 החלקות ביום', '10 התאמות AI לחודש', 'Auto Apply']}
+                  perMonth={t('limit.perMonth')}
+                  features={[
+                    t('limit.featPremiumSwipes'),
+                    t('limit.featPremiumAi'),
+                    t('limit.featAutoApply'),
+                  ]}
                   color="#6C4FD4"
                   onClick={() => { onClose(); navigate('/profile?tab=subscription'); }}
                 />
               )}
               <PlanCard
-                name="פרימיום+"
+                name={t('limit.planPremiumPlus')}
                 price="₪72"
-                perMonth="לחודש"
-                features={['החלקות ללא הגבלה', 'AI ללא הגבלה', 'Priority Matching', 'Analytics מתקדם']}
+                perMonth={t('limit.perMonth')}
+                features={[
+                  t('limit.featUnlimitedSwipes'),
+                  t('limit.featUnlimitedAi'),
+                  t('limit.featPriorityMatching'),
+                  t('limit.featAnalytics'),
+                ]}
                 color="#FF6B6B"
                 highlight
                 onClick={() => { onClose(); navigate('/profile?tab=subscription'); }}
@@ -107,7 +123,7 @@ function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mod
             </div>
 
             <button style={styles.laterBtn} onClick={onClose}>
-              אחר כך
+              {t('limit.later')}
             </button>
           </motion.div>
         </motion.div>
@@ -117,6 +133,8 @@ function LimitModal({ visible, resetAt, used, limit, plan = 'FREE', onClose, mod
 }
 
 function PlanCard({ name, price, perMonth, features, color, highlight, onClick }) {
+  const { t } = useTranslation();
+
   return (
     <motion.button
       whileHover={{ scale: 1.03, y: -2 }}
@@ -129,7 +147,7 @@ function PlanCard({ name, price, perMonth, features, color, highlight, onClick }
       }}
       onClick={onClick}
     >
-      {highlight && <div style={styles.hotBadge}>🔥 הכי פופולרי</div>}
+      {highlight && <div style={styles.hotBadge}>{t('limit.mostPopular')}</div>}
       <p style={{ ...styles.planName, color: highlight ? 'white' : color }}>{name}</p>
       <p style={styles.planPrice}>
         {price}
@@ -147,7 +165,7 @@ function PlanCard({ name, price, perMonth, features, color, highlight, onClick }
         background: highlight ? 'rgba(255,255,255,0.25)' : color,
         color: 'white', fontSize: '13px', fontWeight: 700,
       }}>
-        שדרג עכשיו
+        {t('limit.upgradeNow')}
       </div>
     </motion.button>
   );
@@ -179,11 +197,12 @@ const styles = {
   planCard: {
     flex: 1, borderRadius: '16px', padding: '16px 12px', cursor: 'pointer',
     display: 'flex', flexDirection: 'column', gap: '4px',
-    position: 'relative', overflow: 'hidden', textAlign: 'right',
+    position: 'relative', overflow: 'hidden', textAlign: 'start',
     border: 'none',
   },
   hotBadge: {
-    position: 'absolute', top: '8px', left: '8px',
+    // Logical properties, not left/top: this modal renders in both RTL and LTR.
+    position: 'absolute', top: '8px', insetInlineStart: '8px',
     background: 'rgba(255,255,255,0.3)', fontSize: '10px', fontWeight: 700,
     padding: '2px 8px', borderRadius: '20px', color: 'white',
   },

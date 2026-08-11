@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "icons:optimize": "python scripts/optimize-icons.py",
+    "icons:pwa": "python scripts/generate-pwa-icons.py",
     "preview": "vite preview"
   },
   "dependencies": {

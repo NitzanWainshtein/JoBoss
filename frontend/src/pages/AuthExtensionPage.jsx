@@ -4,12 +4,14 @@
 
 import { useEffect, useState } from 'react';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import useTranslation from '../i18n/useTranslation';
 
 // Bridge page for the Chrome extension's "התחבר דרך JoBoss" flow.
 // The extension opens this page with ?ext=<extensionId>. If the user has a live
 // JoBoss session, we hand the Cognito idToken to the extension and close. If not,
 // we bounce to /login and come straight back here afterward.
 export default function AuthExtensionPage() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState('checking'); // checking | sent | error
 
   useEffect(() => {
@@ -60,21 +62,21 @@ export default function AuthExtensionPage() {
         {status === 'checking' && (
           <>
             <div style={styles.spinner}>⏳</div>
-            <p style={styles.title}>מתחבר לתוסף...</p>
+            <p style={styles.title}>{t('authExt.connecting')}</p>
           </>
         )}
         {status === 'sent' && (
           <>
             <div style={styles.check}>✅</div>
-            <p style={styles.title}>מחובר!</p>
-            <p style={styles.sub}>אפשר לסגור את החלון — הוא ייסגר אוטומטית.</p>
+            <p style={styles.title}>{t('authExt.connected')}</p>
+            <p style={styles.sub}>{t('authExt.closing')}</p>
           </>
         )}
         {status === 'error' && (
           <>
             <div style={styles.check}>⚠️</div>
-            <p style={styles.title}>לא ניתן להתחבר לתוסף</p>
-            <p style={styles.sub}>ודא שתוסף JoBoss מותקן ופתח את החלון מתוך התוסף.</p>
+            <p style={styles.title}>{t('authExt.failedTitle')}</p>
+            <p style={styles.sub}>{t('authExt.failedBody')}</p>
           </>
         )}
       </div>

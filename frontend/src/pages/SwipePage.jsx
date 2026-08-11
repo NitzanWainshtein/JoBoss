@@ -1109,12 +1109,6 @@ function SwipePage() {
         )}
       </div>
 
-      {/* Discoverability: the shortcuts are useless if nobody knows they exist.
-          Hidden on touch, where there is no keyboard to speak of. */}
-      {filteredJobs.length > 0 && !isBlocked && (
-        <p style={styles.kbdHint}>{t('swipe.kbdHint')}</p>
-      )}
-
       {/* Action buttons — hidden while loading quota or confirmed locked */}
       {filteredJobs.length > 0 && !isBlocked && (
         <div style={styles.buttons}>
@@ -1284,10 +1278,6 @@ const styles = {
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
   lockedSub: { fontSize: '13px', color: '#8B82B8', margin: 0 },
   lockedBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 20px', cursor: 'pointer', fontWeight: 800, fontSize: '14px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
-  kbdHint: {
-    margin: '6px 0 0', fontSize: '11px', fontWeight: 600, color: '#6B5E9E',
-    textAlign: 'center', opacity: 0.85,
-  },
   buttons: { display: 'flex', gap: '24px', marginTop: '8px', flexShrink: 0, alignItems: 'center', direction: 'ltr' },
   rejectBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   acceptBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },

@@ -37,6 +37,7 @@ LAMBDAS = [
     {"fn": "joboss-jobs-status-checker", "dir": "backend/lambdas/jobs_status_checker","mode": "dir",    "entry": "handler.py"},
     {"fn": "joboss-subscriptions",       "dir": "backend/lambdas/subscriptions",      "mode": "bundle", "entry": "handler.py",
      "deps": ".tmp_lambda/stripe_pkg"},  # local artifact: pip install stripe -t .tmp_lambda/stripe_pkg
+    {"fn": "joboss-admin",                "dir": "backend/lambdas/admin",              "mode": "single", "entry": "handler.py"},
     {"fn": "joboss-auto-apply",           "dir": "backend/lambdas/auto-apply",         "mode": "single", "entry": "handler.py"},
     {"fn": "joboss-jobs-importer",        "dir": "backend/lambdas/jobs_importer",      "mode": "manual", "entry": "handler.py",
      "reason": "bundles telethon (Linux wheels) — build & deploy via its own packaged zip"},
@@ -121,6 +122,17 @@ def deploy_one(cfg):
 def main():
     targets = sys.argv[1:]
     selected = [c for c in LAMBDAS if not targets or any(t in c["fn"] for t in targets)]
+
+    # A filter matching nothing used to deploy nothing and still print
+    # "Summary: ALL OK", which reads exactly like a successful run. That silence
+    # left joboss-admin undeployed for weeks while it looked like it had shipped.
+    unmatched = [t for t in targets if not any(t in c["fn"] for c in LAMBDAS)]
+    if unmatched:
+        print("!! No Lambda matches: " + ", ".join(unmatched))
+        print("   Known: " + ", ".join(c["fn"] for c in LAMBDAS))
+        if not selected:
+            print("Nothing to deploy - aborting.")
+            sys.exit(1)
 
     print(f"Deploying {len(selected)} Lambda(s) to {REGION}\n" + "=" * 70)
     results = []

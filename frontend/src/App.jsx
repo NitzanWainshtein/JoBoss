@@ -19,6 +19,7 @@ import JobCardPreviewPage from './pages/JobCardPreviewPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile, getSubscription } from './api';
+import LanguageProvider from './i18n/LanguageProvider.jsx';
 import './styles/global.css';
 
 function SplashScreen({ ready, onDone }) {
@@ -39,32 +40,93 @@ function SplashScreen({ ready, onDone }) {
     <motion.div
       initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.6 }}
+      exit={{ opacity: 0, scale: 1.04 }}
+      transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
       style={{
-        position: 'fixed', inset: 0,
-        background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
+        position: 'fixed', inset: 0, overflow: 'hidden',
+        background: 'linear-gradient(160deg, #241C56 0%, #4A35B8 55%, #7C5CFF 125%)',
         display: 'flex', flexDirection: 'column',
         justifyContent: 'center', alignItems: 'center',
-        zIndex: 9999, gap: '24px'
+        zIndex: 9999, gap: '26px',
       }}
     >
-      <motion.img
-        src="/app_logo.png"
-        alt="joBoss"
-        initial={{ scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5, type: 'spring' }}
-        style={{ width: '200px', borderRadius: '32px' }}
+      {/* Ambient blobs — same language as the app's aurora background. */}
+      <motion.div
+        aria-hidden
+        animate={{ x: [0, 28, 0], y: [0, -22, 0] }}
+        transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+        style={{
+          position: 'absolute', top: '-14%', right: '-16%',
+          width: '58vmin', height: '58vmin', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(157,124,255,0.55), transparent 68%)',
+          filter: 'blur(50px)', pointerEvents: 'none',
+        }}
       />
+      <motion.div
+        aria-hidden
+        animate={{ x: [0, -24, 0], y: [0, 26, 0] }}
+        transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
+        style={{
+          position: 'absolute', bottom: '-16%', left: '-14%',
+          width: '52vmin', height: '52vmin', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,94,138,0.38), transparent 70%)',
+          filter: 'blur(55px)', pointerEvents: 'none',
+        }}
+      />
+
+      {/* The logo art is dark, so it washes out directly on the gradient.
+          Seating it on a light tile keeps it legible and reads as an app icon. */}
+      <motion.div
+        initial={{ scale: 0.72, opacity: 0, y: 14 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 180, damping: 16 }}
+        style={{ position: 'relative', zIndex: 1 }}
+      >
+        <motion.div
+          animate={{ y: [0, -7, 0] }}
+          transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            background: 'rgba(255,255,255,0.96)',
+            borderRadius: '34px',
+            padding: '26px 34px',
+            boxShadow: '0 26px 70px rgba(15,8,50,0.45), 0 0 0 1px rgba(255,255,255,0.25)',
+          }}
+        >
+          <img src="/app_logo.png" alt="joBoss" style={{ width: '180px', display: 'block' }} />
+        </motion.div>
+      </motion.div>
+
       <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.8 }}
-        transition={{ delay: 0.6 }}
-        style={{ color: 'white', fontSize: '16px', margin: 0 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 0.92, y: 0 }}
+        transition={{ delay: 0.35, duration: 0.5 }}
+        style={{
+          color: 'white', fontSize: '16px', fontWeight: 600, margin: 0,
+          letterSpacing: '0.2px', zIndex: 1, textShadow: '0 2px 12px rgba(0,0,0,0.25)',
+        }}
       >
         Find your next job, in a swipe
       </motion.p>
+
+      {/* Indeterminate progress — signals work without faking a percentage. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        style={{
+          position: 'relative', width: '132px', height: '4px', borderRadius: '999px',
+          background: 'rgba(255,255,255,0.18)', overflow: 'hidden', zIndex: 1,
+        }}
+      >
+        <motion.div
+          animate={{ x: ['-100%', '260%'] }}
+          transition={{ duration: 1.15, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute', inset: 0, width: '40%', borderRadius: '999px',
+            background: 'linear-gradient(90deg, transparent, #FFFFFF, transparent)',
+          }}
+        />
+      </motion.div>
     </motion.div>
   );
 }
@@ -115,6 +177,19 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
         <Route path="/profile" element={
           <PageTransition>
             {isLoggedIn ? <ProfilePage /> : <Navigate to="/login" />}
+          </PageTransition>
+        } />
+        {/* Settings and Subscription are real screens, not in-page panels, so
+            browser/hardware Back works and they are deep-linkable. Navbar keeps
+            the Profile tab lit on both. */}
+        <Route path="/settings" element={
+          <PageTransition>
+            {isLoggedIn ? <ProfilePage initialView="root" /> : <Navigate to="/login" />}
+          </PageTransition>
+        } />
+        <Route path="/subscription" element={
+          <PageTransition>
+            {isLoggedIn ? <ProfilePage initialView="subscription" /> : <Navigate to="/login" />}
           </PageTransition>
         } />
         <Route path="/applications" element={
@@ -273,7 +348,7 @@ function App() {
   }, []);
 
   return (
-    <>
+    <LanguageProvider>
       <AnimatePresence>
         {showSplash && <SplashScreen ready={!loading} onDone={() => setShowSplash(false)} />}
       </AnimatePresence>
@@ -282,16 +357,16 @@ function App() {
 
       {!showSplash && !isSuspended && (
         loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--background)' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'transparent' }}>
             <div style={{ textAlign: 'center' }}>
               <img src="/app_logo.png" alt="joBoss" style={{ width: '120px', marginBottom: '16px' }} />
-              <p style={{ color: '#6C4FD4', fontWeight: 600 }}>טוען...</p>
+              <p style={{ color: '#7C5CFF', fontWeight: 600 }}>טוען...</p>
             </div>
           </div>
         ) : (
           <Router>
             {isLoggedIn && onboardingCompleted && !isAuthExtRoute && <Navbar isAdmin={isAdmin} planKey={planKey} />}
-            <div style={{ paddingBottom: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? '64px' : '0', paddingTop: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? '56px' : '0' }}>
+            <div style={{ paddingBottom: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? 'calc(72px + env(safe-area-inset-bottom, 0px))' : '0', paddingTop: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? 'calc(66px + env(safe-area-inset-top, 0px))' : '0' }}>
               <AnimatedRoutes
                 isLoggedIn={isLoggedIn}
                 isAdmin={isAdmin}
@@ -303,7 +378,7 @@ function App() {
         )
       )}
 
-    </>
+    </LanguageProvider>
   );
 }
 

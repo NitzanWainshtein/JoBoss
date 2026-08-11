@@ -16,31 +16,47 @@
 }
 
 :root {
-  --primary: #6C4FD4;
-  --secondary: #4CC9F0;
+  /* Core palette (kept from current brand, refreshed) */
+  --primary: #7C5CFF;
+  --primary-dark: #5B3DF5;
+  --secondary: #FF5E8A;
   --dark: #1E2A4A;
-  --background: rgba(240, 238, 255, 0.25);
+  --background: #CFC6F2;
   --card-bg: #FFFFFF;
   --text-dark: #1E2A4A;
   --text-light: #6B7280;
-  --accept: #4CAF50;
-  --reject: #F44336;
-  --shadow: 0 8px 32px rgba(108, 79, 212, 0.15);
-  --gradient: linear-gradient(135deg, #6C4FD4, #1E2A4A);
+  --text-muted: #9A8FD0;
+  --accept: #12A96F;
+  --reject: #FF4D67;
+  --warn: #F5A623;
+
+  /* New design-system tokens used across the redesign */
+  --gradient: linear-gradient(135deg, #7C5CFF, #5B3DF5);
+  --gradient-hero: linear-gradient(135deg, #5B3DF5 0%, #7C5CFF 60%, #9B7BFF 120%);
+  --gradient-login: linear-gradient(170deg, #2A2160 0%, #4A35B8 55%, #7C5CFF 130%);
+  --shadow-soft: 0 8px 24px rgba(108, 79, 212, 0.12);
+  --shadow-card: 0 6px 20px rgba(108, 79, 212, 0.08);
+  --shadow-strong: 0 16px 40px rgba(91, 61, 245, 0.32);
+  --shadow-button: 0 10px 26px rgba(91, 61, 245, 0.35);
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.9);
 }
 
 body {
-  background-image: url('/icons/swipes_icons/screen_base_background.png');
-  background-size: cover;
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-attachment: scroll;
-  background-color: #E8E5FF;
+  background: linear-gradient(165deg, #F5F2FF 0%, #ECE6FF 45%, #F8F0FF 100%);
+  background-attachment: fixed;
   color: var(--text-dark);
   min-height: 100vh;
-  direction: rtl;
-  text-align: right;
 }
+
+/* Direction follows the <html dir> attribute, which LanguageProvider flips.
+   Hardcoding `direction: rtl` on body here would override that attribute and
+   pin the whole app to RTL regardless of the selected language. */
+html[dir='rtl'] body { direction: rtl; text-align: right; }
+html[dir='ltr'] body { direction: ltr; text-align: left; }
 
 /* Mixed Hebrew/English: each text block picks its own direction & alignment.
    Hebrew → RTL/right, English → LTR/left — automatically per element. */
@@ -48,4 +64,140 @@ p, h1, h2, h3, h4, h5, h6, li, label, td, th, blockquote, figcaption,
 input, textarea, select, option {
   unicode-bidi: plaintext;
   text-align: start;
+}
+
+/* ── Ambient "aurora" blobs behind the app shell ──────────────────────────
+   z-index MUST stay negative: a positioned element at z-index 0 paints above
+   non-positioned block/inline content, which would put these over the page
+   text. At -1 they sit above the body gradient but behind everything else.
+   position: fixed keeps them out of flow, so they never add scrollbars. */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: -1;
+  will-change: transform;
+}
+
+body::before {
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.28), transparent 70%);
+  top: -120px;
+  inset-inline-end: -100px;
+}
+
+body::after {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255, 94, 138, 0.16), transparent 70%);
+  bottom: -80px;
+  inset-inline-start: -90px;
+}
+
+/* Third, larger wash tying the two together mid-screen. Attached to #root so
+   it does not need a third body pseudo-element. */
+#root::before {
+  content: '';
+  position: fixed;
+  width: 420px;
+  height: 420px;
+  top: 38%;
+  inset-inline-start: -160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(155, 123, 255, 0.14), transparent 72%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body::before { animation: auroraDriftA 18s ease-in-out infinite alternate; }
+  body::after  { animation: auroraDriftB 22s ease-in-out infinite alternate; }
+}
+
+/* Translate only — no scale(). Scaling a blurred layer forces the compositor to
+   re-rasterize the 70px blur every frame, which janks on mobile; a pure
+   translate3d stays on the GPU. */
+@keyframes auroraDriftA {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-30px, 40px, 0); }
+}
+
+@keyframes auroraDriftB {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(35px, -30px, 0); }
+}
+
+/* ── Shared component primitives (new design system) ─────────────────── */
+
+.jb-glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.jb-hero-card {
+  background: var(--gradient-hero);
+  border-radius: var(--radius-lg);
+  color: white;
+  box-shadow: var(--shadow-strong);
+  position: relative;
+  overflow: hidden;
+}
+
+.jb-btn-primary {
+  background: var(--gradient);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-weight: 800;
+  box-shadow: var(--shadow-button);
+  cursor: pointer;
+  transition: transform .15s ease;
+}
+.jb-btn-primary:active { transform: scale(.97); }
+
+.jb-btn-ghost {
+  background: white;
+  color: var(--primary-dark);
+  border: 1.5px solid #C9BBFF;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.jb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #F1ECFF, #E9E0FF);
+  color: var(--primary-dark);
+}
+
+.jb-pill-toggle {
+  width: 48px;
+  height: 26px;
+  border-radius: 999px;
+  padding: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background .2s;
+  background: #DDD6F2;
+}
+.jb-pill-toggle.on { background: var(--accept); justify-content: flex-end; }
+.jb-pill-toggle:not(.on) { justify-content: flex-start; }
+.jb-pill-toggle > span {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: white; box-shadow: 0 2px 6px rgba(0,0,0,.25); display: block;
 }

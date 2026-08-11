@@ -57,7 +57,7 @@ const styles = {
     background: 'white', borderRadius: '24px', padding: '32px 24px',
     maxWidth: '380px', width: '100%', display: 'flex', flexDirection: 'column',
     alignItems: 'center', gap: '14px', boxShadow: '0 24px 64px rgba(0,0,0,0.22)',
-    direction: 'rtl', textAlign: 'center',
+    direction: 'inherit', textAlign: 'center',
   },
   iconWrap: {
     width: '68px', height: '68px', borderRadius: '50%',

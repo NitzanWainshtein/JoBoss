@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { updatePassword } from 'aws-amplify/auth';
 import { updateMyProfile } from '../api';
+import useTranslation from '../i18n/useTranslation';
 
 // ── Shared modal styles ───────────────────────────────────────────────────────
 export const modalStyles = {
@@ -45,6 +46,7 @@ export const modalStyles = {
 
 // ── Edit Profile Modal ────────────────────────────────────────────────────────
 export function EditProfileModal({ profile, onClose, onSaved }) {
+  const { t } = useTranslation();
   const nameParts = (profile?.fullName || '').split(' ');
   const [firstName, setFirstName] = useState(nameParts[0] || '');
   const [lastName,  setLastName]  = useState(nameParts.slice(1).join(' ') || '');
@@ -53,7 +55,7 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
   const [error,     setError]     = useState('');
 
   const handleSave = async () => {
-    if (!firstName.trim()) { setError('יש להזין שם פרטי'); return; }
+    if (!firstName.trim()) { setError(t('pm.firstNameRequired')); return; }
     setSaving(true); setError('');
     try {
       const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
@@ -64,7 +66,7 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
       onSaved({ fullName, email: email.trim() });
       onClose();
     } catch {
-      setError('שגיאה בשמירה, נסה שוב');
+      setError(t('pm.saveError'));
     } finally {
       setSaving(false);
     }
@@ -74,20 +76,20 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.sheet} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.handle} />
-        <h3 style={modalStyles.title}>עריכת פרטים אישיים</h3>
+        <h3 style={modalStyles.title}>{t('pm.editProfile')}</h3>
 
         <div style={modalStyles.field}>
-          <label style={modalStyles.label}>שם פרטי</label>
+          <label style={modalStyles.label}>{t('pm.firstName')}</label>
           <input style={modalStyles.input} value={firstName}
-            onChange={e => { setFirstName(e.target.value); setError(''); }} placeholder="שם פרטי" />
+            onChange={e => { setFirstName(e.target.value); setError(''); }} placeholder={t('pm.firstName')} />
         </div>
         <div style={modalStyles.field}>
-          <label style={modalStyles.label}>שם משפחה</label>
+          <label style={modalStyles.label}>{t('pm.lastName')}</label>
           <input style={modalStyles.input} value={lastName}
-            onChange={e => { setLastName(e.target.value); setError(''); }} placeholder="שם משפחה" />
+            onChange={e => { setLastName(e.target.value); setError(''); }} placeholder={t('pm.lastName')} />
         </div>
         <div style={modalStyles.field}>
-          <label style={modalStyles.label}>כתובת מייל</label>
+          <label style={modalStyles.label}>{t('pm.email')}</label>
           <input style={modalStyles.input} type="email" value={email}
             onChange={e => { setEmail(e.target.value); setError(''); }} placeholder="example@email.com" />
         </div>
@@ -95,10 +97,10 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
         {error && <p style={modalStyles.error}>{error}</p>}
 
         <div style={modalStyles.btnRow}>
-          <button style={modalStyles.cancelBtn} onClick={onClose}>ביטול</button>
+          <button style={modalStyles.cancelBtn} onClick={onClose}>{t('pm.cancel')}</button>
           <button style={{ ...modalStyles.saveBtn, opacity: saving ? 0.7 : 1 }}
             onClick={handleSave} disabled={saving}>
-            {saving ? 'שומר...' : 'שמור'}
+            {saving ? t('pm.saving') : t('pm.save')}
           </button>
         </div>
       </div>
@@ -108,6 +110,7 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
 
 // ── Change Password Modal ─────────────────────────────────────────────────────
 export function ChangePasswordModal({ onClose }) {
+  const { t } = useTranslation();
   const [oldPass,  setOldPass]  = useState('');
   const [newPass,  setNewPass]  = useState('');
   const [confirm,  setConfirm]  = useState('');
@@ -116,9 +119,9 @@ export function ChangePasswordModal({ onClose }) {
   const [success,  setSuccess]  = useState(false);
 
   const handleSave = async () => {
-    if (!oldPass) { setError('יש להזין סיסמה נוכחית'); return; }
-    if (newPass.length < 8) { setError('הסיסמה החדשה חייבת להיות לפחות 8 תווים'); return; }
-    if (newPass !== confirm) { setError('הסיסמאות אינן תואמות'); return; }
+    if (!oldPass) { setError(t('pm.currentPassRequired')); return; }
+    if (newPass.length < 8) { setError(t('pm.passTooShort')); return; }
+    if (newPass !== confirm) { setError(t('pm.passMismatch')); return; }
     setSaving(true); setError('');
     try {
       await updatePassword({ oldPassword: oldPass, newPassword: newPass });
@@ -126,8 +129,8 @@ export function ChangePasswordModal({ onClose }) {
       setTimeout(onClose, 1500);
     } catch (err) {
       const msg = err?.message || '';
-      if (msg.includes('Incorrect') || msg.includes('incorrect')) setError('הסיסמה הנוכחית שגויה');
-      else setError('שגיאה בשינוי הסיסמה');
+      if (msg.includes('Incorrect') || msg.includes('incorrect')) setError(t('pm.wrongPass'));
+      else setError(t('pm.changePassError'));
     } finally {
       setSaving(false);
     }
@@ -137,32 +140,32 @@ export function ChangePasswordModal({ onClose }) {
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.sheet} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.handle} />
-        <h3 style={modalStyles.title}>החלפת סיסמא</h3>
+        <h3 style={modalStyles.title}>{t('pm.changePassTitle')}</h3>
 
         <div style={modalStyles.field}>
-          <label style={modalStyles.label}>סיסמה נוכחית</label>
+          <label style={modalStyles.label}>{t('pm.currentPass')}</label>
           <input style={modalStyles.input} type="password" value={oldPass}
             onChange={e => { setOldPass(e.target.value); setError(''); }} placeholder="••••••••" />
         </div>
         <div style={modalStyles.field}>
-          <label style={modalStyles.label}>סיסמה חדשה</label>
+          <label style={modalStyles.label}>{t('pm.newPass')}</label>
           <input style={modalStyles.input} type="password" value={newPass}
-            onChange={e => { setNewPass(e.target.value); setError(''); }} placeholder="לפחות 8 תווים" />
+            onChange={e => { setNewPass(e.target.value); setError(''); }} placeholder={t('pm.min8')} />
         </div>
         <div style={modalStyles.field}>
-          <label style={modalStyles.label}>אימות סיסמה חדשה</label>
+          <label style={modalStyles.label}>{t('pm.confirmNewPass')}</label>
           <input style={modalStyles.input} type="password" value={confirm}
-            onChange={e => { setConfirm(e.target.value); setError(''); }} placeholder="חזור על הסיסמה החדשה" />
+            onChange={e => { setConfirm(e.target.value); setError(''); }} placeholder={t('pm.repeatNewPass')} />
         </div>
 
         {error && <p style={modalStyles.error}>{error}</p>}
-        {success && <p style={{ ...modalStyles.error, color: '#4CAF50' }}>הסיסמה שונתה בהצלחה!</p>}
+        {success && <p style={{ ...modalStyles.error, color: '#4CAF50' }}>{t('pm.passChanged')}</p>}
 
         <div style={modalStyles.btnRow}>
-          <button style={modalStyles.cancelBtn} onClick={onClose}>ביטול</button>
+          <button style={modalStyles.cancelBtn} onClick={onClose}>{t('pm.cancel')}</button>
           <button style={{ ...modalStyles.saveBtn, opacity: saving ? 0.7 : 1 }}
             onClick={handleSave} disabled={saving || success}>
-            {saving ? 'מחליף...' : 'שנה סיסמה'}
+            {saving ? t('pm.changing') : t('pm.changePass')}
           </button>
         </div>
       </div>

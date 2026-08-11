@@ -7,6 +7,7 @@
 // - F-29: GPS Location Auto-Detection
 
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ICON_SIZES from '../iconSizes';
 import { getCurrentUser } from 'aws-amplify/auth';
 import {
@@ -16,6 +17,7 @@ import {
   uploadProfileImage,
   removeProfileImage,
   getSubscription,
+  getQuotaStatus,
   createCheckoutSession,
   cancelSubscription,
 } from '../api';
@@ -23,6 +25,7 @@ import SubscriptionPage from './SubscriptionPage';
 import LocationInput from '../components/LocationInput';
 import { JOB_CATEGORIES } from '../data/jobCategories';
 import { EditProfileModal, ChangePasswordModal } from '../components/ProfileModals';
+import useTranslation from '../i18n/useTranslation';
 
 // ── Subscription badge for profile header ────────────────────────────────────
 function PlanBadge({ planKey }) {
@@ -37,9 +40,78 @@ function PlanBadge({ planKey }) {
   return <img src={logo} alt={planKey} style={{ height: `${ICON_SIZES.planBadge}px`, objectFit: 'contain' }} />;
 }
 
+
+// ── Settings list row ────────────────────────────────────────────────────────
+// `trailing` decides the affordance: a chevron navigates, a switch flips in
+// place. Single switches deliberately stay on the row — burying a setting the
+// user flips often behind an extra tap is a regression, whatever the mockup does.
+function SettingsRow({ icon, title, subtitle, onClick, trailing, danger }) {
+  return (
+    <button type="button" onClick={onClick} style={{ ...rowStyles.row, cursor: onClick ? 'pointer' : 'default' }}>
+      <span style={rowStyles.icon}>{icon}</span>
+      <span style={rowStyles.text}>
+        <span style={{ ...rowStyles.title, color: danger ? '#FF4D67' : '#1E2A4A' }}>{title}</span>
+        {subtitle && <span style={rowStyles.sub}>{subtitle}</span>}
+      </span>
+      {trailing === 'chevron'
+        ? <span style={rowStyles.chev}>›</span>
+        : trailing}
+    </button>
+  );
+}
+
+function Switch({ on, disabled, onChange }) {
+  return (
+    <div
+      onClick={e => { e.stopPropagation(); if (!disabled) onChange(); }}
+      style={{
+        width: 48, height: 27, borderRadius: 999, padding: 3, flexShrink: 0,
+        background: on ? '#12A96F' : '#DDD6F2', opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer', transition: 'background .2s',
+        display: 'flex', alignItems: 'center',
+      }}
+    >
+      <div style={{
+        width: 21, height: 21, borderRadius: '50%', background: 'white',
+        boxShadow: '0 2px 6px rgba(0,0,0,.25)',
+        transform: on ? 'translateX(21px)' : 'translateX(0)', transition: 'transform .2s',
+      }} />
+    </div>
+  );
+}
+
+const rowStyles = {
+  row: {
+    display: 'flex', alignItems: 'center', gap: 13, width: '100%',
+    padding: '14px 18px', background: 'transparent', border: 'none',
+    textAlign: 'start', direction: 'inherit',
+  },
+  icon: { fontSize: 19, width: 24, textAlign: 'center', flexShrink: 0 },
+  text: { display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 },
+  title: { fontSize: 14.5, fontWeight: 800 },
+  sub: { fontSize: 12, fontWeight: 600, color: '#9A8FD0' },
+  chev: { flexShrink: 0, fontSize: 22, color: '#C4BCE4', lineHeight: 1 },
+  group: { marginTop: 14 },
+  groupTitle: {
+    fontSize: 11, fontWeight: 800, color: '#9A8FD0',
+    margin: '0 4px 7px', letterSpacing: '.3px',
+  },
+  panelHeader: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '2px 0 6px',
+  },
+  backBtn: {
+    width: 34, height: 34, borderRadius: '50%', border: '1px solid #E9E4FB',
+    background: 'rgba(255,255,255,0.9)', cursor: 'pointer', fontSize: 18,
+    color: '#5A5478', lineHeight: 1, flexShrink: 0,
+  },
+  panelTitle: { fontSize: 17, fontWeight: 900, color: '#1E2A4A', flex: 1, textAlign: 'center' },
+};
+
 // ── Main ─────────────────────────────────────────────────────────────────────
-function ProfilePage() {
-  const [tab, setTab] = useState('profile'); // 'profile' | 'subscription'
+function ProfilePage({ initialView = null }) {
+  const { t, language, toggleLanguage, nextLanguage } = useTranslation();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState(initialView === 'subscription' ? 'subscription' : 'profile');
   const [profileImage, setProfileImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [userName, setUserName] = useState('');
@@ -59,6 +131,11 @@ function ProfilePage() {
   const [experienceLevel, setExperienceLevel] = useState('');
   const [availability, setAvailability] = useState('');
   const [showAllJobs, setShowAllJobs] = useState(() => localStorage.getItem('showAllJobs') === 'true');
+  // Powers the "Auto Apply Credits" row; failure is non-fatal (row hides).
+  const [quota, setQuota] = useState(null);
+  // Top-level view comes from the route (/settings, /subscription); the
+  // sub-panels below Settings stay local since they are one level deeper.
+  const [settingsView, setSettingsView] = useState(initialView === 'subscription' ? null : initialView);
   const [avatarMenuOpen,   setAvatarMenuOpen]   = useState(false);
   const [showEditModal,    setShowEditModal]    = useState(false);
   const [showChangePass,   setShowChangePass]   = useState(false);
@@ -67,11 +144,16 @@ function ProfilePage() {
   const profileLoaded = useRef(false); // true after first successful load
   const pendingSaveRef = useRef(null); // latest unsaved payload (for unmount flush)
 
+  useEffect(() => {
+    getQuotaStatus().then(setQuota).catch(() => {});
+  }, []);
+
+
   // Handle ?tab=subscription from LimitModal redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'subscription') {
-      setTab('subscription');
+      navigate('/subscription');
     }
   }, []);
 
@@ -144,7 +226,7 @@ function ProfilePage() {
       })
       .catch(() => {
         setLoadingProfile(false);
-        setProfileError('שגיאה בטעינת הפרופיל. נסה לרענן את הדף.');
+        setProfileError(t('profile.loadError'));
       });
   }, []);
 
@@ -249,7 +331,7 @@ function ProfilePage() {
   const handleAvatarImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('התמונה גדולה מדי (מקסימום 5MB)'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert(t('alert.imageTooLarge')); return; }
     setProfileImage(URL.createObjectURL(file));
     setUploadingImage(true);
     setAvatarMenuOpen(false);
@@ -259,7 +341,7 @@ function ProfilePage() {
       // Tell the Navbar (and anyone else) to refresh its avatar live.
       window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profileImageUrl: r.imageUrl } }));
     } catch {
-      alert('שגיאה בהעלאת התמונה');
+      alert(t('alert.imageUploadError'));
       setProfileImage(profile?.profileImageUrl || null);
     } finally {
       setUploadingImage(false);
@@ -269,7 +351,7 @@ function ProfilePage() {
 
   const handleRemoveProfileImage = async () => {
     setAvatarMenuOpen(false);
-    if (!window.confirm('להסיר את תמונת הפרופיל?')) return;
+    if (!window.confirm(t('profile.confirmRemovePhoto'))) return;
     const previous = profileImage;
     setProfileImage(null);
     try {
@@ -277,7 +359,7 @@ function ProfilePage() {
       window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profileImageUrl: null } }));
     } catch {
       setProfileImage(previous);
-      alert('שגיאה בהסרת התמונה');
+      alert(t('profile.removePhotoError'));
     }
   };
 
@@ -293,7 +375,7 @@ function ProfilePage() {
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      alert('יש להעלות קובץ PDF בלבד');
+      alert(t('profile.pdfOnly'));
       return;
     }
 
@@ -314,10 +396,10 @@ function ProfilePage() {
       const updated = await getMyProfile();
       setProfile(updated.user);
 
-      alert('✅ קורות החיים הועלו בהצלחה!');
+      alert(t('profile.resumeUploaded'));
       setCvFile(null);
     } catch {
-      alert('❌ שגיאה בהעלאה');
+      alert(t('profile.uploadError'));
     }
   };
 
@@ -328,12 +410,12 @@ function ProfilePage() {
       const updated = await getMyProfile();
       setProfile(updated.user);
     } catch {
-      alert('❌ שגיאה בעדכון');
+      alert(t('profile.updateError'));
     }
   };
 
   const handleDeleteResume = async (resumeId) => {
-    if (!confirm('למחוק את הקובץ?')) return;
+    if (!confirm(t('profile.confirmDeleteFile'))) return;
 
     try {
       await updateMyProfile({ action: 'delete', resumeId });
@@ -341,13 +423,13 @@ function ProfilePage() {
       const updated = await getMyProfile();
       setProfile(updated.user);
     } catch {
-      alert('❌ שגיאה במחיקה');
+      alert(t('profile.deleteError'));
     }
   };
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setGpsError('הדפדפן לא תומך ב-GPS');
+      setGpsError(t('profile.noGps'));
       return;
     }
     setGpsLoading(true);
@@ -367,7 +449,7 @@ function ProfilePage() {
           localStorage.setItem('jobLatitude', latitude);
           localStorage.setItem('jobLongitude', longitude);
         } catch {
-          setGpsError('לא הצלחנו לזהות את המיקום');
+          setGpsError(t('profile.gpsFailed'));
         } finally {
           setGpsLoading(false);
         }
@@ -376,8 +458,8 @@ function ProfilePage() {
         setGpsLoading(false);
         setGpsError(
           err.code === 1
-            ? 'נדחתה הגישה למיקום — אשר הרשאה בהגדרות הדפדפן'
-            : 'לא הצלחנו לאתר את המיקום'
+            ? t('profile.gpsDenied')
+            : t('profile.gpsNotFound')
         );
       },
       { timeout: 10000, maximumAge: 60000 }
@@ -411,7 +493,7 @@ function ProfilePage() {
           minHeight: '80vh',
         }}
       >
-        <p style={{ color: '#6C4FD4', fontWeight: 600 }}>טוען פרופיל...</p>
+        <p style={{ color: '#7C5CFF', fontWeight: 600 }}>{t('profile.loading')}</p>
       </div>
     );
   }
@@ -435,6 +517,9 @@ function ProfilePage() {
     <div style={styles.container}>
       <div style={styles.content}>
         {/* Profile header card */}
+        {/* Identity card: profile screen only — it was stacking above Settings
+            and Subscription, duplicating chrome on every visit. */}
+        {!settingsView && tab === 'profile' && (
         <div style={styles.card}>
           {/* Avatar with dropdown */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
@@ -454,14 +539,14 @@ function ProfilePage() {
                   <p style={styles.dropdownName}>{userName}</p>
                 </div>
                 {[
-                  { icon: '✏️', label: 'עריכת פרטים אישיים',  action: () => { setAvatarMenuOpen(false); setShowEditModal(true); } },
-                  { icon: '📷', label: uploadingImage ? 'מעלה תמונה...' : 'העלאת תמונת פרופיל', action: () => { setAvatarMenuOpen(false); profileImgInputRef.current?.click(); } },
-                  ...(profileImage ? [{ icon: '🗑️', label: 'הסרת תמונת פרופיל', action: handleRemoveProfileImage, danger: true }] : []),
-                  { icon: '🔑', label: 'החלפת סיסמא',          action: () => { setAvatarMenuOpen(false); setShowChangePass(true); } },
-                  { icon: '🚪', label: 'התנתקות',               action: handleLogout, danger: true },
+                  { icon: '✏️', label: t('menu.editProfile'), action: () => { setAvatarMenuOpen(false); setShowEditModal(true); } },
+                  { icon: '📷', label: uploadingImage ? t('menu.uploadingPhoto') : t('menu.uploadPhoto'), action: () => { setAvatarMenuOpen(false); profileImgInputRef.current?.click(); } },
+                  ...(profileImage ? [{ icon: '🗑️', label: t('menu.removePhoto'), action: handleRemoveProfileImage, danger: true }] : []),
+                  { icon: '🔑', label: t('menu.changePassword'), action: () => { setAvatarMenuOpen(false); setShowChangePass(true); } },
+                  { icon: '🚪', label: t('menu.logout'), action: handleLogout, danger: true },
                 ].map((item, i) => (
                   <button key={i}
-                    style={{ ...styles.dropdownItem, color: item.danger ? '#F44336' : '#1E2A4A' }}
+                    style={{ ...styles.dropdownItem, color: item.danger ? '#FF4D67' : '#1E2A4A' }}
                     onClick={item.action}>
                     <span style={{ fontSize: '16px', flexShrink: 0 }}>{item.icon}</span>
                     {item.label}
@@ -478,39 +563,174 @@ function ProfilePage() {
           <h2 style={styles.username}>{userName}</h2>
           <PlanBadge planKey={planKey} />
         </div>
+        )}
 
-        {/* Tabs */}
-        <div style={styles.tabs}>
-          <button
-            style={{
-              ...styles.tabBtn,
-              ...(tab === 'profile' ? styles.tabActive : {}),
-            }}
-            onClick={() => setTab('profile')}
-          >
-            <img src="/icons/profile_icon.png" alt="" style={{ width: `${ICON_SIZES.profileTab}px`, height: `${ICON_SIZES.profileTab}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />פרופיל
-          </button>
-
-          <button
-            style={{
-              ...styles.tabBtn,
-              ...(tab === 'subscription' ? styles.tabActive : {}),
-            }}
-            onClick={() => setTab('subscription')}
-          >
-            <img src="/icons/premium_icon.png" alt="" style={{ width: `${ICON_SIZES.profileTab}px`, height: `${ICON_SIZES.profileTab}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '4px' }} />מנוי
-          </button>
-        </div>
-
-        {/* Profile tab */}
+        {/* Profile body (also hosts the settings views) */}
         {tab === 'profile' && (
           <>
+            {!settingsView && (<>
+            {/* Account information — label → value rows, per the design.
+                "Member since" is omitted: the profile API does not return
+                createdAt. "Payment History" is omitted: no endpoint exists,
+                and a row that looks tappable but does nothing is worse than
+                no row at all. */}
+            <div style={styles.card}>
+              <h3 style={styles.cardTitle}>{t('profile.accountInfo')}</h3>
+
+              <div style={styles.infoList}>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>
+                    <img src="/icons/premium_icon.png" alt="" style={styles.infoIcon} />
+                    {t('profile.plan')}
+                  </span>
+                  <span style={styles.infoValue}>{t(`profile.plan.${planKey}`)}</span>
+                </div>
+
+                {profile?.email && (
+                  <div style={styles.infoRow}>
+                    <span style={styles.infoLabel}>
+                      <img src="/icons/members_icon.png" alt="" style={styles.infoIcon} />
+                      {t('profile.emailLabel')}
+                    </span>
+                    <span style={{ ...styles.infoValue, direction: 'ltr', unicodeBidi: 'plaintext' }}>
+                      {profile.email}
+                    </span>
+                  </div>
+                )}
+
+                {quota && (
+                  <div style={{ ...styles.infoRow, borderBottom: 'none' }}>
+                    <span style={styles.infoLabel}>
+                      <img src="/icons/robot_icon.png" alt="" style={styles.infoIcon} />
+                      {t('profile.aiCredits')}
+                    </span>
+                    <span style={styles.infoValue}>
+                      {quota.tailorLimit == null
+                        ? t('profile.unlimited')
+                        : `${Math.max(0, quota.tailorRemaining ?? 0)} ${t('profile.remaining')}`}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Navigational rows — icon | title + subtitle | chevron.
+                Toggles deliberately stay inline below; they are changed often
+                and burying them behind a tap would be a regression. */}
+            <div style={{ ...styles.card, padding: '6px 0', gap: 0 }}>
+              <button type="button" style={styles.navRow} onClick={() => navigate('/subscription')}>
+                <img src="/icons/premium_member_icon.png" alt="" style={styles.navRowIcon} />
+                <span style={styles.navRowText}>
+                  <span style={styles.navRowTitle}>{t('profile.subscription')}</span>
+                  <span style={styles.navRowSub}>{t('profile.subscriptionSub')}</span>
+                </span>
+                <span style={styles.chevron}>›</span>
+              </button>
+
+              <button type="button" style={styles.navRow} onClick={() => navigate('/settings')}>
+                <span style={{ ...styles.navRowIcon, fontSize: '19px', textAlign: 'center' }}>⚙️</span>
+                <span style={styles.navRowText}>
+                  <span style={styles.navRowTitle}>{t('settings.title')}</span>
+                  <span style={styles.navRowSub}>{t('settings.sub')}</span>
+                </span>
+                <span style={styles.chevron}>›</span>
+              </button>
+            </div>
+            </>)}
+
+            {/* ── Settings panel header (shared by every settings view) ── */}
+            {settingsView && (
+              <div style={rowStyles.panelHeader}>
+                <button
+                  type="button"
+                  style={rowStyles.backBtn}
+                  aria-label={t('settings.back')}
+                  onClick={() => (settingsView === 'root' ? navigate('/profile') : setSettingsView('root'))}
+                >
+                  {language === 'en' ? '←' : '→'}
+                </button>
+                <span style={rowStyles.panelTitle}>
+                  {settingsView === 'root' ? t('settings.title')
+                    : settingsView === 'jobPrefs' ? t('settings.jobPrefs')
+                    : t('settings.locationSearch')}
+                </span>
+                <span style={{ width: 34, flexShrink: 0 }} />
+              </div>
+            )}
+
+            {/* ── Settings root: categorised list ── */}
+            {settingsView === 'root' && (<>
+              <div style={rowStyles.group}>
+                <p style={rowStyles.groupTitle}>{t('settings.cat.account')}</p>
+                <div style={{ ...styles.card, padding: '4px 0', gap: 0 }}>
+                  <SettingsRow icon="👤" title={t('settings.personal')} subtitle={t('settings.personalSub')}
+                    trailing="chevron" onClick={() => setShowEditModal(true)} />
+                  <SettingsRow icon="🔑" title={t('settings.password')} subtitle={t('settings.passwordSub')}
+                    trailing="chevron" onClick={() => setShowChangePass(true)} />
+                </div>
+              </div>
+
+              <div style={rowStyles.group}>
+                <p style={rowStyles.groupTitle}>{t('settings.cat.preferences')}</p>
+                <div style={{ ...styles.card, padding: '4px 0', gap: 0 }}>
+                  <SettingsRow icon="🎯" title={t('settings.jobPrefs')} subtitle={t('settings.jobPrefsSub')}
+                    trailing="chevron" onClick={() => setSettingsView('jobPrefs')} />
+                  <SettingsRow icon="📍" title={t('settings.locationSearch')} subtitle={t('settings.locationSearchSub')}
+                    trailing="chevron" onClick={() => setSettingsView('location')} />
+                </div>
+              </div>
+
+              <div style={rowStyles.group}>
+                <p style={rowStyles.groupTitle}>{t('settings.cat.applications')}</p>
+                <div style={{ ...styles.card, padding: '4px 0', gap: 0 }}>
+                  <SettingsRow
+                    icon="🤖"
+                    title={t('profile.autoApply')}
+                    subtitle={planKey === 'FREE' ? t('profile.premiumRequired') : (autoApply ? t('profile.autoApplyOn') : t('profile.autoApplyOff'))}
+                    trailing={<Switch on={autoApply && planKey !== 'FREE'} disabled={planKey === 'FREE'} onChange={() => {
+                      const next = !autoApply;
+                      setAutoApply(next);
+                      localStorage.setItem('autoApply', next);
+                      updateMyProfile({ autoApply: next }).catch(() => {});
+                    }} />}
+                    onClick={planKey === 'FREE' ? () => navigate('/subscription') : undefined}
+                  />
+                  <SettingsRow
+                    icon="📄"
+                    title={t('profile.autoTailor')}
+                    subtitle={planKey === 'FREE' ? t('profile.premiumRequired') : (autoTailorCV ? t('profile.autoTailorOn') : t('profile.autoTailorOff'))}
+                    trailing={<Switch on={autoTailorCV && planKey !== 'FREE'} disabled={planKey === 'FREE'} onChange={() => {
+                      const next = !autoTailorCV;
+                      setAutoTailorCV(next);
+                      localStorage.setItem('autoTailorCV', next);
+                      updateMyProfile({ autoTailorCV: next }).catch(() => {});
+                    }} />}
+                    onClick={planKey === 'FREE' ? () => navigate('/subscription') : undefined}
+                  />
+                </div>
+              </div>
+
+              <div style={rowStyles.group}>
+                <p style={rowStyles.groupTitle}>{t('settings.cat.general')}</p>
+                <div style={{ ...styles.card, padding: '4px 0', gap: 0 }}>
+                  <SettingsRow
+                    icon="🌐"
+                    title={t('profile.language')}
+                    subtitle={t('profile.languageSub')}
+                    trailing={<span style={styles.navRowBadge}>{nextLanguage.flag} {nextLanguage.label}</span>}
+                    onClick={toggleLanguage}
+                  />
+                </div>
+              </div>
+            </>)}
+
+            {settingsView === 'location' && (<>
             {/* Location */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}><img src="/icons/location_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />העדפות מיקום</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/location_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />{t('profile.section.locationPrefs')}</h3>
 
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={styles.settingLabel}>מיקום מועדף</p>
+                <p style={styles.settingLabel}>{t('profile.preferredLocation')}</p>
                 <LocationInput
                   value={location}
                   onChange={setLocation}
@@ -522,7 +742,7 @@ function ProfilePage() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '2px 0' }}>
                   <div style={{ flex: 1, height: '1px', background: '#eee' }} />
-                  <span style={{ fontSize: '12px', color: '#bbb' }}>או</span>
+                  <span style={{ fontSize: '12px', color: '#bbb' }}>{t('common.or')}</span>
                   <div style={{ flex: 1, height: '1px', background: '#eee' }} />
                 </div>
 
@@ -531,31 +751,31 @@ function ProfilePage() {
                   disabled={gpsLoading}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: '8px', width: '100%', padding: '12px', borderRadius: '12px',
-                    border: '1.5px solid #6C4FD4',
-                    background: gpsLoading ? '#F0F2FF' : 'white',
-                    color: '#6C4FD4', fontSize: '14px', fontWeight: 600,
+                    gap: '8px', width: '100%', padding: '12px', borderRadius: '999px',
+                    border: '1.5px solid #7C5CFF',
+                    background: gpsLoading ? '#F1ECFF' : 'white',
+                    color: '#7C5CFF', fontSize: '14px', fontWeight: 700,
                     cursor: gpsLoading ? 'not-allowed' : 'pointer',
                     transition: 'background 0.2s',
                   }}
                 >
-                  {gpsLoading ? 'מאתר מיקום... ⏳' : (
+                  {gpsLoading ? t('profile.locating') : (
                     <>
-                      זהה מיקום נוכחי אוטומטית
+                      {t('profile.useCurrentLocation')}
                       <img src="/icons/location_icon.png" alt="" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
                     </>
                   )}
                 </button>
 
                 {gpsError && (
-                  <p style={{ fontSize: '12px', color: '#F44336', margin: 0 }}>{gpsError}</p>
+                  <p style={{ fontSize: '12px', color: '#FF4D67', margin: 0 }}>{gpsError}</p>
                 )}
               </div>
 
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p style={styles.settingLabel}>רדיוס חיפוש</p>
-                  <span style={styles.radiusBadge}>{radius} ק"מ</span>
+                  <p style={styles.settingLabel}>{t('profile.radius')}</p>
+                  <span style={styles.radiusBadge}>{radius} {t('common.km')}</span>
                 </div>
 
                 <input
@@ -569,113 +789,23 @@ function ProfilePage() {
                 />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={styles.sliderLabel}>5 ק"מ</span>
-                  <span style={styles.sliderLabel}>100 ק"מ</span>
+                  <span style={styles.sliderLabel}>5 {t('common.km')}</span>
+                  <span style={styles.sliderLabel}>100 {t('common.km')}</span>
                 </div>
               </div>
             </div>
+            </>)}
 
-            {/* Auto apply */}
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}><img src="/icons/settings_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />הגדרות הגשה</h3>
-
-              <div style={styles.settingRow}>
-                <div>
-                  <p style={styles.settingLabel}>הגשה אוטומטית</p>
-                  <p style={styles.settingDesc}>
-                    {autoApply ? 'CV יישלח אוטומטית לכל משרה' : 'כל הגשה תחכה לאישורך'}
-                  </p>
-
-                  {planKey === 'FREE' && (
-                    <p style={{ fontSize: '11px', color: '#FF9800', margin: '4px 0 0 0' }}>
-                      ⚠️ דורש מנוי פרימיום
-                    </p>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    ...styles.toggle,
-                    background: autoApply && planKey !== 'FREE' ? '#4CAF50' : '#ccc',
-                    opacity: planKey === 'FREE' ? 0.5 : 1,
-                  }}
-                  onClick={() => {
-                    if (planKey !== 'FREE') {
-                      const next = !autoApply;
-                      setAutoApply(next);
-                      localStorage.setItem('autoApply', next);
-                      updateMyProfile({ autoApply: next }).catch(() => {});
-                    } else {
-                      setTab('subscription');
-                    }
-                  }}
-                >
-                  <div
-                    style={{
-                      ...styles.toggleCircle,
-                      transform: autoApply && planKey !== 'FREE' ? 'translateX(24px)' : 'translateX(0)',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  ...styles.settingRow,
-                  marginTop: '16px',
-                  paddingTop: '16px',
-                  borderTop: '1px solid #F0F0F0',
-                }}
-              >
-                <div>
-                  <p style={styles.settingLabel}>התאמת קורות חיים אוטומטית</p>
-                  <p style={styles.settingDesc}>
-                    {autoTailorCV ? 'ה-AI יתאים את קורות החיים לכל משרה שתאשר' : 'התאמה ידנית מעמוד ההגשות'}
-                  </p>
-
-                  {planKey === 'FREE' && (
-                    <p style={{ fontSize: '11px', color: '#FF9800', margin: '4px 0 0 0' }}>
-                      ⚠️ דורש מנוי פרימיום
-                    </p>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    ...styles.toggle,
-                    background: autoTailorCV && planKey !== 'FREE' ? '#6C4FD4' : '#ccc',
-                    opacity: planKey === 'FREE' ? 0.5 : 1,
-                  }}
-                  onClick={() => {
-                    if (planKey !== 'FREE') {
-                      const next = !autoTailorCV;
-                      setAutoTailorCV(next);
-                      localStorage.setItem('autoTailorCV', next);
-                      updateMyProfile({ autoTailorCV: next }).catch(() => {});
-                    } else {
-                      setTab('subscription');
-                    }
-                  }}
-                >
-                  <div
-                    style={{
-                      ...styles.toggleCircle,
-                      transform: autoTailorCV && planKey !== 'FREE' ? 'translateX(24px)' : 'translateX(0)',
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
+            {!settingsView && (<>
             {/* Resumes */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}><img src="/icons/cv_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />קורות חיים</h3>
-              <p style={styles.settingDesc}>ניתן להעלות עד 3 קבצים - התאמה אוטומטית תבוצע על הקובץ שנבחר כפעיל</p>
+              <h3 style={styles.cardTitle}><img src="/icons/cv_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />{t('profile.section.resumes')}</h3>
+              <p style={styles.settingDesc}>{t('profile.resumeLimitNote')}</p>
 
               {planKey === 'FREE' && (
                 <div style={styles.aiLockBanner}>
-                  התאמת AI זמינה רק במנוי פרימיום 🤖
-                  <button style={styles.aiUpgradeBtn} onClick={() => setTab('subscription')}>
+                  {t('profile.aiPremiumOnly')}
+                  <button style={styles.aiUpgradeBtn} onClick={() => navigate('/subscription')}>
                     שדרג
                   </button>
                 </div>
@@ -688,9 +818,9 @@ function ProfilePage() {
                       key={resume.resumeId}
                       style={{
                         padding: '12px',
-                        background: resume.isActive ? '#F0F2FF' : '#F5F5F5',
-                        borderRadius: '12px',
-                        border: resume.isActive ? '2px solid #6C4FD4' : '1px solid #E0E0E0',
+                        background: resume.isActive ? '#F1ECFF' : '#F5F3FC',
+                        borderRadius: '16px',
+                        border: resume.isActive ? '2px solid #7C5CFF' : '1px solid #E9E4FB',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -702,7 +832,7 @@ function ProfilePage() {
                           style={{
                             fontSize: '14px',
                             fontWeight: resume.isActive ? 700 : 600,
-                            color: resume.isActive ? '#6C4FD4' : '#333',
+                            color: resume.isActive ? '#7C5CFF' : '#333',
                           }}
                         >
                           {resume.isActive && '⭐ '}
@@ -719,17 +849,17 @@ function ProfilePage() {
                           <button
                             style={{
                               padding: '6px 12px',
-                              background: '#6C4FD4',
+                              background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
                               color: 'white',
                               border: 'none',
-                              borderRadius: '8px',
+                              borderRadius: '999px',
                               cursor: 'pointer',
                               fontSize: '12px',
-                              fontWeight: 600,
+                              fontWeight: 700,
                             }}
                             onClick={() => handleSetActive(resume.resumeId)}
                           >
-                            הפוך לפעיל
+                            {t('profile.setActive')}
                           </button>
                         )}
 
@@ -737,9 +867,9 @@ function ProfilePage() {
                           style={{
                             padding: '6px 12px',
                             background: 'transparent',
-                            color: '#F44336',
-                            border: '1px solid #F44336',
-                            borderRadius: '8px',
+                            color: '#FF4D67',
+                            border: '1px solid #FF4D67',
+                            borderRadius: '999px',
                             cursor: 'pointer',
                             fontSize: '12px',
                           }}
@@ -755,62 +885,64 @@ function ProfilePage() {
 
               {(!profile?.resumes || profile.resumes.length < 3) && (
                 <label style={styles.uploadBtn}>
-                  {cvFile ? `${cvFile.name} ✅` : 'העלה קורות חיים (PDF) 📎'}
+                  {cvFile ? `${cvFile.name} ✅` : t('profile.uploadResume')}
                   <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCvUpload} />
                 </label>
               )}
             </div>
+            </>)}
 
+            {settingsView === 'jobPrefs' && (<>
             {/* Experience & availability */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}><img src="/icons/search_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />העדפות חיפוש</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/search_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />{t('profile.section.searchPrefs')}</h3>
 
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={styles.settingLabel}>רמת ניסיון</p>
+                <p style={styles.settingLabel}>{t('profile.expLevel')}</p>
                 <select
                   value={experienceLevel}
                   onChange={(e) => setExperienceLevel(e.target.value)}
                   style={{ ...styles.input, appearance: 'none', cursor: 'pointer' }}
                 >
-                  <option value="">בחר רמה...</option>
-                  <option value="סטודנט">סטודנט</option>
-                  <option value="Junior">ג'וניור (0-2 שנים)</option>
-                  <option value="Mid">מיד (2-5 שנים)</option>
-                  <option value="Senior">סניור (5+ שנים)</option>
-                  <option value="Lead">לידרשיפ / ארכיטקט</option>
+                  <option value="">{t('profile.expPlaceholder')}</option>
+                  <option value="סטודנט">{t('profile.exp.student')}</option>
+                  <option value="Junior">{t('profile.exp.junior')}</option>
+                  <option value="Mid">{t('profile.exp.mid')}</option>
+                  <option value="Senior">{t('profile.exp.senior')}</option>
+                  <option value="Lead">{t('profile.exp.lead')}</option>
                 </select>
               </div>
 
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={styles.settingLabel}>זמינות</p>
+                <p style={styles.settingLabel}>{t('profile.availability')}</p>
                 <select
                   value={availability}
                   onChange={(e) => setAvailability(e.target.value)}
                   style={{ ...styles.input, appearance: 'none', cursor: 'pointer' }}
                 >
-                  <option value="">בחר זמינות...</option>
-                  <option value="מיידי">מיידי</option>
-                  <option value="תוך חודש">תוך חודש</option>
-                  <option value="סתם מסתכל">סתם מסתכל</option>
+                  <option value="">{t('profile.availPlaceholder')}</option>
+                  <option value="מיידי">{t('profile.avail.immediate')}</option>
+                  <option value="תוך חודש">{t('profile.avail.month')}</option>
+                  <option value="סתם מסתכל">{t('profile.avail.browsing')}</option>
                 </select>
               </div>
 
               <div style={{ ...styles.settingRow, marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #F0F0F0' }}>
                 <div style={{ flex: 1 }}>
-                  <p style={styles.settingLabel}>הצג את כל המשרות תמיד</p>
+                  <p style={styles.settingLabel}>{t('profile.showAllJobs')}</p>
                   <p style={styles.settingDesc}>
                     {showAllJobs
-                      ? 'מוצגות כל המשרות, כולל מחוץ לתחום שהגדרת'
-                      : 'מוצגות קודם משרות מהתחום שלך — שאר המשרות זמינות בלחיצה'}
+                      ? t('profile.showAllOn')
+                      : t('profile.showAllOff')}
                   </p>
                   <p style={{ fontSize: '11px', color: '#888', margin: '3px 0 0 0', lineHeight: 1.4 }}>
                     {showAllJobs
-                      ? '⚠️ ייתכן שתראה משרות פחות רלוונטיות לפרופיל שלך'
-                      : '💡 ניתן להציג משרות נוספות זמנית (30 דקות) מהמסך הראשי'}
+                      ? t('profile.showAllWarn')
+                      : t('profile.showAllHint')}
                   </p>
                 </div>
                 <div
-                  style={{ ...styles.toggle, background: showAllJobs ? '#6C4FD4' : '#ccc', flexShrink: 0 }}
+                  style={{ ...styles.toggle, background: showAllJobs ? '#7C5CFF' : '#ccc', flexShrink: 0 }}
                   onClick={() => {
                     const next = !showAllJobs;
                     setShowAllJobs(next);
@@ -825,7 +957,7 @@ function ProfilePage() {
 
             {/* Preferred roles */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}><img src="/icons/jobs_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />תפקידים מועדפים</h3>
+              <h3 style={styles.cardTitle}><img src="/icons/jobs_icon.png" alt="" style={{ width: `${ICON_SIZES.profileCardTitle}px`, height: `${ICON_SIZES.profileCardTitle}px`, objectFit: 'contain', verticalAlign: 'middle', marginLeft: '6px' }} />{t('profile.section.preferredRoles')}</h3>
 
               {preferredRoles.length > 0 ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%' }}>
@@ -835,7 +967,7 @@ function ProfilePage() {
                       onClick={() => setPreferredRoles((prev) => prev.filter((r) => r !== role))}
                       style={{
                         padding: '6px 14px',
-                        background: '#6C4FD4',
+                        background: '#7C5CFF',
                         color: 'white',
                         borderRadius: 20,
                         fontSize: 13,
@@ -848,7 +980,7 @@ function ProfilePage() {
                   ))}
                 </div>
               ) : (
-                <p style={styles.settingDesc}>לא נבחרו תפקידים עדיין</p>
+                <p style={styles.settingDesc}>{t('profile.noRoles')}</p>
               )}
 
               {showRoleEditor && (
@@ -873,8 +1005,8 @@ function ProfilePage() {
                               borderRadius: 20,
                               fontSize: 12,
                               cursor: 'pointer',
-                              border: `1px solid ${preferredRoles.includes(r) ? '#6C4FD4' : '#ddd'}`,
-                              background: preferredRoles.includes(r) ? '#6C4FD4' : 'white',
+                              border: `1px solid ${preferredRoles.includes(r) ? '#7C5CFF' : '#ddd'}`,
+                              background: preferredRoles.includes(r) ? '#7C5CFF' : 'white',
                               color: preferredRoles.includes(r) ? 'white' : '#555',
                             }}
                           >
@@ -891,28 +1023,45 @@ function ProfilePage() {
                 onClick={() => setShowRoleEditor(!showRoleEditor)}
                 style={{
                   padding: '8px 16px',
-                  background: '#F0EEFF',
-                  color: '#6C4FD4',
+                  background: '#F1ECFF',
+                  color: '#7C5CFF',
                   border: 'none',
-                  borderRadius: 12,
+                  borderRadius: 999,
                   cursor: 'pointer',
                   fontWeight: 600,
                   fontSize: 13,
                   alignSelf: 'flex-start',
                 }}
               >
-                {showRoleEditor ? '✓ סגור' : '✏️ ערוך תפקידים'}
+                {showRoleEditor ? t('profile.closeRoleEditor') : t('profile.editRoles')}
               </button>
             </div>
+            </>)}
 
+            {settingsView === 'root' && (
             <button style={styles.logoutBtn} onClick={handleLogout}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>התנתק<img src="/icons/logout_icon.png" alt="" style={{ width: `${ICON_SIZES.logout}px`, height: `${ICON_SIZES.logout}px`, objectFit: 'contain' }} /></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>{t('menu.logout')}<img src="/icons/logout_icon.png" alt="" style={{ width: `${ICON_SIZES.logout}px`, height: `${ICON_SIZES.logout}px`, objectFit: 'contain' }} /></span>
             </button>
+            )}
           </>
         )}
 
-        {/* Subscription tab */}
-        {tab === 'subscription' && <SubscriptionPage api={subApi} />}
+        {/* Subscription — its own screen, with the shared back header */}
+        {tab === 'subscription' && (<>
+          <div style={rowStyles.panelHeader}>
+            <button
+              type="button"
+              style={rowStyles.backBtn}
+              aria-label={t('settings.back')}
+              onClick={() => navigate('/profile')}
+            >
+              {language === 'en' ? '←' : '→'}
+            </button>
+            <span style={rowStyles.panelTitle}>{t('profile.subscription')}</span>
+            <span style={{ width: 34, flexShrink: 0 }} />
+          </div>
+          <SubscriptionPage api={subApi} />
+        </>)}
       </div>
 
       {showEditModal && (
@@ -935,7 +1084,7 @@ function ProfilePage() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'var(--background)',
+    background: 'transparent',
     display: 'flex',
     justifyContent: 'center',
   },
@@ -948,10 +1097,12 @@ const styles = {
     gap: '16px',
   },
   card: {
-    background: 'white',
-    borderRadius: '20px',
+    background: 'rgba(255,255,255,0.88)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.9)',
+    borderRadius: '24px',
     padding: '24px',
-    boxShadow: '0 2px 8px rgba(108,79,212,0.08)',
+    boxShadow: '0 6px 20px rgba(108,79,212,0.08)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -959,16 +1110,16 @@ const styles = {
   },
   avatarBtn: {
     width: '80px', height: '80px', borderRadius: '50%', padding: 0,
-    border: '3px solid rgba(108,79,212,0.3)', cursor: 'pointer',
+    border: '3px solid rgba(124,92,255,0.35)', cursor: 'pointer',
     overflow: 'hidden', position: 'relative', background: 'none',
-    boxShadow: '0 4px 16px rgba(108,79,212,0.2)',
+    boxShadow: '0 8px 22px rgba(108,79,212,0.28)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
   avatarEditBadge: {
     position: 'absolute', bottom: '-2px', right: '-2px',
     width: '26px', height: '26px', borderRadius: '50%',
-    background: '#6C4FD4', border: '2.5px solid white',
+    background: '#7C5CFF', border: '2.5px solid white',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: '11px', cursor: 'pointer',
     boxShadow: '0 2px 6px rgba(108,79,212,0.35)',
@@ -980,16 +1131,17 @@ const styles = {
   avatarDropdown: {
     position: 'absolute', top: 'calc(100% + 10px)', left: '50%',
     transform: 'translateX(-50%)',
-    background: 'white', borderRadius: '16px', minWidth: '220px',
-    boxShadow: '0 8px 32px rgba(108,79,212,0.18), 0 2px 8px rgba(0,0,0,0.1)',
-    border: '1px solid rgba(108,79,212,0.1)', overflow: 'hidden', zIndex: 300,
+    background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
+    borderRadius: '18px', minWidth: '220px',
+    boxShadow: '0 18px 50px rgba(70,45,160,0.25)',
+    border: '1px solid rgba(124,92,255,0.12)', overflow: 'hidden', zIndex: 300,
     animation: 'dropdownIn 0.18s ease',
   },
   dropdownHeader: {
-    padding: '14px 16px 10px', borderBottom: '1px solid #F3F4F6',
-    background: 'linear-gradient(135deg, rgba(108,79,212,0.06), rgba(30,42,74,0.04))',
+    padding: '14px 16px 10px', borderBottom: '1px solid #F1EEFC',
+    background: 'linear-gradient(135deg, rgba(124,92,255,0.08), rgba(255,94,138,0.05))',
   },
-  dropdownName: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E2A4A' },
+  dropdownName: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E2A4A' },
   dropdownItem: {
     display: 'flex', alignItems: 'center', gap: '10px',
     width: '100%', padding: '13px 16px', background: 'transparent',
@@ -1000,29 +1152,6 @@ const styles = {
     fontSize: '20px',
     fontWeight: 700,
     margin: 0,
-  },
-  tabs: {
-    display: 'flex',
-    gap: '8px',
-    background: 'white',
-    padding: '8px',
-    borderRadius: '16px',
-    boxShadow: '0 2px 8px rgba(108,79,212,0.08)',
-  },
-  tabBtn: {
-    flex: 1,
-    padding: '10px',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: '14px',
-    background: 'transparent',
-    color: '#777',
-  },
-  tabActive: {
-    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
-    color: 'white',
   },
   cardTitle: {
     fontSize: '16px',
@@ -1044,7 +1173,7 @@ const styles = {
   },
   settingDesc: {
     fontSize: '13px',
-    color: '#777',
+    color: '#9A8FD0',
     margin: '4px 0 0 0',
   },
   toggle: {
@@ -1069,26 +1198,27 @@ const styles = {
   },
   slider: {
     width: '100%',
-    accentColor: '#6C4FD4',
+    accentColor: '#7C5CFF',
     cursor: 'pointer',
   },
   sliderLabel: {
     fontSize: '12px',
-    color: '#999',
+    color: '#C4BCE4',
   },
   radiusBadge: {
-    background: '#F0F2FF',
-    color: '#6C4FD4',
+    background: '#F1ECFF',
+    color: '#7C5CFF',
     padding: '4px 12px',
-    borderRadius: '20px',
+    borderRadius: '999px',
     fontSize: '14px',
     fontWeight: 700,
   },
   input: {
     width: '100%',
-    padding: '12px 16px',
-    borderRadius: '12px',
-    border: '1.5px solid #eee',
+    padding: '13px 16px',
+    borderRadius: '14px',
+    border: '1.5px solid #E9E4FB',
+    background: '#F8F6FF',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -1098,9 +1228,10 @@ const styles = {
     top: '100%',
     left: 0,
     right: 0,
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+    background: 'rgba(255,255,255,0.97)',
+    backdropFilter: 'blur(20px)',
+    borderRadius: '16px',
+    boxShadow: '0 18px 50px rgba(70,45,160,0.22)',
     zIndex: 100,
     overflow: 'hidden',
     marginTop: '4px',
@@ -1109,52 +1240,86 @@ const styles = {
     padding: '12px 16px',
     cursor: 'pointer',
     fontSize: '13px',
-    borderBottom: '1px solid #f5f5f5',
+    borderBottom: '1px solid #F3F0FC',
   },
   uploadBtn: {
     width: '100%',
     padding: '14px',
-    borderRadius: '12px',
-    border: '2px dashed #6C4FD4',
-    color: '#6C4FD4',
-    fontWeight: 600,
+    borderRadius: '16px',
+    border: '2px dashed #7C5CFF',
+    color: '#7C5CFF',
+    fontWeight: 700,
     fontSize: '15px',
     cursor: 'pointer',
     textAlign: 'center',
-    background: '#F0F2FF',
+    background: '#F1ECFF',
   },
   aiLockBanner: {
     width: '100%',
-    background: '#FFF3E0',
-    border: '1px solid #FF9800',
-    borderRadius: '12px',
+    background: '#FFF4EC',
+    border: '1px solid #F5A623',
+    borderRadius: '16px',
     padding: '10px 14px',
     fontSize: '13px',
-    color: '#E65100',
+    color: '#C2410C',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     fontWeight: 600,
   },
   aiUpgradeBtn: {
-    background: '#FF9800',
+    background: '#F5A623',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '999px',
     padding: '4px 12px',
     cursor: 'pointer',
     fontSize: '12px',
     fontWeight: 700,
   },
+  /* ── Account information rows ──────────────────────────────────────── */
+  infoList: { width: '100%', display: 'flex', flexDirection: 'column' },
+  infoRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: '12px', padding: '11px 0', borderBottom: '1px solid #F3F0FC',
+  },
+  infoIcon: { width: '17px', height: '17px', objectFit: 'contain', flexShrink: 0 },
+  infoLabel: {
+    display: 'flex', alignItems: 'center', gap: '9px',
+    fontSize: '13.5px', fontWeight: 600, color: '#8B82B8', minWidth: 0,
+  },
+  infoValue: {
+    fontSize: '13.5px', fontWeight: 800, color: '#1E2A4A',
+    textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+
+  /* ── Navigational list rows ────────────────────────────────────────── */
+  navRow: {
+    display: 'flex', alignItems: 'center', gap: '12px', width: '100%',
+    padding: '13px 18px', background: 'transparent', border: 'none',
+    cursor: 'pointer', textAlign: 'start', direction: 'inherit',
+  },
+  navRowIcon: { width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0 },
+  navRowText: { display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 },
+  navRowTitle: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A' },
+  navRowSub: { fontSize: '12px', fontWeight: 600, color: '#9A8FD0' },
+  navRowBadge: {
+    flexShrink: 0, fontSize: '12.5px', fontWeight: 800, color: '#7C5CFF',
+    background: '#F1ECFF', border: '1px solid #E9E4FB',
+    borderRadius: '999px', padding: '5px 11px',
+  },
+  // No transform: U+203A is bidi-mirrored, so it flips with the text direction on its own.
+  chevron: { flexShrink: 0, fontSize: '22px', color: '#C4BCE4', lineHeight: 1 },
+
   logoutBtn: {
     width: '100%',
     padding: '14px',
-    borderRadius: '12px',
+    borderRadius: '999px',
     background: 'white',
-    color: '#F44336',
-    border: '2px solid #F44336',
+    color: '#FF4D67',
+    border: '2px solid #FF4D67',
     fontSize: '16px',
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: 'pointer',
   },
 };

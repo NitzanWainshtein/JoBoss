@@ -1,9 +1,10 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'aws-amplify/auth';
 import ICON_SIZES from '../iconSizes';
 import { getMyProfile, uploadProfileImage } from '../api';
 import { EditProfileModal, ChangePasswordModal } from './ProfileModals';
+import useTranslation from '../i18n/useTranslation';
 
 const PLAN_LOGOS = {
   FREE:         '/icons/free_members_icon.png',
@@ -19,6 +20,7 @@ function getHeaderLogo(isAdmin, planKey) {
 function Navbar({ isAdmin = false, planKey = '' }) {
   const navigate  = useNavigate();
   const location  = useLocation();
+  const { t, language, toggleLanguage, nextLanguage } = useTranslation();
   const itemRefs  = useRef([]);
   const navRef    = useRef(null);
   const menuRef   = useRef(null);
@@ -36,26 +38,68 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   const [uploadingImg,   setUploadingImg]   = useState(false);
 
   const navItems = [
-    { path: '/swipe',        icon: '/icons/jobs_icon.png',       label: 'משרות'  },
-    { path: '/applications', icon: '/icons/applies_icon.png',    label: 'הגשות'  },
-    { path: '/profile',      icon: '/icons/profile_icon.png',    label: 'פרופיל' },
-    ...(isAdmin ? [{ path: '/admin', icon: '/icons/admin_edit_icon.png', label: 'Admin' }] : []),
+    { path: '/swipe',        icon: '/icons/jobs_icon.png',       label: t('nav.jobs')         },
+    { path: '/applications', icon: '/icons/applies_icon.png',    label: t('nav.applications') },
+    { path: '/profile',      icon: '/icons/profile_icon.png',    label: t('nav.profile')      },
+    ...(isAdmin ? [{ path: '/admin', icon: '/icons/admin_edit_icon.png', label: t('nav.admin') }] : []),
   ];
 
-  const activeIndex = navItems.findIndex(item => location.pathname === item.path);
+  // /settings and /subscription are sub-screens of Profile, so the Profile tab
+  // stays lit there — an exact match would leave no tab active at all.
+  const PROFILE_SUB_ROUTES = ['/settings', '/subscription'];
+  const matchesTab = (item) =>
+    location.pathname === item.path ||
+    (item.path === '/profile' && PROFILE_SUB_ROUTES.includes(location.pathname));
+  const activeIndex = navItems.findIndex(matchesTab);
+
+  // Measure the active tab button directly rather than deriving it from the
+  // nav width + a hardcoded padding — that derivation silently drifts whenever
+  // the navbar's CSS padding changes, and never reflects the real button box.
+  const measureBubble = useCallback(() => {
+    const nav = navRef.current;
+    const el  = itemRefs.current[activeIndex];
+    if (!nav || !el || activeIndex < 0) return;
+    const navRect = nav.getBoundingClientRect();
+    const elRect  = el.getBoundingClientRect();
+    if (!elRect.width) return;           // not laid out yet
+    const INSET = 2;                      // keeps the bubble just inside the tab
+    setBubble({ left: elRect.left - navRect.left + INSET, width: elRect.width - INSET * 2 });
+    setReady(true);
+  }, [activeIndex]);
 
   useEffect(() => {
+    measureBubble();
+    // Re-measure one frame after paint: web fonts and icon images can shift the
+    // tab widths after the first layout pass. `language` is a dependency because
+    // switching it swaps every tab label.
+    const raf = requestAnimationFrame(measureBubble);
+    return () => cancelAnimationFrame(raf);
+  }, [measureBubble, navItems.length, language]);
+
+  // Keep the bubble locked to the active tab across viewport/orientation changes.
+  useEffect(() => {
     const nav = navRef.current;
-    if (!nav || activeIndex < 0) return;
-    const navW    = nav.getBoundingClientRect().width;
-    const padding = 4;
-    const n       = navItems.length;
-    const itemW   = (navW - padding * 2) / n;
-    const bubbleW = itemW - 4;
-    const bubbleLeft = padding + activeIndex * itemW + 2;
-    setBubble({ left: bubbleLeft, width: bubbleW });
-    setReady(true);
-  }, [activeIndex, navItems.length]);
+    if (!nav) return;
+
+    let raf = 0;
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measureBubble);
+    };
+
+    window.addEventListener('resize', schedule);
+    window.addEventListener('orientationchange', schedule);
+
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    ro?.observe(nav);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('orientationchange', schedule);
+      ro?.disconnect();
+    };
+  }, [measureBubble]);
 
   useEffect(() => {
     getMyProfile().then(data => {
@@ -96,7 +140,7 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('התמונה גדולה מדי (מקסימום 5MB)'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert(t('alert.imageTooLarge')); return; }
     setProfileImage(URL.createObjectURL(file));
     setUploadingImg(true);
     setMenuOpen(false);
@@ -105,7 +149,7 @@ function Navbar({ isAdmin = false, planKey = '' }) {
       setProfileImage(r.imageUrl);
       window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profileImageUrl: r.imageUrl } }));
     } catch {
-      alert('שגיאה בהעלאת התמונה');
+      alert(t('alert.imageUploadError'));
       setProfileImage(profileData?.profileImageUrl || null);
     } finally {
       setUploadingImg(false);
@@ -114,10 +158,13 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   };
 
   const menuItems = [
-    { icon: '✏️', label: 'עריכת פרטים אישיים',  action: () => { setMenuOpen(false); setShowEdit(true); } },
-    { icon: '📷', label: uploadingImg ? 'מעלה תמונה...' : 'העלאת תמונת פרופיל', action: () => { setMenuOpen(false); imgInputRef.current?.click(); } },
-    { icon: '🔑', label: 'החלפת סיסמא',          action: () => { setMenuOpen(false); setShowChangePass(true); } },
-    { icon: '🚪', label: 'התנתקות',               action: handleLogout, danger: true },
+    { icon: '✏️', label: t('menu.editProfile'), action: () => { setMenuOpen(false); setShowEdit(true); } },
+    { icon: '📷', label: uploadingImg ? t('menu.uploadingPhoto') : t('menu.uploadPhoto'), action: () => { setMenuOpen(false); imgInputRef.current?.click(); } },
+    { icon: '🔑', label: t('menu.changePassword'), action: () => { setMenuOpen(false); setShowChangePass(true); } },
+    { icon: '⚙️', label: t('settings.title'), action: () => { setMenuOpen(false); navigate('/settings'); } },
+    { icon: '👑', label: t('profile.subscription'), action: () => { setMenuOpen(false); navigate('/subscription'); } },
+    { icon: nextLanguage.flag, label: `${t('menu.language')} · ${nextLanguage.label}`, action: () => { toggleLanguage(); } },
+    { icon: '🚪', label: t('menu.logout'), action: handleLogout, danger: true },
   ];
 
   return (
@@ -127,11 +174,13 @@ function Navbar({ isAdmin = false, planKey = '' }) {
 
         <div ref={menuRef} style={styles.avatarWrap}>
           <button style={styles.avatarBtn} onClick={() => setMenuOpen(v => !v)}>
-            {profileImage ? (
-              <img src={profileImage} alt="avatar" style={styles.avatarImg} />
-            ) : (
-              <img src="/icons/panel_icons/male_profile.png" alt="avatar" style={styles.avatarImg} />
-            )}
+            <div style={styles.avatarRing}>
+              {profileImage ? (
+                <img src={profileImage} alt="avatar" style={styles.avatarImg} />
+              ) : (
+                <img src="/icons/panel_icons/male_profile.png" alt="avatar" style={styles.avatarImg} />
+              )}
+            </div>
             {uploadingImg && <div style={styles.avatarSpinner} />}
           </button>
 
@@ -142,7 +191,7 @@ function Navbar({ isAdmin = false, planKey = '' }) {
               </div>
               {menuItems.map((item, i) => (
                 <button key={i}
-                  style={{ ...styles.dropdownItem, color: item.danger ? '#F44336' : '#1E2A4A' }}
+                  style={{ ...styles.dropdownItem, color: item.danger ? '#FF4D67' : '#1E2A4A' }}
                   onClick={item.action}>
                   <span style={styles.dropdownIcon}>{item.icon}</span>
                   {item.label}
@@ -161,13 +210,13 @@ function Navbar({ isAdmin = false, planKey = '' }) {
           <div style={{ ...styles.bubble, left: bubble.left, width: bubble.width }} />
         )}
         {navItems.map((item, i) => {
-          const active = location.pathname === item.path;
+          const active = matchesTab(item);
           return (
             <button key={item.path} ref={el => (itemRefs.current[i] = el)}
               onClick={() => navigate(item.path)}
-              style={{ ...styles.navBtn, color: active ? '#6C4FD4' : 'rgba(90,80,120,0.55)', fontWeight: active ? 700 : 500, transform: active ? 'translateY(-1px)' : 'none' }}>
+              style={{ ...styles.navBtn, color: active ? 'white' : 'rgba(90,80,120,0.55)', fontWeight: active ? 700 : 500 }}>
               <img src={item.icon} alt={item.label}
-                style={{ ...styles.iconImg, filter: active ? 'none' : 'grayscale(40%) opacity(0.6)' }} />
+                style={{ ...styles.iconImg, filter: active ? 'brightness(0) invert(1)' : 'grayscale(40%) opacity(0.6)' }} />
               <span style={styles.label}>{item.label}</span>
             </button>
           );
@@ -193,38 +242,46 @@ function Navbar({ isAdmin = false, planKey = '' }) {
 
 const styles = {
   header: {
-    position: 'fixed', top: 0, left: 0, right: 0, height: '56px',
-    backgroundImage: 'url(/icons/swipes_icons/top_bar.png)',
-    backgroundSize: 'cover', backgroundPosition: 'center bottom',
+    position: 'fixed', top: 0, left: 0, right: 0,
+    height: 'calc(58px + env(safe-area-inset-top, 0px))',
+    paddingTop: 'env(safe-area-inset-top, 0px)',
+    background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)',
+    borderBottom: '1px solid rgba(124,92,255,0.14)',
+    borderRadius: '0 0 20px 20px',
+    boxShadow: '0 6px 24px rgba(108,79,212,0.12)',
     display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 200,
   },
-  logo: { height: '44px', objectFit: 'contain', filter: 'drop-shadow(0 1px 3px rgba(255,255,255,0.4))' },
+  logo: { height: '38px', objectFit: 'contain' },
 
-  avatarWrap: { position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' },
+  avatarWrap: { position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' },
   avatarBtn: {
-    width: '38px', height: '38px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.7)',
-    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
-    cursor: 'pointer', padding: 0, overflow: 'hidden', position: 'relative',
+    width: '40px', height: '40px', border: 'none', background: 'none',
+    cursor: 'pointer', padding: 0, position: 'relative',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(108,79,212,0.3)',
   },
-  avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  avatarRing: {
+    width: '100%', height: '100%', borderRadius: '50%', padding: '2.5px',
+    background: 'linear-gradient(135deg, #7C5CFF, #FF5E8A)',
+    boxShadow: '0 4px 12px rgba(108,79,212,0.35)', overflow: 'hidden',
+  },
+  avatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', background: 'white' },
   avatarSpinner: {
     position: 'absolute', inset: 0, borderRadius: '50%',
     background: 'rgba(0,0,0,0.35)', animation: 'spin 1s linear infinite',
   },
   dropdown: {
     position: 'absolute', top: 'calc(100% + 10px)', left: 0,
-    background: 'white', borderRadius: '16px', minWidth: '220px',
-    boxShadow: '0 8px 32px rgba(108,79,212,0.18), 0 2px 8px rgba(0,0,0,0.1)',
-    border: '1px solid rgba(108,79,212,0.1)', overflow: 'hidden', zIndex: 300,
+    background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
+    borderRadius: '18px', minWidth: '220px',
+    boxShadow: '0 18px 50px rgba(70,45,160,0.25)',
+    border: '1px solid rgba(124,92,255,0.12)', overflow: 'hidden', zIndex: 300,
     animation: 'dropdownIn 0.18s ease',
   },
   dropdownHeader: {
-    padding: '14px 16px 10px', borderBottom: '1px solid #F3F4F6',
-    background: 'linear-gradient(135deg, rgba(108,79,212,0.06), rgba(30,42,74,0.04))',
+    padding: '14px 16px 10px', borderBottom: '1px solid #F1EEFC',
+    background: 'linear-gradient(135deg, rgba(124,92,255,0.08), rgba(255,94,138,0.05))',
   },
-  dropdownName: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E2A4A' },
+  dropdownName: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E2A4A' },
   dropdownItem: {
     display: 'flex', alignItems: 'center', gap: '10px',
     width: '100%', padding: '13px 16px', background: 'transparent',
@@ -233,27 +290,33 @@ const styles = {
   },
   dropdownIcon: { fontSize: '16px', flexShrink: 0 },
 
+  // Flush to the bottom edge: floating it left content visible in the gap and
+  // around the rounded corners while scrolling. Only the top corners stay round,
+  // and the safe-area inset is added to the height so the bar still clears the
+  // home indicator on iOS instead of sitting under it.
   navbar: {
-    position: 'fixed', bottom: 0, left: 0, right: 0, height: '70px',
-    background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(18px)',
-    borderTop: '1px solid rgba(130,90,255,0.12)',
-    boxShadow: '0 -6px 24px rgba(110,80,220,0.09)',
+    position: 'fixed', bottom: 0, left: 0, right: 0,
+    height: 'calc(66px + env(safe-area-inset-bottom, 0px))',
+    background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)',
+    borderTop: '1px solid rgba(124,92,255,0.14)',
+    borderRadius: '22px 22px 0 0',
+    boxShadow: '0 -8px 28px rgba(90,61,200,0.12)',
     display: 'flex', justifyContent: 'space-around', alignItems: 'center',
     zIndex: 100, direction: 'ltr', boxSizing: 'border-box',
-    padding: '0 4px', overflow: 'hidden',
+    // Single shorthand — a separate paddingBottom key would be overwritten by it.
+    padding: '0 6px env(safe-area-inset-bottom, 0px)', overflow: 'hidden',
   },
   bubble: {
-    position: 'absolute', top: '7px', height: '56px', borderRadius: '999px',
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(232,222,255,0.82))',
-    border: '1px solid rgba(132,92,255,0.22)',
-    boxShadow: '0 8px 24px rgba(126,87,255,0.16), inset 0 1px 0 rgba(255,255,255,0.85)',
-    backdropFilter: 'blur(18px)', pointerEvents: 'none', zIndex: 0,
+    position: 'absolute', top: '7px', height: '52px', borderRadius: '999px',
+    background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
+    boxShadow: '0 10px 24px rgba(91,61,245,0.4)',
+    pointerEvents: 'none', zIndex: 0,
     transition: 'left 0.32s cubic-bezier(0.4,0,0.2,1), width 0.32s cubic-bezier(0.4,0,0.2,1)',
   },
   navBtn: {
     position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column',
     alignItems: 'center', gap: '3px', background: 'transparent', border: 'none',
-    cursor: 'pointer', padding: '8px 0', transition: 'color 0.25s ease, transform 0.25s ease',
+    cursor: 'pointer', padding: '8px 0', transition: 'color 0.25s ease',
   },
   iconImg: {
     width: `${ICON_SIZES.navbar}px`, height: `${ICON_SIZES.navbar}px`,

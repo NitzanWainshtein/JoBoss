@@ -85,7 +85,7 @@ export default function AuthExtensionPage() {
 const styles = {
   page: {
     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', direction: 'rtl', padding: 20,
+    background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', direction: 'inherit', padding: 20,
   },
   card: {
     background: 'white', borderRadius: 24, padding: '40px 32px', textAlign: 'center',

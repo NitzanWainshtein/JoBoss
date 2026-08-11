@@ -6,14 +6,14 @@ import { getMyApplications, getMyProfile } from '../api';
 import Spinner from '../components/Spinner';
 
 const statusConfig = {
-  accepted:  { color: '#4CAF50', label: 'התקבלת' },
-  pending:   { color: '#FFC107', label: 'ממתין' },
-  rejected:  { color: '#F44336', label: 'נדחה' },
-  SUBMITTED: { color: '#FFC107', label: 'ממתין' },
-  REVIEWED:  { color: '#2196F3', label: 'נסקר' },
-  INTERVIEW: { color: '#9C27B0', label: 'ראיון' },
-  REJECTED:  { color: '#F44336', label: 'נדחה' },
-  ACCEPTED:  { color: '#4CAF50', label: 'התקבלת' },
+  accepted:  { color: '#12A96F', label: 'התקבלת' },
+  pending:   { color: '#F5A623', label: 'ממתין' },
+  rejected:  { color: '#FF4D67', label: 'נדחה' },
+  SUBMITTED: { color: '#F5A623', label: 'ממתין' },
+  REVIEWED:  { color: '#3D8BF5', label: 'נסקר' },
+  INTERVIEW: { color: '#9C4DD4', label: 'ראיון' },
+  REJECTED:  { color: '#FF4D67', label: 'נדחה' },
+  ACCEPTED:  { color: '#12A96F', label: 'התקבלת' },
 };
 
 const DAILY_LIMIT = 10;
@@ -52,9 +52,9 @@ function DashboardPage() {
   if (error) return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', gap: '16px' }}>
       <p style={{ fontSize: '48px' }}>⚠️</p>
-      <p style={{ fontSize: '18px', fontWeight: 700, color: '#F44336' }}>{error}</p>
+      <p style={{ fontSize: '18px', fontWeight: 700, color: '#FF4D67' }}>{error}</p>
       <button
-        style={{ background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 }}
+        style={{ background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '12px 24px', cursor: 'pointer', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' }}
         onClick={() => window.location.reload()}
       >
         נסה שוב
@@ -72,15 +72,15 @@ function DashboardPage() {
             <p style={styles.statLabel}>סה"כ הגשות</p>
           </div>
           <div style={styles.statCard}>
-            <p style={{ ...styles.statNumber, color: '#4CAF50' }}>{accepted}</p>
+            <p style={{ ...styles.statNumber, color: '#12A96F' }}>{accepted}</p>
             <p style={styles.statLabel}>התקבלו</p>
           </div>
           <div style={styles.statCard}>
-            <p style={{ ...styles.statNumber, color: '#FFC107' }}>{pending}</p>
+            <p style={{ ...styles.statNumber, color: '#F5A623' }}>{pending}</p>
             <p style={styles.statLabel}>ממתינות</p>
           </div>
           <div style={styles.statCard}>
-            <p style={{ ...styles.statNumber, color: '#F44336' }}>{rejected}</p>
+            <p style={{ ...styles.statNumber, color: '#FF4D67' }}>{rejected}</p>
             <p style={styles.statLabel}>נדחו</p>
           </div>
         </div>
@@ -92,7 +92,7 @@ function DashboardPage() {
               {userPlan === 'premium' ? 'מנוי פרימיום — ללא הגבלה' : `מנוי חינמי — ${DAILY_LIMIT} הגשות ביום`}
             </p>
           </div>
-          <div style={{ ...styles.quotaBadge, background: userPlan === 'premium' ? '#4CAF50' : swipesLeft > 3 ? '#4CAF50' : '#F44336' }}>
+          <div style={{ ...styles.quotaBadge, background: userPlan === 'premium' ? '#12A96F' : swipesLeft > 3 ? '#12A96F' : '#FF4D67' }}>
             <p style={styles.quotaNumber}>{swipesLeft}</p>
           </div>
         </div>
@@ -118,7 +118,7 @@ function DashboardPage() {
                   <p style={styles.appTitle}>{app.title}</p>
                   <p style={styles.appDate}>{app.createdAt?.slice(0, 10) || app.date || ''}</p>
                 </div>
-                <div style={{ ...styles.statusBadge, background: statusConfig[app.status]?.color || '#FFC107' }}>
+                <div style={{ ...styles.statusBadge, background: statusConfig[app.status]?.color || '#F5A623' }}>
                   {statusConfig[app.status]?.label || 'ממתין'}
                 </div>
               </div>
@@ -131,30 +131,30 @@ function DashboardPage() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', flexDirection: 'column' },
-  content: { padding: '24px', maxWidth: '720px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' },
-  statCard: { background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  statNumber: { fontSize: '32px', fontWeight: 800, color: 'var(--primary)', margin: 0 },
-  statLabel: { fontSize: '12px', color: 'var(--text-light)', margin: '4px 0 0 0' },
-  quotaCard: { background: 'white', borderRadius: '16px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  container: { minHeight: '100vh', background: 'transparent', display: 'flex', flexDirection: 'column' },
+  content: { padding: '16px', maxWidth: '720px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' },
+  statCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '18px', textAlign: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
+  statNumber: { fontSize: '30px', fontWeight: 900, color: '#5B3DF5', margin: 0 },
+  statLabel: { fontSize: '12px', color: '#9A8FD0', margin: '4px 0 0 0', fontWeight: 700 },
+  quotaCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
   quotaInfo: { display: 'flex', flexDirection: 'column', gap: '4px' },
-  quotaTitle: { fontSize: '16px', fontWeight: 700, margin: 0 },
-  quotaSubtitle: { fontSize: '13px', color: 'var(--text-light)', margin: 0 },
-  quotaBadge: { width: '56px', height: '56px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  quotaNumber: { fontSize: '22px', fontWeight: 800, color: 'white', margin: 0 },
-  upgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '12px', padding: '14px', cursor: 'pointer', fontWeight: 700, fontSize: '15px' },
-  sectionTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
-  applicationsList: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  applicationCard: { background: 'white', borderRadius: '16px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  quotaTitle: { fontSize: '15px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
+  quotaSubtitle: { fontSize: '12px', color: '#9A8FD0', margin: 0, fontWeight: 600 },
+  quotaBadge: { width: '54px', height: '54px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 6px 16px rgba(0,0,0,0.12)' },
+  quotaNumber: { fontSize: '20px', fontWeight: 900, color: 'white', margin: 0 },
+  upgradeBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '14px', padding: '14px', cursor: 'pointer', fontWeight: 800, fontSize: '15px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
+  sectionTitle: { fontSize: '17px', fontWeight: 900, margin: 0, color: '#1E2A4A' },
+  applicationsList: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  applicationCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
   appInfo: { display: 'flex', flexDirection: 'column', gap: '2px' },
-  appCompany: { fontSize: '16px', fontWeight: 700, margin: 0 },
-  appTitle: { fontSize: '14px', color: 'var(--text-light)', margin: 0 },
-  appDate: { fontSize: '12px', color: '#bbb', margin: 0 },
-  statusBadge: { padding: '6px 14px', borderRadius: '20px', color: 'white', fontSize: '13px', fontWeight: 600 },
-  emptyApplications: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px', background: 'white', borderRadius: '16px', textAlign: 'center' },
-  emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
-  emptySubtitle: { fontSize: '14px', color: '#777', margin: 0 },
+  appCompany: { fontSize: '15px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
+  appTitle: { fontSize: '13px', color: '#7C5CFF', margin: 0, fontWeight: 700 },
+  appDate: { fontSize: '11px', color: '#C4BCE4', margin: 0 },
+  statusBadge: { padding: '6px 14px', borderRadius: '999px', color: 'white', fontSize: '12px', fontWeight: 800 },
+  emptyApplications: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px', background: 'rgba(255,255,255,0.85)', borderRadius: '18px', textAlign: 'center' },
+  emptyTitle: { fontSize: '17px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
+  emptySubtitle: { fontSize: '13px', color: '#9A8FD0', margin: 0 },
 };
 
 export default DashboardPage;

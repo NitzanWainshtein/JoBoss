@@ -5,8 +5,10 @@
 import { useState } from 'react';
 import { signIn, signUp, confirmSignUp, signInWithRedirect, fetchUserAttributes, resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import { getMyProfile, createMyProfile } from '../api';
+import useTranslation from '../i18n/useTranslation';
 
 function LoginPage() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState('login'); // login | register | confirm | forgot | forgotConfirm
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,18 +20,18 @@ function LoginPage() {
 
   const validate = () => {
     if (mode === 'confirm') {
-      if (code.trim().length < 4) { setError('יש להזין קוד אימות תקין'); return false; }
+      if (code.trim().length < 4) { setError(t('login.codeRequired')); return false; }
       return true;
     }
     if (mode === 'forgotConfirm') {
-      if (code.trim().length < 4) { setError('יש להזין קוד תקין'); return false; }
-      if (newPassword.length < 8) { setError('הסיסמה חייבת להיות לפחות 8 תווים'); return false; }
+      if (code.trim().length < 4) { setError(t('login.codeInvalid')); return false; }
+      if (newPassword.length < 8) { setError(t('login.passMin8')); return false; }
       return true;
     }
-    if (!email.includes('@') || !email.includes('.')) { setError('כתובת אימייל לא תקינה'); return false; }
+    if (!email.includes('@') || !email.includes('.')) { setError(t('login.emailInvalid')); return false; }
     if (mode === 'forgot') return true;
-    if (password.length < 8) { setError('סיסמה חייבת להיות לפחות 8 תווים'); return false; }
-    if (mode === 'register' && name.trim().length < 2) { setError('יש להזין שם מלא'); return false; }
+    if (password.length < 8) { setError(t('login.passMin8b')); return false; }
+    if (mode === 'register' && name.trim().length < 2) { setError(t('login.nameRequired')); return false; }
     return true;
   };
 
@@ -76,7 +78,7 @@ function LoginPage() {
     setLoading(true); setError('');
     try {
       await confirmSignUp({ username: email, confirmationCode: code });
-      setMode('login'); setError('האימות הצליח! התחבר עכשיו.');
+      setMode('login'); setError(t('login.verified'));
     } catch (err) { setError(err.message); }
     setLoading(false);
   };
@@ -87,7 +89,7 @@ function LoginPage() {
     try {
       await resetPassword({ username: email });
       setMode('forgotConfirm');
-      setError('קוד איפוס נשלח לאימייל שלך.');
+      setError(t('login.resetSent'));
     } catch (err) { setError(err.message); }
     setLoading(false);
   };
@@ -98,7 +100,7 @@ function LoginPage() {
     try {
       await confirmResetPassword({ username: email, confirmationCode: code, newPassword });
       setMode('login');
-      setError('הסיסמה אופסה בהצלחה! התחבר עכשיו.');
+      setError(t('login.passReset'));
       setCode(''); setNewPassword('');
     } catch (err) { setError(err.message); }
     setLoading(false);
@@ -123,23 +125,23 @@ function LoginPage() {
   };
 
   const btnLabel = () => {
-    if (loading) return 'טוען...';
-    if (mode === 'login')         return 'התחבר';
-    if (mode === 'register')      return 'הרשם';
-    if (mode === 'confirm')       return 'אמת';
-    if (mode === 'forgot')        return 'שלח קוד לאיפוס';
-    if (mode === 'forgotConfirm') return 'אפס סיסמה';
+    if (loading) return t('login.loading');
+    if (mode === 'login')         return t('login.signIn');
+    if (mode === 'register')      return t('login.signUp');
+    if (mode === 'confirm')       return t('login.verify');
+    if (mode === 'forgot')        return t('login.sendResetCode');
+    if (mode === 'forgotConfirm') return t('login.resetPass');
   };
 
   const subtitle = () => {
-    if (mode === 'login')         return 'התחבר לחשבונך';
-    if (mode === 'register')      return 'צור חשבון חדש';
-    if (mode === 'confirm')       return 'אמת את האימייל שלך';
-    if (mode === 'forgot')        return 'שחזור סיסמה';
-    if (mode === 'forgotConfirm') return 'הזן קוד ובחר סיסמה חדשה';
+    if (mode === 'login')         return t('login.signInTitle');
+    if (mode === 'register')      return t('login.signUpTitle');
+    if (mode === 'confirm')       return t('login.verifyTitle');
+    if (mode === 'forgot')        return t('login.forgotTitle');
+    if (mode === 'forgotConfirm') return t('login.forgotSubtitle');
   };
 
-  const isSuccess = error.includes('הצליח') || error.includes('נשלח') || error.includes('אופסה');
+  const isSuccess = [t('login.verified'), t('login.resetSent'), t('login.passReset')].includes(error);
 
   return (
     <div style={styles.container}>
@@ -152,11 +154,11 @@ function LoginPage() {
           <>
             <button style={styles.googleBtn} onClick={handleGoogleSignIn} disabled={loading}>
               <img src="https://www.google.com/favicon.ico" alt="Google" style={{ width: '18px', height: '18px' }} />
-              {mode === 'login' ? 'המשך עם Google' : 'הרשם עם Google'}
+              {mode === 'login' ? t('login.googleContinue') : t('login.googleSignUp')}
             </button>
             <div style={styles.divider}>
               <span style={styles.dividerLine}></span>
-              <span style={styles.dividerText}>או</span>
+              <span style={styles.dividerText}>{t('common.or')}</span>
               <span style={styles.dividerLine}></span>
             </div>
           </>
@@ -164,38 +166,38 @@ function LoginPage() {
 
         {/* Name field: register only */}
         {mode === 'register' && (
-          <input style={styles.input} placeholder="שם מלא" value={name}
+          <input style={styles.input} placeholder={t('login.fullName')} value={name}
             onChange={(e) => { setName(e.target.value); setError(''); }} />
         )}
 
         {/* Email field */}
         {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
-          <input style={styles.input} placeholder="אימייל" type="email" value={email}
+          <input style={styles.input} placeholder={t('login.email')} type="email" value={email}
             onChange={(e) => { setEmail(e.target.value); setError(''); }} />
         )}
 
         {/* Password field: login/register only */}
         {(mode === 'login' || mode === 'register') && (
           <input style={{ ...styles.input, fontSize: '12px' }}
-            placeholder="סיסמה (לפחות 8 תווים, אות גדולה ומספר)"
+            placeholder={t('login.passHint')}
             type="password" value={password}
             onChange={(e) => { setPassword(e.target.value); setError(''); }} />
         )}
 
         {/* Confirm/forgot code */}
         {(mode === 'confirm' || mode === 'forgotConfirm') && (
-          <input style={styles.input} placeholder="קוד שנשלח לאימייל" value={code}
+          <input style={styles.input} placeholder={t('login.codeSent')} value={code}
             onChange={(e) => { setCode(e.target.value); setError(''); }} />
         )}
 
         {/* New password for forgot */}
         {mode === 'forgotConfirm' && (
-          <input style={styles.input} placeholder="סיסמה חדשה (לפחות 8 תווים)" type="password"
+          <input style={styles.input} placeholder={t('login.newPassHint')} type="password"
             value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setError(''); }} />
         )}
 
         {error && (
-          <p style={{ ...styles.error, color: isSuccess ? '#4CAF50' : '#F44336' }}>{error}</p>
+          <p style={{ ...styles.error, color: isSuccess ? '#12A96F' : '#FF4D67' }}>{error}</p>
         )}
 
         <button style={{ ...styles.btn, opacity: loading ? 0.7 : 1 }}
@@ -208,12 +210,12 @@ function LoginPage() {
           <>
             <p style={styles.toggle}>
               {mode === 'login'
-                ? <>אין לך חשבון? <span style={styles.link} onClick={() => { setMode('register'); setError(''); }}>הרשם</span></>
-                : <>יש לך חשבון? <span style={styles.link} onClick={() => { setMode('login'); setError(''); }}>התחבר</span></>}
+                ? <>{t('login.noAccount')} <span style={styles.link} onClick={() => { setMode('register'); setError(''); }}>{t('login.signUp')}</span></>
+                : <>{t('login.haveAccount')} <span style={styles.link} onClick={() => { setMode('login'); setError(''); }}>{t('login.signIn')}</span></>}
             </p>
             {mode === 'login' && (
               <p style={styles.toggle}>
-                <span style={styles.link} onClick={() => { setMode('forgot'); setError(''); }}>שכחתי את הסיסמה</span>
+                <span style={styles.link} onClick={() => { setMode('forgot'); setError(''); }}>{t('login.forgotPass')}</span>
               </p>
             )}
           </>
@@ -221,7 +223,7 @@ function LoginPage() {
 
         {(mode === 'forgot' || mode === 'forgotConfirm' || mode === 'confirm') && (
           <p style={styles.toggle}>
-            <span style={styles.link} onClick={() => { setMode('login'); setError(''); }}>חזרה להתחברות</span>
+            <span style={styles.link} onClick={() => { setMode('login'); setError(''); }}>{t('login.backToSignIn')}</span>
           </p>
         )}
       </div>
@@ -230,23 +232,23 @@ function LoginPage() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: 'var(--background)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' },
-  card: { background: 'white', borderRadius: '24px', padding: '40px', width: '100%', maxWidth: '360px', boxShadow: '0 8px 32px rgba(108,79,212,0.15)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' },
-  subtitle: { color: '#6B7280', fontSize: '14px', margin: 0 },
+  container: { minHeight: '100vh', background: 'linear-gradient(165deg, #F5F2FF 0%, #ECE6FF 45%, #F8F0FF 100%)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' },
+  card: { background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(10px)', borderRadius: '28px', padding: '40px', width: '100%', maxWidth: '360px', boxShadow: '0 24px 60px rgba(91,61,245,0.18)', border: '1px solid rgba(255,255,255,0.9)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' },
+  subtitle: { color: '#9A8FD0', fontSize: '14px', margin: 0, fontWeight: 600 },
   googleBtn: {
-    width: '100%', padding: '12px', borderRadius: '12px', background: 'white',
-    border: '1.5px solid #eee', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
+    width: '100%', padding: '12px', borderRadius: '14px', background: 'white',
+    border: '1.5px solid #EDE8FC', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-    color: '#333', transition: 'all 0.2s',
+    color: '#1E2A4A', transition: 'all 0.2s',
   },
   divider: { width: '100%', display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' },
-  dividerLine: { flex: 1, height: '1px', background: '#eee' },
-  dividerText: { fontSize: '13px', color: '#999', fontWeight: 500 },
-  input: { width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #eee', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
-  btn: { width: '100%', padding: '14px', borderRadius: '12px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s' },
+  dividerLine: { flex: 1, height: '1px', background: '#EDE8FC' },
+  dividerText: { fontSize: '13px', color: '#C4BCE4', fontWeight: 600 },
+  input: { width: '100%', padding: '13px 16px', borderRadius: '14px', border: '1.5px solid #E9E4FB', background: '#F8F6FF', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
+  btn: { width: '100%', padding: '15px', borderRadius: '14px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 800, cursor: 'pointer', transition: 'opacity 0.2s', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   error: { fontSize: '13px', margin: 0, textAlign: 'center' },
-  toggle: { fontSize: '13px', color: '#6B7280', margin: 0 },
-  link: { color: '#6C4FD4', cursor: 'pointer', fontWeight: 600 },
+  toggle: { fontSize: '13px', color: '#9A8FD0', margin: 0, fontWeight: 600 },
+  link: { color: '#5B3DF5', cursor: 'pointer', fontWeight: 800 },
 };
 
 export default LoginPage;

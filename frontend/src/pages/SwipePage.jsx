@@ -10,6 +10,7 @@
 // - F-28: Show All Jobs Toggle
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';
 import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
@@ -17,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
 import LimitModal from '../components/LimitModal';
 import { getJobs, createSwipe, getMySwipes, undoSwipe, getQuotaStatus, tailorCVForJob } from '../api';
+import useTranslation from '../i18n/useTranslation';
 
 const DESCRIPTION_SECTION_TITLES = new Set([
   'summary',
@@ -102,6 +104,7 @@ function JobDescription({ description }) {
 
 // ── Job detail modal (unchanged) ────────────────────────────────────────────
 function JobDetailModal({ job, onClose }) {
+  const { t } = useTranslation();
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} style={modal.overlay} onClick={onClose}>
@@ -126,7 +129,7 @@ function JobDetailModal({ job, onClose }) {
           <div style={modal.meta}>
             <span style={modal.metaItem}>📍 {job.location}</span>
             {job.distanceKm != null && (
-              <span style={{ ...modal.metaItem, background: '#E8F5E9', color: '#2E7D32' }}>🗺 {job.distanceKm.toFixed(1)} ק"מ</span>
+              <span style={{ ...modal.metaItem, background: '#EBFBF2', color: '#12A96F' }}>🗺 {job.distanceKm.toFixed(1)} {t('swipe.km')}</span>
             )}
           </div>
         </div>
@@ -135,21 +138,21 @@ function JobDetailModal({ job, onClose }) {
         <div style={modal.scrollBody}>
           {(job.technologies || job.requirements)?.length > 0 && (
             <div style={modal.section}>
-              <p style={modal.sectionTitle}>טכנולוגיות נדרשות</p>
+              <p style={modal.sectionTitle}>{t('swipe.techRequired')}</p>
               <div style={modal.tags}>
-                {(job.technologies || job.requirements).map(t => <span key={t} style={modal.tag}>{t}</span>)}
+                {(job.technologies || job.requirements).map(tech => <span key={tech} style={modal.tag}>{tech}</span>)}
               </div>
             </div>
           )}
           {job.description && (
             <div style={modal.section}>
-              <p style={modal.sectionTitle}>תיאור המשרה</p>
+              <p style={modal.sectionTitle}>{t('swipe.jobDescription')}</p>
               <JobDescription description={job.description} />
             </div>
           )}
           {job.applyUrl && (
             <div style={modal.section}>
-              <a href={job.applyUrl} target="_blank" rel="noreferrer" style={modal.applyLink}>🔗 לינק למשרה המקורית</a>
+              <a href={job.applyUrl} target="_blank" rel="noreferrer" style={modal.applyLink}>{t('swipe.originalLink')}</a>
             </div>
           )}
         </div>
@@ -158,8 +161,8 @@ function JobDetailModal({ job, onClose }) {
         {/* RTL sheet: first child renders on the RIGHT — keep הגש on the right
             and דלג on the left, matching the like/pass sides of the swipe screen. */}
         <div style={modal.stickyFooter}>
-          <button style={modal.applyBtn} onClick={() => onClose('apply')}>הגש ♥</button>
-          <button style={modal.passBtn} onClick={() => onClose('pass')}>דלג ✕</button>
+          <button style={modal.applyBtn} onClick={() => onClose('apply')}>{t('swipe.apply')}</button>
+          <button style={modal.passBtn} onClick={() => onClose('pass')}>{t('swipe.pass')}</button>
         </div>
       </motion.div>
     </motion.div>
@@ -168,35 +171,36 @@ function JobDetailModal({ job, onClose }) {
 
 // ── Domain / level helpers ────────────────────────────────────────────────────
 const DOMAIN_HE = {
-  'frontend developer':  'פרונטאנד',
-  'backend developer':   'בקאנד',
-  'full stack developer':'פול-סטאק',
-  'mobile developer':    'מובייל',
+  'frontend developer':  'swipe.domain.frontend',
+  'backend developer':   'swipe.domain.backend',
+  'full stack developer':'swipe.domain.fullstack',
+  'mobile developer':    'swipe.domain.mobile',
   'devops':              'DevOps',
   'data scientist':      'Data Science',
   'data engineer':       'Data Eng',
   'qa engineer':         'QA',
-  'security engineer':   'סייבר',
+  'security engineer':   'swipe.domain.security',
   'product manager':     'PM',
-  'designer':            'עיצוב',
+  'designer':            'swipe.domain.design',
   'embedded':            'Embedded',
   'ai engineer':         'AI',
 };
-const LEVEL_HE = { junior: 'Junior', mid: 'Mid', senior: 'Senior', student: 'סטודנט' };
+const LEVEL_HE = { junior: 'Junior', mid: 'Mid', senior: 'Senior', student: 'swipe.level.student' };
 
 function DomainTags({ domains = [], levels = [] }) {
+  const { t } = useTranslation();
   const tags = [
-    ...domains.slice(0, 2).map(d => ({ label: DOMAIN_HE[d] || d, color: '#6C4FD4', bg: '#F0EEFF' })),
-    ...levels.slice(0, 1).map(l => ({ label: LEVEL_HE[l] || l, color: '#2E7D32', bg: '#E8F5E9' })),
+    ...domains.slice(0, 2).map(d => ({ label: DOMAIN_HE[d] ? t(DOMAIN_HE[d]) : d, color: '#7C5CFF', bg: '#F1ECFF' })),
+    ...levels.slice(0, 1).map(l => ({ label: LEVEL_HE[l] ? t(LEVEL_HE[l]) : l, color: '#12A96F', bg: '#EBFBF2' })),
   ];
   if (!tags.length) return null;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
-      {tags.map(t => (
-        <span key={t.label} style={{ fontSize: '11px', fontWeight: 700, color: t.color,
-          background: t.bg, border: `1px solid ${t.color}30`,
+      {tags.map(tag => (
+        <span key={tag.label} style={{ fontSize: '11px', fontWeight: 700, color: tag.color,
+          background: tag.bg, border: `1px solid ${tag.color}30`,
           padding: '2px 8px', borderRadius: 20 }}>
-          {t.label}
+          {tag.label}
         </span>
       ))}
     </div>
@@ -204,26 +208,27 @@ function DomainTags({ domains = [], levels = [] }) {
 }
 
 function DiscoveryPreview({ jobs }) {
+  const { t } = useTranslation();
   if (!jobs.length) return null;
   const allDomains = [...new Set(jobs.flatMap(j => j.jobDomains || []))].slice(0, 6);
   const allLevels  = [...new Set(jobs.flatMap(j => j.jobLevel || []))].slice(0, 2);
   return (
     <div style={{ width: '100%', background: '#FFF8F0', border: '1px solid #FFD0A0', borderRadius: 16,
                   padding: 'clamp(8px, 1.5svh, 14px) 16px', marginTop: 0, textAlign: 'right' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#E65100', marginBottom: 6 }}>כוללות תחומים כגון:</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#C2410C', marginBottom: 6 }}>{t('swipe.includesDomains')}</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {allDomains.map(d => (
-          <span key={d} style={{ fontSize: 12, fontWeight: 600, color: '#6C4FD4',
-            background: '#F0EEFF', border: '1px solid #6C4FD430',
+          <span key={d} style={{ fontSize: 12, fontWeight: 600, color: '#7C5CFF',
+            background: '#F1ECFF', border: '1px solid #7C5CFF30',
             padding: '3px 10px', borderRadius: 20 }}>
-            {DOMAIN_HE[d] || d}
+            {DOMAIN_HE[d] ? t(DOMAIN_HE[d]) : d}
           </span>
         ))}
         {allLevels.map(l => (
-          <span key={l} style={{ fontSize: 12, fontWeight: 600, color: '#2E7D32',
-            background: '#E8F5E9', border: '1px solid #2E7D3230',
+          <span key={l} style={{ fontSize: 12, fontWeight: 600, color: '#12A96F',
+            background: '#EBFBF2', border: '1px solid #12A96F30',
             padding: '3px 10px', borderRadius: 20 }}>
-            {LEVEL_HE[l] || l}
+            {LEVEL_HE[l] ? t(LEVEL_HE[l]) : l}
           </span>
         ))}
       </div>
@@ -234,17 +239,18 @@ function DiscoveryPreview({ jobs }) {
 // ── Match score breakdown modal ───────────────────────────────────────────────
 
 // Roles are stored and matched in lowercase English; display them Title-Cased
-// so the chips match the "תפקידים מועדפים" card instead of a Hebrew/English mix.
+// so the chips match the "{t('swipe.preferredRoles')}" card instead of a Hebrew/English mix.
 const roleLabel = (r = '') => r.replace(/(^|[\s./-])[a-z]/g, (c) => c.toUpperCase());
 
 function MatchModal({ score, breakdown, domains = [], onClose }) {
+  const { t } = useTranslation();
   const { roleScore=0, expScore=0, distScore=0,
           matchedRoles=[], unmatchedRoles=[],
           userLevel='', detectedLevels=[], distanceKm, isRemote } = breakdown || {};
 
   const Row = ({ label, score, max, children }) => {
     const pct = Math.round((score / max) * 100);
-    const barColor = pct >= 70 ? '#4CAF50' : pct >= 40 ? '#FF9800' : '#F44336';
+    const barColor = pct >= 70 ? '#12A96F' : pct >= 40 ? '#F5A623' : '#FF4D67';
     return (
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
@@ -265,96 +271,110 @@ function MatchModal({ score, breakdown, domains = [], onClose }) {
                    borderRadius: 20, display: 'inline-block' }}>{label}</span>
   );
 
-  const levelHe = { junior: 'Junior', mid: 'Mid', senior: 'Senior', student: 'סטודנט' };
+  const levelHe = { junior: 'Junior', mid: 'Mid', senior: 'Senior', student: t('swipe.level.student') };
 
-  return (
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Portalled to <body> on purpose. This modal is rendered inside JobCard, which
+  // sits in `styles.cardContainer` — that element is position:relative + zIndex:1,
+  // so it opens a stacking context and the overlay's zIndex:200 would only be
+  // "200 within a layer whose real depth is 1". The navbar (zIndex:100) would then
+  // paint on top of it. JobDetailModal doesn't hit this because it renders at the
+  // page root. The portal puts this modal in the same root layer.
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        style={modal.overlay}
+        style={modal.matchOverlay}
         onClick={onClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 20 }}
           transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-          style={{ ...modal.sheet, direction: 'rtl', gap: 0 }}
+          style={modal.matchSheet}
           onClick={e => e.stopPropagation()}
         >
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1E2A4A' }}>פירוט ציון התאמה</h3>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1E2A4A' }}>{t('swipe.matchBreakdown')}</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 22, fontWeight: 800,
-                             color: score >= 70 ? '#2E7D32' : score >= 50 ? '#E65100' : '#757575' }}>
+                             color: score >= 70 ? '#12A96F' : score >= 50 ? '#C2410C' : '#8B82B8' }}>
                 {score}%
               </span>
-              <button onClick={onClose} style={{ background: '#f5f5f5', border: 'none', borderRadius: '50%',
+              <button onClick={onClose} style={{ background: '#F5F3FC', border: 'none', borderRadius: '50%',
                                                   width: 30, height: 30, cursor: 'pointer', fontSize: 14 }}>✕</button>
             </div>
           </div>
 
           {/* Role */}
-          <Row label="🎯 התאמת תפקיד" score={roleScore} max={50}>
+          <Row label={t('swipe.roleMatch')} score={roleScore} max={50}>
             {matchedRoles.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 4 }}>
-                {matchedRoles.map(r => <Chip key={r} label={`✓ ${roleLabel(r)}`} color="#2E7D32" bg="#E8F5E9" />)}
+                {matchedRoles.map(r => <Chip key={r} label={`✓ ${roleLabel(r)}`} color="#12A96F" bg="#EBFBF2" />)}
               </div>
             )}
             {unmatchedRoles.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 4 }}>
-                {unmatchedRoles.map(r => <Chip key={r} label={`✗ ${roleLabel(r)}`} color="#c62828" bg="#FFEBEE" />)}
+                {unmatchedRoles.map(r => <Chip key={r} label={`✗ ${roleLabel(r)}`} color="#FF4D67" bg="#FFEBEE" />)}
               </div>
             )}
             {domains.length > 0 && (
-              <div style={{ marginTop: 6, padding: '8px 12px', background: '#F0EEFF',
+              <div style={{ marginTop: 6, padding: '8px 12px', background: '#F1ECFF',
                             borderRadius: 10, border: '1px solid #D5CDF6' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#6C4FD4', marginBottom: 4 }}>
-                  🧭 התחומים שזוהו במשרה:
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#7C5CFF', marginBottom: 4 }}>
+                  {t('swipe.detectedDomains')}
                 </div>
                 <div style={{ fontSize: 12, color: '#555' }}>
-                  {domains.map(d => DOMAIN_HE[d] || roleLabel(d)).join(' · ')}
+                  {domains.map(d => DOMAIN_HE[d] ? t(DOMAIN_HE[d]) : roleLabel(d)).join(' · ')}
                 </div>
               </div>
             )}
           </Row>
 
           {/* Experience */}
-          <Row label="🎓 רמת ניסיון" score={expScore} max={30}>
+          <Row label={t('swipe.expLevel')} score={expScore} max={30}>
             {userLevel && (
               <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>
-                הרמה שהגדרת: <strong>{levelHe[userLevel] || userLevel}</strong>
+                {t('swipe.yourLevel')} <strong>{levelHe[userLevel] || userLevel}</strong>
                 {detectedLevels.length > 0 && (
-                  <> · המשרה מחפשת: <strong>{detectedLevels.map(l => levelHe[l] || l).join(', ')}</strong></>
+                  <> · {t('swipe.jobWants')} <strong>{detectedLevels.map(l => levelHe[l] || l).join(', ')}</strong></>
                 )}
               </div>
             )}
             {expScore === 0 && userLevel && detectedLevels.length > 0 && (
               <div style={{ fontSize: 12, padding: '6px 10px', background: '#FFEBEE',
-                            borderRadius: 8, color: '#c62828' }}>
-                💡 הדגש בקורות חיים ניסיון המתאים לרמת {detectedLevels.map(l => levelHe[l] || l).join('/')}
+                            borderRadius: 8, color: '#FF4D67' }}>
+                {t('swipe.expTip')} {detectedLevels.map(l => levelHe[l] || l).join('/')}
               </div>
             )}
           </Row>
 
           {/* Distance */}
-          <Row label="📍 מרחק" score={distScore} max={20}>
+          <Row label={t('swipe.distance')} score={distScore} max={20}>
             <div style={{ fontSize: 12, color: '#555' }}>
-              {isRemote ? 'עבודה מרחוק — ניקוד מלא'
-                : distanceKm != null ? `${distanceKm} ק"מ ממיקומך`
-                : 'לא נמצא מיקום למשרה'}
+              {isRemote ? t('swipe.remoteFullScore')
+                : distanceKm != null ? `${distanceKm} ${t('swipe.kmFromYou')}`
+                : t('swipe.noJobLocation')}
             </div>
           </Row>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 
 // ── Match score badge (stateless — parent controls open) ─────────────────────
 function MatchBadge({ score, onClick }) {
-  const color = score >= 70 ? '#2E7D32' : score >= 50 ? '#E65100' : '#757575';
-  const bg    = score >= 70 ? '#E8F5E9' : score >= 50 ? '#FFF3E0' : '#F5F5F5';
+  const { t } = useTranslation();
+  const color = score >= 70 ? '#12A96F' : score >= 50 ? '#C2410C' : '#757575';
+  const bg    = score >= 70 ? '#EBFBF2' : score >= 50 ? '#FFF3E0' : '#F5F5F5';
   return (
     <div
       onClick={onClick}
@@ -363,7 +383,7 @@ function MatchBadge({ score, onClick }) {
                borderRadius: '20px', whiteSpace: 'nowrap', flexShrink: 0,
                cursor: 'pointer', userSelect: 'none' }}
     >
-      {score}% התאמה ℹ️
+      {score}% {t('swipe.matchPct')} ℹ️
     </div>
   );
 }
@@ -410,6 +430,7 @@ function getJobBgImage(title = '', tech = []) {
 }
 
 function JobCard({ job, onSwipe, onOpenDetail, locked }) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
   const matchTapRef = useRef(false);
@@ -482,7 +503,7 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
             <p style={styles.cardHeroMeta}>📍 {job.location}</p>
             {job.distanceKm != null && (
               <p style={styles.cardHeroDistance} dir="rtl">
-                🚗 <span dir="ltr">{job.distanceKm.toFixed(1)}</span> ק״מ ממך
+                🚗 <span dir="ltr">{job.distanceKm.toFixed(1)}</span> {t('swipe.kmAway')}
               </p>
             )}
           </div>
@@ -502,13 +523,13 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
         )}
         <p style={styles.description}>{job.shortDescription || getJobSummary(job.description)}</p>
         <div style={styles.techContainer}>
-          {(job.technologies || job.requirements || []).slice(0, 4).map(t => <span key={t} style={styles.techBadge}>{t}</span>)}
+          {(job.technologies || job.requirements || []).slice(0, 4).map(tech => <span key={tech} style={styles.techBadge}>{tech}</span>)}
         </div>
         {!locked && (
           <div style={styles.tapHint}>
             <motion.img
               src="/icons/clickHere_icon.png"
-              alt="לחץ לפרטים נוספים"
+              alt={t('swipe.tapForMore')}
               style={{ width: 'min(200px, 65%)', height: 'auto', objectFit: 'contain' }}
               draggable="false"
               animate={!isDragging ? { y: [0, -5, 0], opacity: [0.85, 1, 0.85] } : {}}
@@ -527,13 +548,14 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
 
 // ── Quota counter bar ────────────────────────────────────────────────────────
 function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
+  const { t } = useTranslation();
   // PREMIUM_PLUS is unlimited — no counter needed.
   // FREE and PREMIUM both have a finite daily limit: show the bar for both.
   if (!quota || quota.unlimited) return null;
 
   const plan = quota.plan || 'FREE';
   const pct = Math.min(100, Math.round(((quota.used ?? 0) / quota.limit) * 100));
-  const barColor = pct >= 100 ? '#F44336' : pct >= 80 ? '#FF9800' : '#6C4FD4';
+  const barColor = pct >= 100 ? '#FF4D67' : pct >= 80 ? '#F5A623' : '#7C5CFF';
 
   return (
     <motion.div
@@ -542,17 +564,17 @@ function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
       animate={{ opacity: 1, y: 0 }}
     >
       <div style={styles.quotaBarTop}>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: '#6C4FD4' }}>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C5CFF' }}>
           {quota.remaining === 0
-            ? '🔒 הגעת למגבלה'
-            : <><span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> החלקות היום</>}
+            ? t('swipe.limitReached')
+            : <><span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> {t('swipe.swipesToday')}</>}
         </span>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button style={styles.quotaRefreshBtn} onClick={onRefresh} title="רענן משרות">
-            <img src="/icons/refresh_icon.png" alt="רענן" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+          <button style={styles.quotaRefreshBtn} onClick={onRefresh} title={t('swipe.refreshJobs')}>
+            <img src="/icons/refresh_icon.png" alt={t('swipe.refresh')} style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
           </button>
           {plan === 'FREE' && (
-            <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>שדרג ⭐</button>
+            <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>{t('swipe.upgradeStar')}</button>
           )}
         </div>
       </div>
@@ -569,11 +591,11 @@ function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
         <div style={styles.tailorQuotaRow}>
           <span style={styles.tailorQuotaLabel}>
             <img src="/icons/robot_icon.png" alt="" style={{ width: '13px', height: '13px', objectFit: 'contain', verticalAlign: 'middle' }} />
-            {' '}התאמות AI החודש
+            {' '}{t('swipe.aiMonthly')}
           </span>
           <span style={{
             ...styles.tailorQuotaCount,
-            color: quota.tailorRemaining === 0 ? '#F44336' : quota.tailorRemaining <= 2 ? '#FF9800' : '#6C4FD4',
+            color: quota.tailorRemaining === 0 ? '#FF4D67' : quota.tailorRemaining <= 2 ? '#F5A623' : '#7C5CFF',
           }}>
             <span dir="ltr">{quota.tailorUsed} / {quota.tailorLimit}</span>
           </span>
@@ -585,6 +607,7 @@ function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 function SwipePage() {
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState([]);
   const [totalJobs, setTotalJobs] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -648,10 +671,10 @@ function SwipePage() {
       const lng = localStorage.getItem('jobLongitude');
       const radius = localStorage.getItem('jobRadius');
       if (lat && lng && radius && !data.locationFilterFailed) {
-        setLocationFilter({ name: localStorage.getItem('jobLocation') || 'מיקום נוכחי', radius: Number(radius) });
+        setLocationFilter({ name: localStorage.getItem('jobLocation') || t('swipe.currentLocation'), radius: Number(radius) });
       }
     } catch {
-      setError('אין חיבור לשרת. אנא נסה שוב.');
+      setError(t('swipe.noConnection'));
     } finally {
       setLoading(false);
     }
@@ -826,9 +849,9 @@ function SwipePage() {
       setLastSwipe(null);
     } catch (e) {
       if (e?.code === 'ALREADY_APPLIED') {
-        alert('המועמדות כבר נשלחה על ידי Auto Apply ולא ניתן לבטל אותה');
+        alert(t('swipe.alreadyApplied'));
       } else {
-        alert('❌ שגיאה בביטול Swipe');
+        alert(t('swipe.undoError'));
       }
     }
   };
@@ -841,15 +864,15 @@ function SwipePage() {
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-      <Spinner text="טוען משרות..." />
+      <Spinner text={t('swipe.loading')} />
     </div>
   );
 
   if (error) return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', gap: '16px' }}>
       <p style={{ fontSize: '48px' }}>⚠️</p>
-      <p style={{ fontSize: '18px', fontWeight: 700, color: '#F44336' }}>{error}</p>
-      <button style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)', color: 'white', border: 'none', borderRadius: '20px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700 }} onClick={loadJobs}>נסה שוב</button>
+      <p style={{ fontSize: '18px', fontWeight: 700, color: '#FF4D67' }}>{error}</p>
+      <button style={{ background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '12px 24px', cursor: 'pointer', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' }} onClick={loadJobs}>{t('swipe.retry')}</button>
     </div>
   );
 
@@ -864,9 +887,9 @@ function SwipePage() {
     >
       <div style={styles.lockedContent}>
         <span style={{ fontSize: '40px' }}>🔒</span>
-        <p style={styles.lockedTitle}>הגעת למגבלה היומית</p>
-        <p style={styles.lockedSub}>שדרג כדי להמשיך</p>
-        <button style={styles.lockedBtn}>שדרג עכשיו ⭐</button>
+        <p style={styles.lockedTitle}>{t('swipe.dailyLimit')}</p>
+        <p style={styles.lockedSub}>{t('swipe.upgradeToContinue')}</p>
+        <button style={styles.lockedBtn}>{t('swipe.upgradeNow')}</button>
       </div>
     </motion.div>
   );
@@ -886,7 +909,7 @@ function SwipePage() {
                    borderRadius: 10, padding: '6px 12px', marginBottom: 6,
                    maxWidth: 'min(360px, 95vw)' }}
         >
-          ⚠️ סינון לפי מיקום לא זמין כרגע — מוצגות משרות מכל הארץ
+          {t('swipe.locationFilterOff')}
         </motion.div>
       )}
 
@@ -895,11 +918,11 @@ function SwipePage() {
         <motion.div
           initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                   fontSize: 12, fontWeight: 600, color: '#E65100',
+                   fontSize: 12, fontWeight: 600, color: '#C2410C',
                    background: '#FFF3E0', border: '1px solid #FFB74D',
                    borderRadius: 20, padding: '4px 14px', alignSelf: 'center' }}
         >
-          🔍 מציג כל המשרות · נגמר בעוד {Math.max(1, Math.ceil((discoveryUntil - nowTick) / 60000))} דק'
+          {t('swipe.discoveryActive')} {Math.max(1, Math.ceil((discoveryUntil - nowTick) / 60000))} {t('swipe.minutes')}
         </motion.div>
       )}
 
@@ -923,7 +946,7 @@ function SwipePage() {
                   animate={{ opacity: [1, 0.4, 1] }}
                   transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
                 />
-                <span style={styles.tailorProgressText}>מתאים CV ל-{job.company}...</span>
+                <span style={styles.tailorProgressText}>{t('swipe.aiTailoring')}{job.company}...</span>
                 <motion.div
                   style={styles.tailorProgressDots}
                   animate={{ opacity: [0.3, 1, 0.3] }}
@@ -982,9 +1005,9 @@ function SwipePage() {
             >
               <div style={styles.cardHeader}>
                 <div style={{ ...styles.logo_placeholder }}>★</div>
-                <div><h2 style={styles.company}>משרה נוספת</h2><p style={styles.location}>📍  זמין אחרי שדרוג</p></div>
+                <div><h2 style={styles.company}>{t('swipe.anotherJob')}</h2><p style={styles.location}>{t('swipe.afterUpgrade')}</p></div>
               </div>
-              <h3 style={styles.title}>משרה מחכה לך</h3>
+              <h3 style={styles.title}>{t('swipe.jobWaiting')}</h3>
               <p style={styles.salary}>💰 ———</p>
             </motion.div>
             {lockedOverlay}
@@ -993,32 +1016,32 @@ function SwipePage() {
           // Primary deck exhausted but discovery jobs available
           <motion.div style={{ ...styles.emptyState, height: '100%', justifyContent: 'center', gap: 'clamp(6px, 1.6svh, 14px)', padding: 'clamp(8px, 2svh, 24px) 16px' }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
             <motion.p style={{ fontSize: 'clamp(34px, 7svh, 64px)', margin: 0, lineHeight: 1 }} animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 1, delay: 0.2 }}>🔍</motion.p>
-            <p style={{ ...styles.emptyTitle, fontSize: 'clamp(17px, 2.6svh, 24px)' }}>סיימת את המשרות בתחומך</p>
-            <p style={{ ...styles.emptySubtitle, fontSize: 'clamp(12px, 1.7svh, 14px)' }}>יש עוד {discoveryJobs.length} משרות מתחומים אחרים</p>
+            <p style={{ ...styles.emptyTitle, fontSize: 'clamp(17px, 2.6svh, 24px)' }}>{t('swipe.doneInField')}</p>
+            <p style={{ ...styles.emptySubtitle, fontSize: 'clamp(12px, 1.7svh, 14px)' }}>{t('swipe.moreJobsFrom')} {discoveryJobs.length} {t('swipe.jobsOtherFields')}</p>
             <DiscoveryPreview jobs={discoveryJobs.slice(0, 5)} />
             <motion.button
-              style={{ ...styles.emptyBtn, background: 'linear-gradient(135deg, #FF6B6B, #E65100)', marginTop: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: 'clamp(8px, 1.4svh, 14px) 28px', fontSize: 'clamp(13px, 1.9svh, 16px)' }}
+              style={{ ...styles.emptyBtn, background: 'linear-gradient(135deg, #FF5E8A, #C2410C)', marginTop: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: 'clamp(8px, 1.4svh, 14px) 28px', fontSize: 'clamp(13px, 1.9svh, 16px)' }}
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={activateDiscovery}
             >
-              <span>הצג משרות מחוץ לתחומך</span>
-              <span style={{ fontSize: 'clamp(10px, 1.4svh, 11px)', fontWeight: 500, opacity: 0.9 }}>ההצגה תהיה פעילה למשך 30 דקות</span>
+              <span>{t('swipe.showOutside')}</span>
+              <span style={{ fontSize: 'clamp(10px, 1.4svh, 11px)', fontWeight: 500, opacity: 0.9 }}>{t('swipe.for30Min')}</span>
             </motion.button>
-            <motion.button style={{ ...styles.emptyBtn, background: 'transparent', color: '#6C4FD4', border: '1px solid #6C4FD4', marginTop: 0, padding: 'clamp(8px, 1.4svh, 14px) 28px', fontSize: 'clamp(13px, 1.9svh, 16px)' }}
-              whileHover={{ scale: 1.03 }} onClick={() => navigate('/applications')}>📋 ראה הגשות</motion.button>
+            <motion.button style={{ ...styles.emptyBtn, background: 'transparent', color: '#7C5CFF', border: '1px solid #7C5CFF', marginTop: 0, padding: 'clamp(8px, 1.4svh, 14px) 28px', fontSize: 'clamp(13px, 1.9svh, 16px)' }}
+              whileHover={{ scale: 1.03 }} onClick={() => navigate('/applications')}>{t('swipe.seeApplications')}</motion.button>
           </motion.div>
         ) : (
           // Genuinely out of all jobs — the "all done" celebration.
           <motion.div style={styles.emptyState} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
             <motion.p style={{ fontSize: '80px', margin: 0 }} animate={{ rotate: [0, 10, -10, 10, 0] }} transition={{ duration: 1, delay: 0.3 }}>🎉</motion.p>
-            <p style={styles.emptyTitle}>סיימת את כל המשרות!</p>
-            <p style={styles.emptySubtitle}>חזור מחר למשרות חדשות</p>
+            <p style={styles.emptyTitle}>{t('swipe.allDone')}</p>
+            <p style={styles.emptySubtitle}>{t('swipe.comeBackTomorrow')}</p>
             <div style={styles.emptyStats}>
-              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{totalJobs}</p><p style={styles.emptyStatLabel}>נסקרו</p></div>
+              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{totalJobs}</p><p style={styles.emptyStatLabel}>{t('swipe.reviewed')}</p></div>
               <div style={styles.emptyStatDivider} />
-              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{swipedRight}</p><p style={styles.emptyStatLabel}>הוגשו</p></div>
+              <div style={styles.emptyStatItem}><p style={styles.emptyStatNumber}>{swipedRight}</p><p style={styles.emptyStatLabel}>{t('swipe.applied')}</p></div>
             </div>
-            <motion.button style={styles.emptyBtn} whileHover={{ scale: 1.05 }} onClick={() => navigate('/applications')}>📋 ראה הגשות</motion.button>
+            <motion.button style={styles.emptyBtn} whileHover={{ scale: 1.05 }} onClick={() => navigate('/applications')}>{t('swipe.seeApplications')}</motion.button>
           </motion.div>
         )}
       </div>
@@ -1040,7 +1063,7 @@ function SwipePage() {
                   transition={{ type: 'spring', stiffness: 420, damping: 22 }}
                   whileTap={{ scale: 0.85 }}
                   onClick={handleUndo}
-                  aria-label="בטל Swipe"
+                  aria-label={t('swipe.undo')}
                 >
                   {/* Countdown ring */}
                   <svg style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', overflow: 'visible', pointerEvents: 'none' }}>
@@ -1048,7 +1071,7 @@ function SwipePage() {
                       key={lastSwipe.job.jobId}
                       cx="50%" cy="50%" r="50%"
                       fill="none"
-                      stroke="#6C4FD4"
+                      stroke="#7C5CFF"
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       style={{ rotate: -90, transformOrigin: '50% 50%' }}
@@ -1078,7 +1101,7 @@ function SwipePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          🔓 שדרג להמשיך להחליק
+          {t('swipe.unlockMore')}
         </motion.button>
       )}
 
@@ -1089,7 +1112,7 @@ function SwipePage() {
           exit={{ opacity: 0 }}
           style={styles.tailorLimitToast}
         >
-          ⚠️ הגעת למגבלת 10 ההתאמות החודשיות — ה-CV לא יותאם למשרה זו
+          {t('swipe.tailorLimitToast')}
         </motion.div>
       )}
 
@@ -1098,10 +1121,10 @@ function SwipePage() {
           {lastSwipe.direction === 'right'
             ? activeTailorJobs.some(j => j.jobId === lastSwipe.job.jobId)
               ? autoApply
-                ? `⏳ הגשה אוטומטית תתבצע לאחר סיום התאמת קורות החיים`
-                : `💾 נשמר — ${lastSwipe.job.company}`
-              : autoApply ? `✅ CV נשלח ל-${lastSwipe.job.company}!` : `💾 נשמר — ${lastSwipe.job.company}`
-            : `👋 דולגה — ${lastSwipe.job.company}`}
+                ? t('swipe.autoAfterTailor')
+                : `${t('swipe.savedTo')} ${lastSwipe.job.company}`
+              : autoApply ? `${t('swipe.cvSentTo')}${lastSwipe.job.company}!` : `${t('swipe.savedTo')} ${lastSwipe.job.company}`
+            : `${t('swipe.passedOn')} ${lastSwipe.job.company}`}
         </motion.p>
       )}
 
@@ -1124,19 +1147,19 @@ function SwipePage() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
-  container: { height: 'calc(100svh - 126px)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '8px', paddingBottom: '4px', boxSizing: 'border-box', overflow: 'hidden' },
-  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 12px rgba(108,79,212,0.15)', border: '1px solid rgba(237,233,254,0.7)' },
+  container: { height: 'calc(100svh - 138px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '8px', paddingBottom: '4px', boxSizing: 'border-box', overflow: 'hidden' },
+  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderRadius: '16px', padding: '10px 14px', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', border: '1px solid rgba(255,255,255,0.9)' },
   quotaBarTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
-  quotaUpgradeBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 },
-  quotaRefreshBtn: { width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #6C4FD4', background: 'white', color: '#6C4FD4', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 },
-  quotaBarBg: { height: '5px', borderRadius: '3px', background: '#EDE9FE', overflow: 'hidden' },
+  quotaUpgradeBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 800, boxShadow: '0 6px 16px rgba(91,61,245,0.35)' },
+  quotaRefreshBtn: { width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #7C5CFF', background: 'white', color: '#7C5CFF', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 },
+  quotaBarBg: { height: '5px', borderRadius: '3px', background: '#EDE8FC', overflow: 'hidden' },
   quotaBarFill: { height: '100%', borderRadius: '3px', transition: 'width 0.5s ease' },
-  tailorQuotaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '7px', paddingTop: '6px', borderTop: '1px solid #EDE9FE' },
-  tailorQuotaLabel: { fontSize: '11px', fontWeight: 600, color: '#888', display: 'flex', alignItems: 'center', gap: '4px' },
+  tailorQuotaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '7px', paddingTop: '6px', borderTop: '1px solid #EDE8FC' },
+  tailorQuotaLabel: { fontSize: '11px', fontWeight: 600, color: '#9A8FD0', display: 'flex', alignItems: 'center', gap: '4px' },
   tailorQuotaCount: { fontSize: '12px', fontWeight: 800 },
-  locationFilter: { fontSize: '12px', fontWeight: 600, color: '#2E7D32', margin: 0, textAlign: 'right' },
-  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '0', maxHeight: 'min(480px, calc(100svh - 280px))', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '20px' },
-  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '20px', padding: 0, boxShadow: '0 8px 40px rgba(108,79,212,0.18)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
+  locationFilter: { fontSize: '12px', fontWeight: 600, color: '#12A96F', margin: 0, textAlign: 'right' },
+  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '0', maxHeight: 'min(480px, calc(100svh - 280px))', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '26px' },
+  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '26px', padding: 0, boxShadow: '0 16px 40px rgba(91,61,245,0.22)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
   cardHero: { width: '100%', height: 'clamp(150px, 34svh, 210px)', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   cardHeroImg: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   cardHeroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 28%, rgba(0,0,0,0.52) 62%, rgba(0,0,0,0.84) 100%)' },
@@ -1157,79 +1180,103 @@ const styles = {
   // name + location align left, instead of being flipped right by the global RTL.
   cardHeader: { display: 'flex', alignItems: 'center', gap: '12px', direction: 'ltr', textAlign: 'left' },
   logo_img: { width: '52px', height: '52px', borderRadius: '12px', objectFit: 'contain', border: '1px solid #eee' },
-  logo_placeholder: { width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #6C4FD4, #4A90E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, color: 'white' },
+  logo_placeholder: { width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, color: 'white' },
   company: { fontSize: '18px', fontWeight: 700, color: 'var(--text-dark)', margin: 0 },
   location: { color: 'var(--text-light)', fontSize: '13px', margin: 0 },
   title: { fontSize: '20px', fontWeight: 700, color: 'var(--primary)', margin: 0 },
   salary: { fontSize: '15px', fontWeight: 600, color: 'var(--secondary)', margin: 0 },
-  distance: { fontSize: '13px', fontWeight: 600, color: '#2E7D32', margin: 0 },
+  distance: { fontSize: '13px', fontWeight: 600, color: '#12A96F', margin: 0 },
   shortSummaryBlock: { marginTop: '4px' },
   shortSummaryTitle: { fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 4px'},
   description: { fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, margin: 0 },
   techContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-  techBadge: { background: 'var(--background)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid var(--primary)' },
+  techBadge: { background: '#F1ECFF', color: '#7C5CFF', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(124,92,255,0.25)' },
   tapHint: { display: 'flex', justifyContent: 'center', marginTop: 'auto', paddingTop: '12px' },
   lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
   lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '24px' },
   lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
-  lockedSub: { fontSize: '13px', color: '#666', margin: 0 },
-  lockedBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
+  lockedSub: { fontSize: '13px', color: '#8B82B8', margin: 0 },
+  lockedBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 20px', cursor: 'pointer', fontWeight: 800, fontSize: '14px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   buttons: { display: 'flex', gap: '24px', marginTop: '8px', flexShrink: 0, alignItems: 'center', direction: 'ltr' },
   rejectBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   acceptBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   swipeIcon: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
   undoBtnSlot: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   undoBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '24px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700 },
+  unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   tailorLimitToast: { marginTop: '6px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#B45309', textAlign: 'center', maxWidth: 'min(360px, 95vw)' },
-  tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(108,79,212,0.10)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderRadius: '10px', padding: '7px 12px', border: '1px solid rgba(108,79,212,0.2)', overflow: 'hidden' },
-  tailorProgressRow: { display: 'flex', alignItems: 'center', gap: '7px', direction: 'rtl' },
+  tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(124,92,255,0.10)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderRadius: '14px', padding: '7px 12px', border: '1px solid rgba(124,92,255,0.2)', overflow: 'hidden' },
+  tailorProgressRow: { display: 'flex', alignItems: 'center', gap: '7px', direction: 'inherit' },
   tailorProgressIcon: { width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 },
-  tailorProgressText: { fontSize: '12px', fontWeight: 600, color: '#6C4FD4', flex: 1 },
-  tailorProgressDots: { fontSize: '8px', color: '#6C4FD4', letterSpacing: '2px', flexShrink: 0 },
+  tailorProgressText: { fontSize: '12px', fontWeight: 600, color: '#7C5CFF', flex: 1 },
+  tailorProgressDots: { fontSize: '8px', color: '#7C5CFF', letterSpacing: '2px', flexShrink: 0 },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '24px' },
   emptyTitle: { fontSize: '24px', fontWeight: 800, margin: 0 },
-  emptySubtitle: { fontSize: '14px', color: '#777', margin: 0 },
-  emptyStats: { display: 'flex', alignItems: 'center', gap: '24px', background: 'white', borderRadius: '20px', padding: '20px 32px', boxShadow: '0 4px 16px rgba(108,79,212,0.1)' },
+  emptySubtitle: { fontSize: '14px', color: '#9A8FD0', margin: 0 },
+  emptyStats: { display: 'flex', alignItems: 'center', gap: '24px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '24px', padding: '20px 32px', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
   emptyStatItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
-  emptyStatNumber: { fontSize: '28px', fontWeight: 800, color: '#6C4FD4', margin: 0 },
-  emptyStatLabel: { fontSize: '12px', color: '#777', margin: 0 },
-  emptyStatDivider: { width: '1px', height: '40px', background: '#eee' },
-  emptyBtn: { background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', border: 'none', borderRadius: '20px', padding: '14px 28px', cursor: 'pointer', fontWeight: 700, fontSize: '16px' },
+  emptyStatNumber: { fontSize: '28px', fontWeight: 900, color: '#7C5CFF', margin: 0 },
+  emptyStatLabel: { fontSize: '12px', color: '#9A8FD0', margin: 0 },
+  emptyStatDivider: { width: '1px', height: '40px', background: '#EDE8FC' },
+  emptyBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '14px 28px', cursor: 'pointer', fontWeight: 800, fontSize: '16px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
 };
 
 const modal = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 200, display: 'flex', justifyContent: 'center', alignItems: 'flex-end' },
-  sheet: { background: 'white', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: '480px', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  dragHandle: { width: '40px', height: '4px', background: '#E0E0E0', borderRadius: '2px', alignSelf: 'center', marginBottom: '12px', flexShrink: 0 },
-  stickyHeader: { padding: '12px 24px 0', flexShrink: 0, borderBottom: '1px solid #F3F4F6' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(30,20,70,0.42)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', zIndex: 200, display: 'flex', justifyContent: 'center', alignItems: 'flex-end' },
+  sheet: { background: 'rgba(255,255,255,0.97)', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: '480px', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  // MatchModal renders its content directly (no stickyHeader/scrollBody/stickyFooter
+  // children), so it needs its own padding and its own scroll container — reusing
+  // `sheet` left the content flush to the edges and clipped by overflow: hidden.
+  // Centred dialog with its own overlay. The shared `overlay` docks to the
+  // bottom, which put this sheet flush against the nav bar. The scrim is opaque
+  // enough to hide the chrome on its own, so it does not depend on
+  // backdrop-filter being honoured.
+  matchOverlay: {
+    position: 'fixed', inset: 0, background: 'rgba(24,16,56,0.78)',
+    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+    zIndex: 300, display: 'flex', justifyContent: 'center', alignItems: 'center',
+    padding: '20px', boxSizing: 'border-box',
+  },
+  matchSheet: {
+    background: '#FFFFFF',
+    borderRadius: '24px',
+    width: '100%', maxWidth: '440px',
+    maxHeight: 'min(78svh, 640px)',
+    overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+    padding: '22px',
+    boxShadow: '0 26px 70px rgba(15,8,50,0.5)',
+    border: '1px solid rgba(255,255,255,0.9)',
+    boxSizing: 'border-box',
+  },
+  dragHandle: { width: '40px', height: '4px', background: '#DDD6F2', borderRadius: '999px', alignSelf: 'center', marginBottom: '12px', flexShrink: 0 },
+  stickyHeader: { padding: '12px 24px 0', flexShrink: 0, borderBottom: '1px solid #F1EEFC' },
   scrollBody: { flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  stickyFooter: { display: 'flex', gap: '12px', padding: '12px 24px 32px', flexShrink: 0, borderTop: '1px solid #F3F4F6', background: 'white' },
+  stickyFooter: { display: 'flex', gap: '12px', padding: '12px 24px 32px', flexShrink: 0, borderTop: '1px solid #F1EEFC', background: 'white' },
   header: { display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px' },
-  logo: { width: '56px', height: '56px', borderRadius: '14px', objectFit: 'contain', border: '1px solid #eee', flexShrink: 0 },
-  logo_placeholder: { width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #6C4FD4, #4A90E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 700, color: 'white', flexShrink: 0 },
+  logo: { width: '56px', height: '56px', borderRadius: '16px', objectFit: 'contain', border: '1px solid #EDE8FC', flexShrink: 0 },
+  logo_placeholder: { width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 700, color: 'white', flexShrink: 0 },
   title: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
-  company: { fontSize: '14px', color: '#6C4FD4', fontWeight: 600, margin: 0 },
-  closeBtn: { background: '#f5f5f5', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', flexShrink: 0, marginRight: 'auto' },
+  company: { fontSize: '14px', color: '#7C5CFF', fontWeight: 600, margin: 0 },
+  closeBtn: { background: '#F5F3FC', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', flexShrink: 0, marginRight: 'auto' },
   meta: { display: 'flex', gap: '12px', flexWrap: 'wrap', paddingBottom: '12px' },
-  metaItem: { background: '#F0F2FF', color: '#6C4FD4', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600 },
+  metaItem: { background: '#F1ECFF', color: '#7C5CFF', padding: '6px 12px', borderRadius: '999px', fontSize: '13px', fontWeight: 700 },
   section: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  sectionTitle: { fontSize: '14px', fontWeight: 700, color: '#1E2A4A', margin: 0 },
+  sectionTitle: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
   tags: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-  tag: { background: '#F0F2FF', color: '#6C4FD4', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600 },
-  description: { fontSize: '14px', color: '#6B7280', lineHeight: 1.7, margin: 0 },
+  tag: { background: '#F1ECFF', color: '#7C5CFF', padding: '4px 12px', borderRadius: '999px', fontSize: '13px', fontWeight: 700 },
+  description: { fontSize: '14px', color: '#8B82B8', lineHeight: 1.7, margin: 0 },
   descriptionPanel: { display: 'flex', flexDirection: 'column', gap: '14px' },
-  descriptionSection: { background: '#F8FAFC', border: '1px solid #EEF2F7', borderRadius: '14px', padding: '14px' },
+  descriptionSection: { background: '#F8F6FF', border: '1px solid #EDE8FC', borderRadius: '18px', padding: '14px' },
   descriptionHeading: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 8px' },
-  descriptionText: { fontSize: '14px', color: '#5F6675', lineHeight: 1.65, margin: 0 },
+  descriptionText: { fontSize: '14px', color: '#5A5478', lineHeight: 1.65, margin: 0 },
   bulletList: { margin: 0, paddingInlineStart: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px', direction: 'ltr', textAlign: 'left' },
-  bulletItem: { fontSize: '14px', color: '#5F6675', lineHeight: 1.55 },
+  bulletItem: { fontSize: '14px', color: '#5A5478', lineHeight: 1.55 },
   techList: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-  techPill: { background: 'white', color: '#6C4FD4', border: '1px solid #DDD6FE', borderRadius: '999px', padding: '5px 10px', fontSize: '12px', fontWeight: 700 },  applyLink: { color: '#6C4FD4', fontSize: '14px', fontWeight: 600 },
+  techPill: { background: 'white', color: '#7C5CFF', border: '1px solid #E0D6FA', borderRadius: '999px', padding: '5px 10px', fontSize: '12px', fontWeight: 700 },  applyLink: { color: '#7C5CFF', fontSize: '14px', fontWeight: 700 },
   footer: { display: 'flex', gap: '12px', paddingTop: '8px' },
-  passBtn: { flex: 1, padding: '14px', borderRadius: '14px', border: '2px solid #F44336', background: 'white', color: '#F44336', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
-  applyBtn: { flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)', color: 'white', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
+  passBtn: { flex: 1, padding: '14px', borderRadius: '999px', border: '2px solid #FF4D67', background: 'white', color: '#FF4D67', fontSize: '15px', fontWeight: 800, cursor: 'pointer' },
+  applyBtn: { flex: 1, padding: '14px', borderRadius: '999px', border: 'none', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', fontSize: '15px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
 };
 
 export default SwipePage;

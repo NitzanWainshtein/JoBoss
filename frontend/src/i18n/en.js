@@ -482,4 +482,11 @@ export default {
   'sub.planActivated': '✅ {plan} is active! Your features are available now.',
   'sub.featuresUnlocked': 'Unlocked for you:',
   'sub.noEndDate': 'No end date',
+  'sub.welcomeTitle': 'Welcome to {plan}!',
+  'sub.welcomeSub': 'Payment received — your features are live.',
+  'sub.gotIt': 'Great, let\'s go',
+  'sub.cancelledTitle': 'Subscription cancelled',
+  'sub.cancelledUntil': 'You keep every feature until {date}, then the account returns to the free plan.',
+  'sub.cancelledNoDate': 'You keep every feature until the end of the current billing period.',
+  'sub.resubscribe': 'You can resubscribe at any time — nothing is lost.',
 };

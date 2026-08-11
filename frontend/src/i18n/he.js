@@ -482,4 +482,11 @@ export default {
   'sub.planActivated': '✅ {plan} הופעל! התכונות זמינות עכשיו.',
   'sub.featuresUnlocked': 'נפתחו עבורך:',
   'sub.noEndDate': 'ללא תאריך סיום',
+  'sub.welcomeTitle': 'ברוך הבא ל{plan}!',
+  'sub.welcomeSub': 'התשלום התקבל והתכונות כבר פעילות בחשבונך.',
+  'sub.gotIt': 'מעולה, בוא נתחיל',
+  'sub.cancelledTitle': 'המנוי בוטל',
+  'sub.cancelledUntil': 'תמשיך/י ליהנות מכל התכונות עד {date}, ואז החשבון יחזור למסלול החינמי.',
+  'sub.cancelledNoDate': 'תמשיך/י ליהנות מכל התכונות עד תום תקופת החיוב הנוכחית.',
+  'sub.resubscribe': 'אפשר לחדש בכל רגע — לא תאבד/י כלום.',
 };

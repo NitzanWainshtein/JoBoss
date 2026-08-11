@@ -117,14 +117,19 @@ export default function SubscriptionPage({ api }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [toast, setToast] = useState(null);
   const [view, setView] = useState('overview'); // 'overview' | 'compare'
+  // Set only on the Stripe success redirect, so the celebration shows once
+  // per purchase rather than on every visit to the page.
+  const [justUpgraded, setJustUpgraded] = useState(false);
 
   useEffect(() => {
     loadSubscription();
     // Handle success/cancelled from Stripe redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get('subscription') === 'success') {
-      showToast(t('sub.toast.activated'), 'success');
+      setJustUpgraded(true);
       loadSubscription();
+      // Drop the query param so a refresh does not replay the celebration.
+      window.history.replaceState({}, '', window.location.pathname);
     } else if (params.get('subscription') === 'cancelled') {
       showToast(t('sub.toast.cancelledCheckout'), 'info');
     }
@@ -205,6 +210,57 @@ export default function SubscriptionPage({ api }) {
   return (
     <div style={styles.root} dir="rtl">
       {/* Toast */}
+      <AnimatePresence>
+        {justUpgraded && currentPlan && planKey !== 'FREE' && (
+          <motion.div
+            key="upgraded"
+            initial={{ opacity: 0, y: -12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+            style={styles.welcomeCard}
+          >
+            <p style={styles.welcomeTitle}>
+              {t('sub.welcomeTitle').replace('{plan}', language === 'en' ? currentPlan.nameEn : currentPlan.name)}
+            </p>
+            <p style={styles.welcomeSub}>{t('sub.welcomeSub')}</p>
+
+            <p style={styles.welcomeUnlocked}>{t('sub.featuresUnlocked')}</p>
+            <div style={styles.welcomeList}>
+              {/* Driven off featureFlags so this can never promise something the
+                  plan does not actually grant. */}
+              {FEATURE_ROWS.filter(row => currentPlan.featureFlags[row.key]).map(row => (
+                <span key={row.key} style={styles.welcomeItem}>
+                  ✓ {t(currentPlan.features[row.key])}
+                </span>
+              ))}
+            </div>
+
+            <button type="button" style={styles.welcomeBtn} onClick={() => setJustUpgraded(false)}>
+              {t('sub.gotIt')}
+            </button>
+          </motion.div>
+        )}
+
+        {status === 'CANCELLING' && (
+          <motion.div
+            key="cancelling"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            style={styles.cancelCard}
+          >
+            <p style={styles.cancelTitle}>{t('sub.cancelledTitle')}</p>
+            <p style={styles.cancelBody}>
+              {periodEnd
+                ? t('sub.cancelledUntil').replace('{date}', periodEnd)
+                : t('sub.cancelledNoDate')}
+            </p>
+            <p style={styles.cancelHint}>{t('sub.resubscribe')}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -535,6 +591,29 @@ const styles = {
     fontSize: '14px', fontWeight: 700, zIndex: 500,
     boxShadow: '0 14px 34px rgba(25,15,60,0.3)',
   },
+  welcomeCard: {
+    background: 'linear-gradient(135deg, #EBFBF2, #E6F7FF)',
+    border: '1px solid #A9E9CB', borderRadius: '22px', padding: '20px',
+    display: 'flex', flexDirection: 'column', gap: '8px',
+    boxShadow: '0 10px 30px rgba(18,169,111,0.16)',
+  },
+  welcomeTitle: { margin: 0, fontSize: '18px', fontWeight: 900, color: '#0E7A52' },
+  welcomeSub: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#12A96F' },
+  welcomeUnlocked: { margin: '6px 0 0', fontSize: '12px', fontWeight: 800, color: '#0E7A52' },
+  welcomeList: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  welcomeItem: { fontSize: '13px', fontWeight: 600, color: '#166534' },
+  welcomeBtn: {
+    marginTop: '8px', alignSelf: 'flex-start', border: 'none', borderRadius: '999px',
+    background: '#12A96F', color: 'white', padding: '10px 20px',
+    fontSize: '13px', fontWeight: 800, cursor: 'pointer',
+  },
+  cancelCard: {
+    background: '#FFF4EC', border: '1px solid #F7D9A8', borderRadius: '18px',
+    padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '5px',
+  },
+  cancelTitle: { margin: 0, fontSize: '14px', fontWeight: 900, color: '#C2410C' },
+  cancelBody: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#8A4B1F', lineHeight: 1.6 },
+  cancelHint: { margin: 0, fontSize: '12px', color: '#A9713F' },
   currentPlanCard: {
     borderRadius: '22px', padding: '24px', position: 'relative', overflow: 'hidden',
     display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 16px 40px rgba(91,61,245,0.3)',

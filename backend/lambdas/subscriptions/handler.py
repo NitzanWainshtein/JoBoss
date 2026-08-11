@@ -395,15 +395,12 @@ def handle_webhook(event):
         if stripe_sub_id:
             try:
                 stripe_sub = stripe.Subscription.retrieve(stripe_sub_id)
-                # Same trap as the original bug: StripeObject resolves unknown
-                # attributes through __getattr__, so a hasattr("get") guard just
-                # skips silently and leaves the date empty. Go through the raw
-                # dict, which every stripe-python version exposes.
-                sub_dict = (stripe_sub.to_dict_recursive()
-                            if hasattr(stripe_sub, "to_dict_recursive")
-                            else dict(stripe_sub))
-                period_end = sub_dict.get("current_period_end")
-                trial_end = sub_dict.get("trial_end")
+                # Third attempt, and the last time I try to outsmart this object.
+                # .get() is not guaranteed, dict(obj) raised KeyError: 0, but
+                # StripeObject.__getattr__ IS the documented access path — and
+                # getattr with a default turns its AttributeError into None.
+                period_end = getattr(stripe_sub, "current_period_end", None)
+                trial_end = getattr(stripe_sub, "trial_end", None)
                 print(f"[SUBS] period_end={period_end} trial_end={trial_end}")
             except Exception as e:
                 print(f"[SUBS] could not fetch period end: {e}")

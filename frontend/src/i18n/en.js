@@ -489,4 +489,5 @@ export default {
   'sub.cancelledUntil': 'You keep every feature until {date}, then the account returns to the free plan.',
   'sub.cancelledNoDate': 'You keep every feature until the end of the current billing period.',
   'sub.resubscribe': 'You can resubscribe at any time — nothing is lost.',
+  'sub.confirmCancelNoDate': 'Cancel your plan? You keep access until the end of the current billing period.',
 };

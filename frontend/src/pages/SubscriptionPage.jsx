@@ -402,7 +402,7 @@ export default function SubscriptionPage({ api }) {
                   style={styles.confirmBox}
                 >
                   <p style={styles.confirmText}>
-                    {t('sub.confirmCancelQ')}{periodEnd}.
+                    {periodEnd ? `${t('sub.confirmCancelQ')}${periodEnd}.` : t('sub.confirmCancelNoDate')}
                   </p>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button

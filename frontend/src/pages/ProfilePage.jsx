@@ -122,7 +122,9 @@ const rowStyles = {
 function ProfilePage({ initialView = null }) {
   const { t, language, toggleLanguage, nextLanguage } = useTranslation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState(initialView === 'subscription' ? 'subscription' : 'profile');
+  // Derived from the route, not state: once /subscription became a real route
+  // nothing sets this any more, and a setter nobody calls is dead weight.
+  const tab = initialView === 'subscription' ? 'subscription' : 'profile';
   const [profileImage, setProfileImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [userName, setUserName] = useState('');

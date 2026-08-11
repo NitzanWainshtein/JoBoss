@@ -17,18 +17,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 import useTranslation from '../i18n/useTranslation';
 
 const COMPANY = {
-  name: '[שם החברה / העוסק]',
-  id: '[ח.פ. / ע.מ.]',
-  address: '[כתובת]',
+  name: 'joBoss Ltd.',
+  id: '###',
+  address: '###',
   email: 'joboss.appteam@gmail.com',
-  a11yContact: '[שם רכז הנגישות]',
+  a11yContact: 'רונן צרשניה',
 };
 
 const DOCS = {
   terms: {
     he: {
       title: 'תנאי שימוש',
-      updated: 'עודכן לאחרונה: [תאריך]',
+      updated: 'עודכן לאחרונה: 11/08/2026',
       sections: [
         ['כללי', `השימוש בשירות JoBoss ("השירות"), המופעל על ידי ${COMPANY.name} (ח.פ. ${COMPANY.id}), כפוף לתנאים אלה. השימוש בשירות מהווה הסכמה מלאה להם. אם אינך מסכים — אין לעשות שימוש בשירות.`],
         ['מהות השירות', 'השירות מציג משרות ממקורות שונים, מאפשר סימון משרות, ומתאים קורות חיים באמצעות בינה מלאכותית. השירות אינו סוכנות השמה ואינו מתחייב למציאת עבודה, לזימון לראיון או לכל תוצאה תעסוקתית אחרת.'],
@@ -47,7 +47,7 @@ const DOCS = {
     },
     en: {
       title: 'Terms of Use',
-      updated: 'Last updated: [date]',
+      updated: 'Last updated: 11/08/2026',
       sections: [
         ['General', `Use of the JoBoss service (the "Service"), operated by ${COMPANY.name}, is subject to these terms. Using the Service constitutes full acceptance of them. If you do not agree, do not use the Service.`],
         ['What the Service is', 'The Service surfaces job listings from various sources, lets you mark jobs, and tailors your CV using artificial intelligence. It is not a recruitment agency and makes no promise of employment, an interview, or any other outcome.'],
@@ -69,7 +69,7 @@ const DOCS = {
   privacy: {
     he: {
       title: 'מדיניות פרטיות',
-      updated: 'עודכן לאחרונה: [תאריך]',
+      updated: 'עודכן לאחרונה: 11/08/2026',
       sections: [
         ['מי אנחנו', `${COMPANY.name} (ח.פ. ${COMPANY.id}), ${COMPANY.address}. לפניות בנושא פרטיות: ${COMPANY.email}`],
         ['איזה מידע אנו אוספים', 'פרטי חשבון (שם, כתובת דוא"ל, תמונת פרופיל); פרטי קשר ופרופיל תעסוקתי (טלפון, עיר, חברה נוכחית, רמת ניסיון, זמינות, תפקידים מועדפים, מגדר — ככל שנמסר); קורות חיים שהעלית ותוכנם; מיקום מועדף ורדיוס חיפוש; היסטוריית סימון משרות והגשות; ונתוני שימוש טכניים.'],
@@ -88,7 +88,7 @@ const DOCS = {
     },
     en: {
       title: 'Privacy Policy',
-      updated: 'Last updated: [date]',
+      updated: 'Last updated: 11/08/2026',
       sections: [
         ['Who we are', `${COMPANY.name}, ${COMPANY.address}. Privacy enquiries: ${COMPANY.email}`],
         ['What we collect', 'Account details (name, email, profile photo); contact and professional profile (phone, city, current employer, experience level, availability, preferred roles, gender — where provided); CVs you upload and their contents; preferred location and search radius; your job-marking and application history; and technical usage data.'],
@@ -110,7 +110,7 @@ const DOCS = {
   accessibility: {
     he: {
       title: 'הצהרת נגישות',
-      updated: 'עודכן לאחרונה: [תאריך]',
+      updated: 'עודכן לאחרונה: 11/08/2026',
       sections: [
         ['המחויבות שלנו', `${COMPANY.name} רואה חשיבות במתן שירות נגיש לכלל המשתמשים, לרבות אנשים עם מוגבלות, ופועלת להנגיש את השירות בהתאם לחוק שוויון זכויות לאנשים עם מוגבלות, התשנ"ח-1998, ולתקנות שהותקנו מכוחו.`],
         ['רמת הנגישות', 'אנו פועלים להתאמת השירות לתקן הישראלי ת"י 5568 ברמה AA, המבוסס על הנחיות WCAG 2.0. תהליך ההנגשה מתבצע באופן מתמשך.'],
@@ -121,7 +121,7 @@ const DOCS = {
     },
     en: {
       title: 'Accessibility Statement',
-      updated: 'Last updated: [date]',
+      updated: 'Last updated: 11/08/2026',
       sections: [
         ['Our commitment', `${COMPANY.name} is committed to providing an accessible service to all users, including people with disabilities, in accordance with the Israeli Equal Rights for Persons with Disabilities Law, 1998, and its regulations.`],
         ['Conformance level', 'We work to conform to Israeli Standard IS 5568 at Level AA, which is based on WCAG 2.0. Accessibility work is ongoing.'],

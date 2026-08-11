@@ -475,4 +475,7 @@ export default {
   'settings.accessibility': 'הצהרת נגישות',
   'login.agreePre': 'בהרשמה אני מאשר/ת את',
   'login.agreeAnd': 'ואת',
+  'sub.disclosureTrial': 'לאחר {days} ימי הניסיון תחויב/י ב-{price} לחודש, והמנוי יתחדש אוטומטית מדי חודש עד לביטול.',
+  'sub.disclosureNoTrial': 'תחויב/י ב-{price} לחודש, והמנוי יתחדש אוטומטית מדי חודש עד לביטול.',
+  'sub.disclosureCancel': 'ניתן לבטל בכל עת ממסך המנוי; הביטול ייכנס לתוקף בתום תקופת החיוב הנוכחית.',
 };

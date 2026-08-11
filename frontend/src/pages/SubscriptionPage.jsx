@@ -420,6 +420,14 @@ function UpgradeCard({ plan, loading, onCheckout }) {
           `${t('sub.upgradeTo')}${language === 'en' ? plan.nameEn : plan.name}`
         )}
       </motion.button>
+      <p style={styles.billingNote}>
+        {(plan.trialKey
+          ? t('sub.disclosureTrial').replace('{days}', '7')
+          : t('sub.disclosureNoTrial')
+        ).replace('{price}', `$${plan.price}`)}
+        {' '}
+        {t('sub.disclosureCancel')}
+      </p>
       <p style={styles.paymentMethods}>
         {t('sub.paymentMethods')}
       </p>
@@ -475,6 +483,11 @@ function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
           );
         })}
       </div>
+
+      <p style={{ ...styles.billingNote, padding: '0 16px 10px' }}>
+        {t('sub.disclosureNoTrial').replace('{price}', '$9.99 / $19.99')}{' '}
+        {t('sub.disclosureCancel')}
+      </p>
 
       {/* Rows */}
       {FEATURE_ROWS.map((row, i) => (
@@ -547,6 +560,10 @@ const styles = {
   upgradeFeatures: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
   upgradeFeature: { fontSize: '12px', margin: 0 },
   checkoutBtn: { width: '100%', padding: '13px', borderRadius: '14px', border: 'none', color: 'white', fontSize: '14px', fontWeight: 800, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: '0 10px 24px rgba(91,61,245,0.3)' },
+  billingNote: {
+    fontSize: '11px', lineHeight: 1.55, color: '#5A5478',
+    margin: '8px 0 0', textAlign: 'center',
+  },
   paymentMethods: { fontSize: '10px', color: '#7D719F', margin: 0, textAlign: 'center' },
   warningCard: { background: '#FFF4EC', border: '2px solid #F5A623', borderRadius: '18px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' },
   warningTitle: { fontSize: '15px', fontWeight: 800, color: '#C2410C', margin: 0 },

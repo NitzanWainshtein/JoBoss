@@ -142,7 +142,8 @@ def get_effective_plan(user_id):
         print(f"PLAN LOOKUP: userId={user_id}, status={status}, plan={plan}")
         # TRIAL is the legacy internal trial (with trialEndAt); TRIALING is the
         # Stripe-managed trial — Stripe flips it via webhook when it ends.
-        if status in ("ACTIVE", "TRIAL", "TRIALING"):
+        # CANCELLING = cancel_at_period_end: still entitled until the period ends.
+        if status in ("ACTIVE", "TRIAL", "TRIALING", "CANCELLING"):
             if status == "TRIAL":
                 trial_end = int(sub.get("trialEndAt", 0))
                 if datetime.now(timezone.utc).timestamp() > trial_end:

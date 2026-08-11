@@ -251,7 +251,8 @@ def effective_plan(sub):
     plan = sub.get("plan", "FREE")
     status = sub.get("status", "FREE")
     # TRIALING comes from the Stripe subscription.updated webhook during a trial.
-    if status not in ("ACTIVE", "TRIAL", "TRIALING", "FREE"):
+    # CANCELLING = cancel_at_period_end: still entitled until the period ends.
+    if status not in ("ACTIVE", "TRIAL", "TRIALING", "FREE", "CANCELLING"):
         return "FREE"
     return plan
 
@@ -316,8 +317,8 @@ def handle_checkout(event):
             mode="subscription",
             line_items=[{"price": price_id, "quantity": 1}],
             **({"subscription_data": {"trial_period_days": trial_days}} if trial_days else {}),
-            success_url=f"{FRONTEND_URL}/profile?tab=subscription&checkout=success",
-            cancel_url=f"{FRONTEND_URL}/profile?tab=subscription&checkout=cancel",
+            success_url=f"{FRONTEND_URL}/subscription?subscription=success",
+            cancel_url=f"{FRONTEND_URL}/subscription?subscription=cancelled",
             client_reference_id=user_id,
             metadata={"userId": user_id, "plan": plan},
         )
@@ -385,6 +386,20 @@ def handle_webhook(event):
         stripe_sub_id = data.get("subscription")
         trial_granted = bool(PLANS.get(plan, {}).get("trial_days"))
 
+        # checkout.session.completed does not carry the billing period, and
+        # relying on a later customer.subscription.updated left the user with no
+        # renewal date at all if that event was not configured. Fetch it now so
+        # the date exists the moment the purchase lands.
+        period_end = None
+        trial_end = None
+        if stripe_sub_id:
+            try:
+                stripe_sub = stripe.Subscription.retrieve(stripe_sub_id)
+                period_end = stripe_sub.get("current_period_end") if hasattr(stripe_sub, "get") else None
+                trial_end = stripe_sub.get("trial_end") if hasattr(stripe_sub, "get") else None
+            except Exception as e:
+                print(f"[SUBS] could not fetch period end: {e}")
+
         if user_id:
             subs_table.update_item(
                 Key={"userId": user_id},
@@ -392,16 +407,20 @@ def handle_webhook(event):
                     "SET #plan = :plan, #status = :status, "
                     "stripeSubscriptionId = :subId, updatedAt = :now, "
                     "trialUsed = if_not_exists(trialUsed, :trialUsed)"
+                    + (", currentPeriodEnd = :pe" if period_end else "")
+                    + (", trialEndAt = :te" if trial_end else "")
                 ),
                 ExpressionAttributeNames={"#plan": "plan", "#status": "status"},
                 ExpressionAttributeValues={
                     ":plan": plan,
-                    ":status": "ACTIVE",
+                    ":status": "TRIAL" if trial_end else "ACTIVE",
                     ":subId": stripe_sub_id or "",
                     ":now": now,
                     # Sticky: once true it stays true, so a later checkout without
                     # a trial cannot clear the flag and re-open the loophole.
                     ":trialUsed": trial_granted,
+                    **({":pe": int(period_end)} if period_end else {}),
+                    **({":te": int(trial_end)} if trial_end else {}),
                 },
             )
             # Mirror plan onto users table so other Lambdas see it

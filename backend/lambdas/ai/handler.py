@@ -832,7 +832,8 @@ def get_effective_plan(user_id, user):
         sub = result.get("Item")
         # TRIALING = Stripe-managed trial (webhook). Must match the swipes
         # Lambda's status set, or trial users lose Premium AI features.
-        if sub and sub.get("status", "").upper() in ("ACTIVE", "TRIAL", "TRIALING"):
+        # CANCELLING = cancel_at_period_end: still entitled until the period ends.
+        if sub and sub.get("status", "").upper() in ("ACTIVE", "TRIAL", "TRIALING", "CANCELLING"):
             plan = sub.get("planKey") or sub.get("plan")
             if plan:
                 return str(plan).upper()

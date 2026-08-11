@@ -478,4 +478,8 @@ export default {
   'sub.disclosureTrial': 'לאחר {days} ימי הניסיון תחויב/י ב-{price} לחודש, והמנוי יתחדש אוטומטית מדי חודש עד לביטול.',
   'sub.disclosureNoTrial': 'תחויב/י ב-{price} לחודש, והמנוי יתחדש אוטומטית מדי חודש עד לביטול.',
   'sub.disclosureCancel': 'ניתן לבטל בכל עת ממסך המנוי; הביטול ייכנס לתוקף בתום תקופת החיוב הנוכחית.',
+  'sub.status.CANCELLING': 'מבוטל בתום התקופה',
+  'sub.planActivated': '✅ {plan} הופעל! התכונות זמינות עכשיו.',
+  'sub.featuresUnlocked': 'נפתחו עבורך:',
+  'sub.noEndDate': 'ללא תאריך סיום',
 };

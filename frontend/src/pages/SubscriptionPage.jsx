@@ -92,6 +92,7 @@ const STATUS_MAP = {
   TRIAL:          { labelKey: 'sub.status.TRIAL',    color: '#F5A623', bg: '#FFF3E0' },
   EXPIRED:        { labelKey: 'sub.status.EXPIRED',        color: '#FF4D67', bg: '#FFEBEE' },
   CANCELLED:      { labelKey: 'sub.status.CANCELLED',           color: '#8B8299', bg: '#F5F3FC' },
+  CANCELLING:     { labelKey: 'sub.status.CANCELLING',          color: '#F5A623', bg: '#FFF4EC' },
   PAYMENT_FAILED: { labelKey: 'sub.status.PAYMENT_FAILED',     color: '#FF4D67', bg: '#FFEBEE' },
   BLOCKED:        { labelKey: 'sub.status.BLOCKED',           color: '#FF4D67', bg: '#FFEBEE' },
   FREE:           { labelKey: 'sub.status.FREE',          color: '#8B8299', bg: '#F5F3FC' },
@@ -133,8 +134,11 @@ export default function SubscriptionPage({ api }) {
     setLoading(true);
     try {
       const data = await api('GET', '/subscriptions/me');
+      const plan = data.planKey || 'FREE';
       setSubscription(data.subscription);
-      setPlanKey(data.planKey || 'FREE');
+      setPlanKey(plan);
+      // Tell the shell so the header plan badge updates without a reload.
+      window.dispatchEvent(new CustomEvent('plan-updated', { detail: { planKey: plan } }));
     } catch {
       setSubscription(null);
       setPlanKey('FREE');
@@ -178,12 +182,17 @@ export default function SubscriptionPage({ api }) {
   const status = subscription?.status || 'FREE';
   const statusInfo = STATUS_MAP[status] || STATUS_MAP.FREE;
   const isActive = ['ACTIVE', 'TRIAL'].includes(status);
-  const trialEnd = subscription?.trialEndAt
-    ? new Date(Number(subscription.trialEndAt) * 1000).toLocaleDateString('he-IL')
-    : null;
-  const periodEnd = subscription?.currentPeriodEnd
-    ? new Date(Number(subscription.currentPeriodEnd) * 1000).toLocaleDateString('he-IL')
-    : null;
+  // Stripe timestamps are seconds. Guard against sentinels (9999999999 = "never")
+  // and zero/garbage, which otherwise render as real-looking far-future dates.
+  const MAX_REAL_TS = 4102444800; // 2100-01-01
+  const fmtTs = (v) => {
+    const n = Number(v);
+    if (!n || n <= 0 || n >= MAX_REAL_TS) return null;
+    return new Date(n * 1000).toLocaleDateString(language === 'en' ? 'en-GB' : 'he-IL');
+  };
+
+  const trialEnd = fmtTs(subscription?.trialEndAt);
+  const periodEnd = fmtTs(subscription?.currentPeriodEnd);
 
   if (loading) {
     return (
@@ -227,7 +236,7 @@ export default function SubscriptionPage({ api }) {
         {status === 'TRIAL' && trialEnd && (
           <p style={styles.trialNote}>{t('sub.trialEndsOn')}{trialEnd}</p>
         )}
-        {isActive && periodEnd && status !== 'TRIAL' && (
+        {isActive && periodEnd && status !== 'TRIAL' && status !== 'CANCELLING' && (
           <p style={styles.trialNote}>{t('sub.renewsOn')}{periodEnd}</p>
         )}
         {subscription?.cancelAtPeriodEnd && (

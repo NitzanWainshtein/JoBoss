@@ -304,6 +304,13 @@ def handle_checkout(event):
 
     trial_days = PLANS.get(plan, {}).get("trial_days")
 
+    # Only grant a trial once per account. Without this a user could trial,
+    # cancel, and trial again forever — Stripe honours trial_period_days on
+    # every checkout we send it, it does not track prior trials for us.
+    existing = get_subscription(user_id) or {}
+    if existing.get("trialUsed"):
+        trial_days = None
+
     try:
         session = stripe.checkout.Session.create(
             mode="subscription",
@@ -361,8 +368,14 @@ def handle_webhook(event):
     except Exception as e:
         return resp(400, {"error": str(e)})
 
-    event_type = webhook_event["type"]
-    data = webhook_event["data"]["object"]
+    # Work off the raw JSON, not the StripeObject. Newer stripe-python resolves
+    # unknown attributes through __getattr__, which raises AttributeError(name) —
+    # so `data.get(...)` blew up with a bare "AttributeError: get" and Stripe saw
+    # a 5xx. The signature is already verified above; re-parsing is just to get
+    # plain dicts, nested ones included.
+    parsed = json.loads(payload if isinstance(payload, str) else payload.decode())
+    event_type = parsed["type"]
+    data = parsed["data"]["object"]
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -370,13 +383,15 @@ def handle_webhook(event):
         user_id = data.get("client_reference_id") or (data.get("metadata") or {}).get("userId")
         plan = (data.get("metadata") or {}).get("plan", "PREMIUM")
         stripe_sub_id = data.get("subscription")
+        trial_granted = bool(PLANS.get(plan, {}).get("trial_days"))
 
         if user_id:
             subs_table.update_item(
                 Key={"userId": user_id},
                 UpdateExpression=(
                     "SET #plan = :plan, #status = :status, "
-                    "stripeSubscriptionId = :subId, updatedAt = :now"
+                    "stripeSubscriptionId = :subId, updatedAt = :now, "
+                    "trialUsed = if_not_exists(trialUsed, :trialUsed)"
                 ),
                 ExpressionAttributeNames={"#plan": "plan", "#status": "status"},
                 ExpressionAttributeValues={
@@ -384,6 +399,9 @@ def handle_webhook(event):
                     ":status": "ACTIVE",
                     ":subId": stripe_sub_id or "",
                     ":now": now,
+                    # Sticky: once true it stays true, so a later checkout without
+                    # a trial cannot clear the flag and re-open the loophole.
+                    ":trialUsed": trial_granted,
                 },
             )
             # Mirror plan onto users table so other Lambdas see it
@@ -416,15 +434,25 @@ def handle_webhook(event):
             else:
                 new_plan = items[0].get("plan", "FREE")
                 new_status = status.upper()  # ACTIVE / TRIALING / PAST_DUE / ...
+                # Stripe reports cancel_at_period_end separately from status: the
+                # subscription stays "active" until the period actually ends.
+                if data.get("cancel_at_period_end"):
+                    new_status = "CANCELLING"
 
+            period_end = data.get("current_period_end")
             subs_table.update_item(
                 Key={"userId": user_id},
-                UpdateExpression="SET #plan = :plan, #status = :status, updatedAt = :now",
+                UpdateExpression=(
+                    "SET #plan = :plan, #status = :status, updatedAt = :now"
+                    + (", currentPeriodEnd = :pe" if period_end else "")
+                ),
                 ExpressionAttributeNames={"#plan": "plan", "#status": "status"},
                 ExpressionAttributeValues={
                     ":plan": new_plan,
                     ":status": new_status,
                     ":now": now,
+                    # Seconds since epoch, exactly what the UI expects.
+                    **({":pe": int(period_end)} if period_end else {}),
                 },
             )
             users_table.update_item(

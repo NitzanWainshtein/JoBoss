@@ -478,4 +478,8 @@ export default {
   'sub.disclosureTrial': 'After the {days}-day trial you will be charged {price} per month, renewing automatically each month until cancelled.',
   'sub.disclosureNoTrial': 'You will be charged {price} per month, renewing automatically each month until cancelled.',
   'sub.disclosureCancel': 'You can cancel any time from the subscription screen; cancellation takes effect at the end of the current billing period.',
+  'sub.status.CANCELLING': 'Ends at period end',
+  'sub.planActivated': '✅ {plan} is active! Your features are available now.',
+  'sub.featuresUnlocked': 'Unlocked for you:',
+  'sub.noEndDate': 'No end date',
 };

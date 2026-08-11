@@ -254,6 +254,20 @@ function App() {
   const [isAdmin, setIsAdmin]       = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
   const [planKey, setPlanKey] = useState(() => localStorage.getItem('planKey') || '');
+
+  // The plan badge in the header is driven from here, but this only loads once
+  // at startup — so after an upgrade or cancellation it stayed stale until a
+  // manual refresh. SubscriptionPage fires this whenever the plan changes.
+  useEffect(() => {
+    const onPlanChanged = (e) => {
+      const plan = e.detail?.planKey;
+      if (!plan) return;
+      setPlanKey(plan);
+      localStorage.setItem('planKey', plan);
+    };
+    window.addEventListener('plan-updated', onPlanChanged);
+    return () => window.removeEventListener('plan-updated', onPlanChanged);
+  }, []);
   const [loading, setLoading] = useState(true);
   // Skip the splash for the extension auth bridge so it resolves instantly.
   const isAuthExtRoute = typeof window !== 'undefined' && window.location.pathname === '/auth-extension';

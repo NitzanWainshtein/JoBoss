@@ -128,8 +128,9 @@ export default function AccessibilityMenu() {
 }
 
 const S = {
-  // Mirrors the avatar on the opposite side of the header.
-  wrap: { position: 'absolute', insetInlineEnd: '10px', top: '50%', transform: 'translateY(-50%)' },
+  // Physical right, not inset-inline-end: the logical property maps to LEFT in
+  // an RTL document, which stacked this straight on top of the avatar.
+  wrap: { position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)' },
   fab: {
     width: '34px', height: '34px', borderRadius: '50%',
     border: '1px solid rgba(124,92,255,0.28)', background: 'rgba(255,255,255,0.9)',
@@ -138,7 +139,7 @@ const S = {
     boxShadow: '0 4px 12px rgba(108,79,212,0.18)',
   },
   panel: {
-    position: 'absolute', top: 'calc(100% + 10px)', insetInlineEnd: 0,
+    position: 'absolute', top: 'calc(100% + 10px)', right: 0,
     width: '232px', background: 'rgba(255,255,255,0.98)',
     backdropFilter: 'blur(20px)', borderRadius: '16px',
     border: '1px solid rgba(124,92,255,0.14)',

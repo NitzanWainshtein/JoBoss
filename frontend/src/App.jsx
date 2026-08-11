@@ -16,6 +16,7 @@ import OnboardingPage from './pages/OnboardingPage.jsx';
 import AuthExtensionPage from './pages/AuthExtensionPage.jsx';
 import SwipeMockupPage from './pages/SwipeMockupPage.jsx';
 import JobCardPreviewPage from './pages/JobCardPreviewPage.jsx';
+import LegalPage from './pages/LegalPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import { createMyProfile, getSubscription } from './api';
@@ -148,6 +149,9 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/auth-extension" element={<AuthExtensionPage />} />
+        {/* Reachable signed-out too: consent links on the signup form point here. */}
+        <Route path="/legal" element={<LegalPage />} />
+        <Route path="/legal/:doc" element={<LegalPage />} />
         <Route path="/swipe-mockup" element={<SwipeMockupPage />} />
         {import.meta.env.DEV && (
           <Route path="/job-card-preview" element={<JobCardPreviewPage />} />

@@ -1,7 +1,7 @@
 // JoBoss feature:
 // - F-23: Edit Profile & Change Password
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { updatePassword } from 'aws-amplify/auth';
 import { updateMyProfile } from '../api';
 import useTranslation from '../i18n/useTranslation';
@@ -45,8 +45,20 @@ export const modalStyles = {
 };
 
 // ── Edit Profile Modal ────────────────────────────────────────────────────────
+
+// Escape must dismiss a dialog (WCAG 2.1.2, no keyboard trap). Neither modal
+// handled it, so a keyboard user who opened one could not get out.
+function useEscapeToClose(onClose) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+}
+
 export function EditProfileModal({ profile, onClose, onSaved }) {
   const { t } = useTranslation();
+  useEscapeToClose(onClose);
   const nameParts = (profile?.fullName || '').split(' ');
   const [firstName, setFirstName] = useState(nameParts[0] || '');
   const [lastName,  setLastName]  = useState(nameParts.slice(1).join(' ') || '');
@@ -74,7 +86,7 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
 
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
-      <div style={modalStyles.sheet} onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" style={modalStyles.sheet} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.handle} />
         <h3 style={modalStyles.title}>{t('pm.editProfile')}</h3>
 
@@ -111,6 +123,7 @@ export function EditProfileModal({ profile, onClose, onSaved }) {
 // ── Change Password Modal ─────────────────────────────────────────────────────
 export function ChangePasswordModal({ onClose }) {
   const { t } = useTranslation();
+  useEscapeToClose(onClose);
   const [oldPass,  setOldPass]  = useState('');
   const [newPass,  setNewPass]  = useState('');
   const [confirm,  setConfirm]  = useState('');
@@ -138,7 +151,7 @@ export function ChangePasswordModal({ onClose }) {
 
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
-      <div style={modalStyles.sheet} onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" style={modalStyles.sheet} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.handle} />
         <h3 style={modalStyles.title}>{t('pm.changePassTitle')}</h3>
 

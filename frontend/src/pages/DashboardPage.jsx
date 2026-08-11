@@ -136,11 +136,11 @@ const styles = {
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' },
   statCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '18px', textAlign: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
   statNumber: { fontSize: '30px', fontWeight: 900, color: '#5B3DF5', margin: 0 },
-  statLabel: { fontSize: '12px', color: '#9A8FD0', margin: '4px 0 0 0', fontWeight: 700 },
+  statLabel: { fontSize: '12px', color: '#6B5E9E', margin: '4px 0 0 0', fontWeight: 700 },
   quotaCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
   quotaInfo: { display: 'flex', flexDirection: 'column', gap: '4px' },
   quotaTitle: { fontSize: '15px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
-  quotaSubtitle: { fontSize: '12px', color: '#9A8FD0', margin: 0, fontWeight: 600 },
+  quotaSubtitle: { fontSize: '12px', color: '#6B5E9E', margin: 0, fontWeight: 600 },
   quotaBadge: { width: '54px', height: '54px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 6px 16px rgba(0,0,0,0.12)' },
   quotaNumber: { fontSize: '20px', fontWeight: 900, color: 'white', margin: 0 },
   upgradeBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '14px', padding: '14px', cursor: 'pointer', fontWeight: 800, fontSize: '15px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
@@ -150,11 +150,11 @@ const styles = {
   appInfo: { display: 'flex', flexDirection: 'column', gap: '2px' },
   appCompany: { fontSize: '15px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
   appTitle: { fontSize: '13px', color: '#7C5CFF', margin: 0, fontWeight: 700 },
-  appDate: { fontSize: '11px', color: '#C4BCE4', margin: 0 },
+  appDate: { fontSize: '11px', color: '#7D719F', margin: 0 },
   statusBadge: { padding: '6px 14px', borderRadius: '999px', color: 'white', fontSize: '12px', fontWeight: 800 },
   emptyApplications: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px', background: 'rgba(255,255,255,0.85)', borderRadius: '18px', textAlign: 'center' },
   emptyTitle: { fontSize: '17px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
-  emptySubtitle: { fontSize: '13px', color: '#9A8FD0', margin: 0 },
+  emptySubtitle: { fontSize: '13px', color: '#6B5E9E', margin: 0 },
 };
 
 export default DashboardPage;

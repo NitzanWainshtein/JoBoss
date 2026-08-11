@@ -469,4 +469,10 @@ export default {
   'settings.cat.general': 'כללי',
   'settings.back': 'חזרה',
   'swipe.fullDetails': 'לפרטים מלאים',
+  'settings.legal': 'מידע משפטי',
+  'settings.terms': 'תנאי שימוש',
+  'settings.privacy': 'מדיניות פרטיות',
+  'settings.accessibility': 'הצהרת נגישות',
+  'login.agreePre': 'בהרשמה אני מאשר/ת את',
+  'login.agreeAnd': 'ואת',
 };

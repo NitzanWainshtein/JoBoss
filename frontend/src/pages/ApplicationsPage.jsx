@@ -1373,7 +1373,7 @@ const styles = {
   statChip: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', gap: '3px' },
   statChipNum: { fontSize: '20px', fontWeight: 800, lineHeight: 1.1 },
   statChipIcon: { width: '13px', height: '13px', objectFit: 'contain' },
-  statChipLabel: { fontSize: '9px', color: '#9A8FD0', fontWeight: 700, textAlign: 'center' },
+  statChipLabel: { fontSize: '9px', color: '#6B5E9E', fontWeight: 700, textAlign: 'center' },
   statChipDiv: { width: '1px', background: '#EDE8FC', alignSelf: 'stretch', flexShrink: 0 },
 
   autoBox: { borderRadius: '14px', border: '1px solid', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '9px', direction: 'inherit' },
@@ -1432,7 +1432,7 @@ const styles = {
     padding: '12px 16px', borderBottom: '1px solid #EFEBFB',
     background: 'rgba(248,246,255,0.6)',
   },
-  headCell: { fontSize: '11px', fontWeight: 800, color: '#9A8FD0' },
+  headCell: { fontSize: '11px', fontWeight: 800, color: '#6B5E9E' },
 
   // One application = row + its always-visible note / CV blocks.
   // Separator between applications is deliberately stronger than any divider
@@ -1455,18 +1455,18 @@ const styles = {
     direction: 'ltr', textAlign: 'right', unicodeBidi: 'plaintext',
     display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
   },
-  dateText: { fontSize: '10.5px', color: '#C4BCE4', fontWeight: 600 },
+  dateText: { fontSize: '10.5px', color: '#7D719F', fontWeight: 600 },
   cellStatus: { display: 'flex', justifyContent: 'center', minWidth: 0 },
   statusPill: {
     fontSize: '10.5px', fontWeight: 800, padding: '5px 10px', borderRadius: '999px',
     border: '1px solid', textAlign: 'center', lineHeight: 1.3, display: 'inline-block',
   },
-  cellDate: { fontSize: '11px', color: '#9A8FD0', fontWeight: 600, textAlign: 'center' },
+  cellDate: { fontSize: '11px', color: '#6B5E9E', fontWeight: 600, textAlign: 'center' },
   cellMenu: { flex: '0 0 28px', position: 'relative', display: 'flex', justifyContent: 'center' },
   kebabBtn: {
     width: '28px', height: '28px', borderRadius: '50%', border: 'none',
     background: 'transparent', cursor: 'pointer', fontSize: '17px',
-    color: '#9A8FD0', lineHeight: 1, padding: 0,
+    color: '#6B5E9E', lineHeight: 1, padding: 0,
   },
   rowMenu: {
     position: 'absolute', top: 'calc(100% + 6px)', insetInlineEnd: 0, zIndex: 50,
@@ -1474,7 +1474,7 @@ const styles = {
     border: '1px solid rgba(124,92,255,0.12)', borderRadius: '14px',
     boxShadow: '0 18px 44px rgba(70,45,160,0.22)', padding: '6px', minWidth: '150px',
   },
-  rowMenuTitle: { margin: '4px 8px 6px', fontSize: '10px', fontWeight: 800, color: '#C4BCE4' },
+  rowMenuTitle: { margin: '4px 8px 6px', fontSize: '10px', fontWeight: 800, color: '#7D719F' },
   rowMenuItem: {
     display: 'block', width: '100%', textAlign: 'right', border: 'none',
     borderRadius: '9px', padding: '8px 10px', fontSize: '12.5px', fontWeight: 700,
@@ -1491,10 +1491,10 @@ const styles = {
   tailoringTitle: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#F57F17' },
   tailoringSub: { margin: 0, fontSize: '11px', color: '#F9A825' },
   manualTailorBtn: { width: '100%', padding: '9px', borderRadius: '999px', border: '1.5px dashed #7C5CFF', background: '#F1ECFF', color: '#7C5CFF', fontSize: '13px', fontWeight: 800, cursor: 'pointer' },
-  manualTailorBtnLocked: { width: '100%', padding: '9px', borderRadius: '999px', border: '1.5px dashed #D5CEE8', background: '#F5F3FC', color: '#9A8FD0', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
+  manualTailorBtnLocked: { width: '100%', padding: '9px', borderRadius: '999px', border: '1.5px dashed #D5CEE8', background: '#F5F3FC', color: '#6B5E9E', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
   empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '48px 24px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', borderRadius: '20px', textAlign: 'center' },
   emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
-  emptySub: { fontSize: '14px', color: '#9A8FD0', margin: 0 },
+  emptySub: { fontSize: '14px', color: '#6B5E9E', margin: 0 },
   retryBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '12px 24px', cursor: 'pointer', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   previewOverlay: { position: 'fixed', inset: 0, background: 'rgba(30,20,70,0.42)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 },
   previewModal: { width: 'min(760px, 96vw)', maxHeight: '86vh', background: 'rgba(255,255,255,0.97)', borderRadius: '24px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 24px 80px rgba(15, 23, 42, 0.25)', direction: 'inherit' },

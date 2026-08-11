@@ -469,4 +469,10 @@ export default {
   'settings.cat.general': 'General',
   'settings.back': 'Back',
   'swipe.fullDetails': 'View full details',
+  'settings.legal': 'Legal',
+  'settings.terms': 'Terms of Use',
+  'settings.privacy': 'Privacy Policy',
+  'settings.accessibility': 'Accessibility Statement',
+  'login.agreePre': 'By signing up I agree to the',
+  'login.agreeAnd': 'and the',
 };

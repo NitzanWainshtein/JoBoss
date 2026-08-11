@@ -331,7 +331,7 @@ function PlanStep({ plan, setPlan }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 17, color: p.color }}>{t(p.nameKey)}</div>
-                <div style={{ fontSize: 13, color: '#9A8FD0', marginTop: 2 }}>{t(p.priceKey)}</div>
+                <div style={{ fontSize: 13, color: '#6B5E9E', marginTop: 2 }}>{t(p.priceKey)}</div>
                 {p.trialKey && <div style={{ fontSize: 11, color: '#F5A623', marginTop: 2 }}>✨ {t(p.trialKey)}</div>}
               </div>
               <div style={{
@@ -394,12 +394,12 @@ function CvStep({ existingResume, uploading, analyzing, uploadDone, onUpload }) 
               <>
                 <div style={{ fontSize: 56 }}>📎</div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: '#7C5CFF' }}>{t('onb.clickUpload')}</div>
-                <div style={{ fontSize: 13, color: '#C4BCE4' }}>{t('onb.max5mb')}</div>
+                <div style={{ fontSize: 13, color: '#7D719F' }}>{t('onb.max5mb')}</div>
               </>
             )}
             <input type="file" accept=".pdf" style={{ display: 'none' }} disabled={uploading} onChange={e => onUpload(e.target.files[0])} />
           </label>
-          <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: '#C4BCE4' }}>
+          <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: '#7D719F' }}>
             {t('onb.noCvPre')} {t('onb.next')} {t('onb.noCvPost')}
           </p>
         </div>
@@ -501,7 +501,7 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
       </div>
 
       <div>
-        <div style={T.label}>{t('onb.currentCompany')} <span style={{ fontWeight: 400, color: '#C4BCE4', fontSize: 13 }}>{t('onb.optional')}</span></div>
+        <div style={T.label}>{t('onb.currentCompany')} <span style={{ fontWeight: 400, color: '#7D719F', fontSize: 13 }}>{t('onb.optional')}</span></div>
         <input
           type="text"
           value={currentCompany}
@@ -512,7 +512,7 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
       </div>
 
       <div>
-        <div style={T.label}>{t('onb.gender')} <span style={{ fontWeight: 400, color: '#C4BCE4', fontSize: 13 }}>{t('onb.optional')}</span></div>
+        <div style={T.label}>{t('onb.gender')} <span style={{ fontWeight: 400, color: '#7D719F', fontSize: 13 }}>{t('onb.optional')}</span></div>
         <select
           value={gender}
           onChange={e => setGender(e.target.value)}
@@ -674,7 +674,7 @@ const S = {
     width: '100%', maxWidth: 480, padding: '20px 24px 0',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   },
-  stepCounter: { fontSize: 13, color: '#C4BCE4', fontWeight: 600 },
+  stepCounter: { fontSize: 13, color: '#7D719F', fontWeight: 600 },
   progressWrap: { width: '100%', maxWidth: 480, padding: '14px 24px 0' },
   progressTrack: { height: 6, background: '#E9E4FB', borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: '100%', background: 'linear-gradient(90deg, #7C5CFF, #FF5E8A)', borderRadius: 3 },
@@ -695,7 +695,7 @@ const S = {
   },
   skipBtn: {
     flex: 1, padding: '12px', borderRadius: 12,
-    background: 'transparent', color: '#C4BCE4',
+    background: 'transparent', color: '#7D719F',
     border: '1px solid #EDE8FC', fontSize: 14, fontWeight: 600, cursor: 'pointer',
   },
   nextBtn: {

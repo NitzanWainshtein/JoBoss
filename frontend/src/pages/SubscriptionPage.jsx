@@ -268,7 +268,7 @@ export default function SubscriptionPage({ api }) {
               return (
                 <div key={row.key} style={styles.featureRow}>
                   <span style={styles.featureIcon}>{row.img ? <img src={row.img} alt="" style={{ width: `${ICON_SIZES.featureRow}px`, height: `${ICON_SIZES.featureRow}px`, objectFit: 'contain' }} /> : row.icon}</span>
-                  <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#C4BCE4' }}>
+                  <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#7D719F' }}>
                     {t(currentPlan.features[row.key])}
                   </span>
                   <span style={{ color: hasFeature ? '#12A96F' : '#EDE8FC', fontSize: '18px' }}>
@@ -491,7 +491,7 @@ function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
                 <div style={{ color: has ? plan.color : '#EDE8FC', fontWeight: 700, textAlign: 'center' }}>
                   {has ? '✓' : '✕'}
                 </div>
-                <div style={{ fontSize: '11px', color: '#9A8FD0', textAlign: 'center', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: '#6B5E9E', textAlign: 'center', marginTop: '2px' }}>
                   {t(plan.features[row.key])}
                 </div>
               </div>
@@ -542,12 +542,12 @@ const styles = {
   popularBadge: { position: 'absolute', top: '12px', left: '12px', color: 'white', fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '999px' },
   upgradePlanName: { fontSize: '16px', fontWeight: 900, margin: 0 },
   upgradePrice: { fontSize: '21px', fontWeight: 900, color: '#1E2A4A', margin: 0 },
-  upgradePriceSub: { fontSize: '13px', fontWeight: 600, color: '#9A8FD0' },
+  upgradePriceSub: { fontSize: '13px', fontWeight: 600, color: '#6B5E9E' },
   trialTag: { fontSize: '12px', color: '#F5A623', fontWeight: 700, margin: 0 },
   upgradeFeatures: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
   upgradeFeature: { fontSize: '12px', margin: 0 },
   checkoutBtn: { width: '100%', padding: '13px', borderRadius: '14px', border: 'none', color: 'white', fontSize: '14px', fontWeight: 800, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: '0 10px 24px rgba(91,61,245,0.3)' },
-  paymentMethods: { fontSize: '10px', color: '#C4BCE4', margin: 0, textAlign: 'center' },
+  paymentMethods: { fontSize: '10px', color: '#7D719F', margin: 0, textAlign: 'center' },
   warningCard: { background: '#FFF4EC', border: '2px solid #F5A623', borderRadius: '18px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' },
   warningTitle: { fontSize: '15px', fontWeight: 800, color: '#C2410C', margin: 0 },
   warningText: { fontSize: '13px', color: '#8B82B8', margin: 0 },
@@ -564,7 +564,7 @@ const styles = {
   compareFeatureCol: { flex: 1.2, display: 'flex', alignItems: 'center', gap: '8px' },
   comparePlanCol: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px', borderRadius: '12px' },
   comparePlanName: { fontSize: '13px', fontWeight: 900, margin: 0, textAlign: 'center' },
-  comparePlanPrice: { fontSize: '11px', color: '#9A8FD0', margin: 0, textAlign: 'center' },
+  comparePlanPrice: { fontSize: '11px', color: '#6B5E9E', margin: 0, textAlign: 'center' },
   currentBadge: { background: '#EBFBF2', color: '#12A96F', fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '999px' },
   compareCheckoutBtn: { color: 'white', border: 'none', borderRadius: '10px', padding: '6px 12px', cursor: 'pointer', fontWeight: 800, fontSize: '11px' },
   compareRow: { display: 'flex', padding: '12px 16px', gap: '4px', alignItems: 'center' },

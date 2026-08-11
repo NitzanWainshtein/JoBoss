@@ -60,10 +60,21 @@ function SettingsRow({ icon, title, subtitle, onClick, trailing, danger }) {
   );
 }
 
-function Switch({ on, disabled, onChange }) {
+function Switch({ on, disabled, onChange, label }) {
+  const activate = (e) => { e.stopPropagation(); if (!disabled) onChange(); };
   return (
     <div
-      onClick={e => { e.stopPropagation(); if (!disabled) onChange(); }}
+      role="switch"
+      aria-checked={!!on}
+      aria-disabled={disabled || undefined}
+      aria-label={label}
+      tabIndex={disabled ? -1 : 0}
+      onClick={activate}
+      // Space and Enter are what a real checkbox/switch responds to; without
+      // this the control is unreachable for keyboard and switch-device users.
+      onKeyDown={e => {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); activate(e); }
+      }}
       style={{
         width: 48, height: 27, borderRadius: 999, padding: 3, flexShrink: 0,
         background: on ? '#12A96F' : '#DDD6F2', opacity: disabled ? 0.5 : 1,
@@ -89,11 +100,11 @@ const rowStyles = {
   icon: { fontSize: 19, width: 24, textAlign: 'center', flexShrink: 0 },
   text: { display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 },
   title: { fontSize: 14.5, fontWeight: 800 },
-  sub: { fontSize: 12, fontWeight: 600, color: '#9A8FD0' },
-  chev: { flexShrink: 0, fontSize: 22, color: '#C4BCE4', lineHeight: 1 },
+  sub: { fontSize: 12, fontWeight: 600, color: '#6B5E9E' },
+  chev: { flexShrink: 0, fontSize: 22, color: '#7D719F', lineHeight: 1 },
   group: { marginTop: 14 },
   groupTitle: {
-    fontSize: 11, fontWeight: 800, color: '#9A8FD0',
+    fontSize: 11, fontWeight: 800, color: '#6B5E9E',
     margin: '0 4px 7px', letterSpacing: '.3px',
   },
   panelHeader: {
@@ -531,7 +542,10 @@ function ProfilePage({ initialView = null }) {
               />
               {uploadingImage && <div style={styles.avatarSpinner}>⏳</div>}
             </button>
-            <div style={styles.avatarEditBadge} onClick={() => setAvatarMenuOpen(v => !v)}>✏️</div>
+            <div role="button" tabIndex={0}
+              aria-label={t('menu.uploadPhoto')}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarMenuOpen(v => !v); } }}
+              style={styles.avatarEditBadge} onClick={() => setAvatarMenuOpen(v => !v)}>✏️</div>
 
             {avatarMenuOpen && (
               <div style={styles.avatarDropdown}>
@@ -687,7 +701,7 @@ function ProfilePage({ initialView = null }) {
                     icon="🤖"
                     title={t('profile.autoApply')}
                     subtitle={planKey === 'FREE' ? t('profile.premiumRequired') : (autoApply ? t('profile.autoApplyOn') : t('profile.autoApplyOff'))}
-                    trailing={<Switch on={autoApply && planKey !== 'FREE'} disabled={planKey === 'FREE'} onChange={() => {
+                    trailing={<Switch label={t('profile.autoApply')} on={autoApply && planKey !== 'FREE'} disabled={planKey === 'FREE'} onChange={() => {
                       const next = !autoApply;
                       setAutoApply(next);
                       localStorage.setItem('autoApply', next);
@@ -699,7 +713,7 @@ function ProfilePage({ initialView = null }) {
                     icon="📄"
                     title={t('profile.autoTailor')}
                     subtitle={planKey === 'FREE' ? t('profile.premiumRequired') : (autoTailorCV ? t('profile.autoTailorOn') : t('profile.autoTailorOff'))}
-                    trailing={<Switch on={autoTailorCV && planKey !== 'FREE'} disabled={planKey === 'FREE'} onChange={() => {
+                    trailing={<Switch label={t('profile.autoTailor')} on={autoTailorCV && planKey !== 'FREE'} disabled={planKey === 'FREE'} onChange={() => {
                       const next = !autoTailorCV;
                       setAutoTailorCV(next);
                       localStorage.setItem('autoTailorCV', next);
@@ -720,6 +734,18 @@ function ProfilePage({ initialView = null }) {
                     trailing={<span style={styles.navRowBadge}>{nextLanguage.flag} {nextLanguage.label}</span>}
                     onClick={toggleLanguage}
                   />
+                </div>
+              </div>
+
+              <div style={rowStyles.group}>
+                <p style={rowStyles.groupTitle}>{t('settings.legal')}</p>
+                <div style={{ ...styles.card, padding: '4px 0', gap: 0 }}>
+                  <SettingsRow icon="📄" title={t('settings.terms')}
+                    trailing="chevron" onClick={() => navigate('/legal/terms')} />
+                  <SettingsRow icon="🔒" title={t('settings.privacy')}
+                    trailing="chevron" onClick={() => navigate('/legal/privacy')} />
+                  <SettingsRow icon="♿" title={t('settings.accessibility')}
+                    trailing="chevron" onClick={() => navigate('/legal/accessibility')} />
                 </div>
               </div>
             </>)}
@@ -1173,7 +1199,7 @@ const styles = {
   },
   settingDesc: {
     fontSize: '13px',
-    color: '#9A8FD0',
+    color: '#6B5E9E',
     margin: '4px 0 0 0',
   },
   toggle: {
@@ -1203,7 +1229,7 @@ const styles = {
   },
   sliderLabel: {
     fontSize: '12px',
-    color: '#C4BCE4',
+    color: '#7D719F',
   },
   radiusBadge: {
     background: '#F1ECFF',
@@ -1302,14 +1328,14 @@ const styles = {
   navRowIcon: { width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0 },
   navRowText: { display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 },
   navRowTitle: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A' },
-  navRowSub: { fontSize: '12px', fontWeight: 600, color: '#9A8FD0' },
+  navRowSub: { fontSize: '12px', fontWeight: 600, color: '#6B5E9E' },
   navRowBadge: {
     flexShrink: 0, fontSize: '12.5px', fontWeight: 800, color: '#7C5CFF',
     background: '#F1ECFF', border: '1px solid #E9E4FB',
     borderRadius: '999px', padding: '5px 11px',
   },
   // No transform: U+203A is bidi-mirrored, so it flips with the text direction on its own.
-  chevron: { flexShrink: 0, fontSize: '22px', color: '#C4BCE4', lineHeight: 1 },
+  chevron: { flexShrink: 0, fontSize: '22px', color: '#7D719F', lineHeight: 1 },
 
   logoutBtn: {
     width: '100%',

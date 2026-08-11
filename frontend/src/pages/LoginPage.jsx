@@ -9,6 +9,8 @@ import useTranslation from '../i18n/useTranslation';
 
 function LoginPage() {
   const { t } = useTranslation();
+  // Unticked by default and required before signup: pre-ticked consent is not consent.
+  const [agreed, setAgreed] = useState(false);
   const [mode, setMode] = useState('login'); // login | register | confirm | forgot | forgotConfirm
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -200,8 +202,25 @@ function LoginPage() {
           <p style={{ ...styles.error, color: isSuccess ? '#12A96F' : '#FF4D67' }}>{error}</p>
         )}
 
-        <button style={{ ...styles.btn, opacity: loading ? 0.7 : 1 }}
-          onClick={handleSubmit} disabled={loading}>
+        {mode === 'register' && (
+          <label style={styles.consent}>
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={e => { setAgreed(e.target.checked); setError(''); }}
+              style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2, cursor: 'pointer' }}
+            />
+            <span>
+              {t('login.agreePre')}{' '}
+              <a href="/legal/terms" target="_blank" rel="noreferrer" style={styles.link}>{t('settings.terms')}</a>
+              {' '}{t('login.agreeAnd')}{' '}
+              <a href="/legal/privacy" target="_blank" rel="noreferrer" style={styles.link}>{t('settings.privacy')}</a>
+            </span>
+          </label>
+        )}
+
+        <button style={{ ...styles.btn, opacity: (loading || (mode === 'register' && !agreed)) ? 0.5 : 1 }}
+          onClick={handleSubmit} disabled={loading || (mode === 'register' && !agreed)}>
           {btnLabel()}
         </button>
 
@@ -234,7 +253,7 @@ function LoginPage() {
 const styles = {
   container: { minHeight: '100vh', background: 'linear-gradient(165deg, #F5F2FF 0%, #ECE6FF 45%, #F8F0FF 100%)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' },
   card: { background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(10px)', borderRadius: '28px', padding: '40px', width: '100%', maxWidth: '360px', boxShadow: '0 24px 60px rgba(91,61,245,0.18)', border: '1px solid rgba(255,255,255,0.9)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' },
-  subtitle: { color: '#9A8FD0', fontSize: '14px', margin: 0, fontWeight: 600 },
+  subtitle: { color: '#6B5E9E', fontSize: '14px', margin: 0, fontWeight: 600 },
   googleBtn: {
     width: '100%', padding: '12px', borderRadius: '14px', background: 'white',
     border: '1.5px solid #EDE8FC', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
@@ -243,11 +262,15 @@ const styles = {
   },
   divider: { width: '100%', display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' },
   dividerLine: { flex: 1, height: '1px', background: '#EDE8FC' },
-  dividerText: { fontSize: '13px', color: '#C4BCE4', fontWeight: 600 },
+  dividerText: { fontSize: '13px', color: '#7D719F', fontWeight: 600 },
   input: { width: '100%', padding: '13px 16px', borderRadius: '14px', border: '1.5px solid #E9E4FB', background: '#F8F6FF', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   btn: { width: '100%', padding: '15px', borderRadius: '14px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 800, cursor: 'pointer', transition: 'opacity 0.2s', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   error: { fontSize: '13px', margin: 0, textAlign: 'center' },
-  toggle: { fontSize: '13px', color: '#9A8FD0', margin: 0, fontWeight: 600 },
+  consent: {
+    display: 'flex', alignItems: 'flex-start', gap: '9px', width: '100%',
+    fontSize: '12.5px', lineHeight: 1.55, color: '#5A5478', cursor: 'pointer',
+  },
+  toggle: { fontSize: '13px', color: '#6B5E9E', margin: 0, fontWeight: 600 },
   link: { color: '#5B3DF5', cursor: 'pointer', fontWeight: 800 },
 };
 

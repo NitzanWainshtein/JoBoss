@@ -82,23 +82,29 @@ JoBoss/
 
 ## Getting Started
 
+> **Working on this project?** [`CONTRIBUTING.md`](CONTRIBUTING.md) is the full
+> guide — setup, the branch/PR loop, how deploys happen, and the rules. The section
+> below is the short version.
+
 ## 1) Frontend setup
 
 ```bash
 cd frontend
 npm install
-npm run dev
+cp .env.example .env    # fill it in before building
+npm run dev             # http://localhost:5173
 ```
-
-The frontend runs with mock data when `VITE_API_URL` is not configured.
 
 ## 2) Configure environment variables
 
-Create a `.env` file in `frontend/` and set:
+Copy [`frontend/.env.example`](frontend/.env.example) to `frontend/.env` and fill it
+in. `VITE_API_URL`, `VITE_USER_POOL_ID` and `VITE_USER_POOL_CLIENT_ID` are
+required — the build fails without them rather than starting up against nothing.
 
-```env
-VITE_API_URL=<your-api-gateway-base-url>
-```
+Set `VITE_USE_MOCK=true` to answer every API call from `src/api.mock.js` instead of
+the network, for UI work without backend access. It has to be requested by name: it
+was once the automatic fallback for a missing `VITE_API_URL`, and a production
+deploy shipped that way and served fabricated data to real users.
 
 For backend/service configuration, use `backend/shared/config.example.env` as a starting point.
 

@@ -186,6 +186,29 @@ jobs:
           fi
           echo "live site confirmed on $LIVE_SHA"
 
+      # Smoke test the thing that actually broke once: a bundle that builds and
+      # deploys perfectly but never calls the API. vite.config.js already refuses to
+      # build without VITE_API_URL, so this is the second line of defence — it also
+      # catches a bundle pointed at the *wrong* API, which the build guard cannot.
+      # --compressed matters: CloudFront serves brotli, and grepping the compressed
+      # bytes silently matches nothing and passes.
+      - name: Verify the live bundle talks to the API
+        run: |
+          BUNDLE=$(curl -fsS --compressed "https://d231wno34rvped.cloudfront.net/index.html" \
+            | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+          echo "bundle: $BUNDLE"
+          JS=$(curl -fsS --compressed "https://d231wno34rvped.cloudfront.net/$BUNDLE")
+
+          if ! echo "$JS" | grep -q "pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod"; then
+            echo "::error::live bundle does not reference the API — it would serve no or mock data"
+            exit 1
+          fi
+          if echo "$JS" | grep -q "mock-user"; then
+            echo "::error::live bundle contains mock fixtures — VITE_USE_MOCK leaked into a real build"
+            exit 1
+          fi
+          echo "live bundle references the production API and carries no mock fixtures"
+
       - name: Summary
         run: |
           {

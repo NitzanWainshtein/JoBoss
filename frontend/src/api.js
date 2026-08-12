@@ -1,7 +1,16 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { mockResponse } from './api.mock.js';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'mock';
+// Mock mode must be asked for explicitly. It used to be the fallback for a missing
+// VITE_API_URL, which is how a production deploy once came up serving fabricated
+// data with no error anywhere: an empty admin panel, no profiles, no CVs, and
+// returning users pushed into onboarding, while the database was untouched.
+//
+// Opting in by name means the only way to get mock data is to have written
+// VITE_USE_MOCK=true, and vite.config.js refuses to build without VITE_API_URL —
+// so there is no longer a path where a real build quietly stops calling the API.
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const getToken = async () => {
   const session = await fetchAuthSession();
@@ -34,7 +43,12 @@ const forceSignOut = async () => {
 };
 
 const apiCall = async (method, path, body = null) => {
-  if (BASE_URL === 'mock') {
+  if (USE_MOCK) {
+    // Dynamic import so the fixtures are only pulled in when mock mode is on.
+    // USE_MOCK is a compile-time constant, so in a real build this whole branch —
+    // and api.mock.js with it — is dropped from the bundle rather than shipped as
+    // unreachable code.
+    const { mockResponse } = await import('./api.mock.js');
     return mockResponse(method, path, body);
   }
 

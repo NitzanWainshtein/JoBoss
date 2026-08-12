@@ -1,6 +1,42 @@
 import { execSync } from 'node:child_process'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+
+// Variables the app cannot function without in a real build.
+//
+// api.js falls back to `BASE_URL = 'mock'` when VITE_API_URL is unset, which is
+// right for local development and catastrophic in production: the bundle serves
+// fabricated data with no error anywhere. That is exactly what shipped once, when
+// CI built without frontend/.env (gitignored, so absent on a fresh checkout) —
+// production came up with an empty admin panel, no profile, no CV, and existing
+// users pushed into onboarding, while the database was untouched the whole time.
+//
+// A silent fallback to fake data is not an acceptable production default, so a
+// build without these now fails here instead of succeeding and lying.
+const REQUIRED_BUILD_ENV = [
+  'VITE_API_URL',
+  'VITE_USER_POOL_ID',
+  'VITE_USER_POOL_CLIENT_ID',
+]
+
+function assertBuildEnv(env) {
+  const missing = REQUIRED_BUILD_ENV.filter((key) => !env[key])
+  if (missing.length === 0) return
+
+  throw new Error(
+    [
+      '',
+      'Refusing to build: required environment variables are missing.',
+      '',
+      ...missing.map((k) => `  - ${k}`),
+      '',
+      'Without VITE_API_URL the bundle silently serves mock data instead of talking',
+      'to the API. Locally: copy frontend/.env.example to frontend/.env and fill it',
+      'in. In CI: set them on the build step in .github/workflows/deploy.yml.',
+      '',
+    ].join('\n'),
+  )
+}
 
 // Emits dist/version.json so it is possible to ask the live site what it is
 // running. Without it, "which commit is in production?" could only be answered by
@@ -68,6 +104,14 @@ function iconVersionPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), iconVersionPlugin(), buildInfoPlugin()],
+export default defineConfig(({ command, mode }) => {
+  // Third arg '' loads every variable, not just the VITE_-prefixed ones, and picks
+  // up values passed in the environment (how CI supplies them) as well as .env.
+  if (command === 'build') {
+    assertBuildEnv(loadEnv(mode, process.cwd(), ''))
+  }
+
+  return {
+    plugins: [react(), iconVersionPlugin(), buildInfoPlugin()],
+  }
 })

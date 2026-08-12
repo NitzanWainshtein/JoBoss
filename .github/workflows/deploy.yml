@@ -97,9 +97,26 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Vite inlines VITE_* at build time from frontend/.env, which is gitignored
+      # and therefore absent here. Without them the build silently fell back to
+      # `BASE_URL = 'mock'` and shipped a production bundle serving fabricated data
+      # — no profile, no CV, an empty admin panel, and returning users pushed back
+      # into onboarding. vite.config.js now fails the build instead, but these must
+      # be supplied regardless.
+      #
+      # Not secrets: every one of these is inlined into the JavaScript that is
+      # served to every visitor, so they are public by construction. Cognito IDs
+      # and the API URL are identifiers, not credentials — the API is protected by
+      # the Cognito authorizer, not by their obscurity.
       - name: Build
         working-directory: frontend
         run: npm run build
+        env:
+          VITE_API_URL: https://pi6i87ag1c.execute-api.us-east-1.amazonaws.com/prod
+          VITE_USER_POOL_ID: us-east-1_a8enAwcyl
+          VITE_USER_POOL_CLIENT_ID: 5o1mg9dtkh7kjuvqu145oafv00
+          VITE_COGNITO_DOMAIN: joboss.auth.us-east-1.amazoncognito.com
+          VITE_CLOUDFRONT_URL: https://d231wno34rvped.cloudfront.net
 
       - name: Show what is about to ship
         working-directory: frontend

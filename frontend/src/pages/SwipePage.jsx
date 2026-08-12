@@ -1112,7 +1112,9 @@ function SwipePage() {
       {/* Action buttons — hidden while loading quota or confirmed locked */}
       {filteredJobs.length > 0 && !isBlocked && (
         <div style={styles.buttons}>
-          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')} aria-label={t('swipe.pass')}><span style={styles.rejectGlyph}>✕</span></motion.button>
+          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')} aria-label={t('swipe.pass')}>
+            <img src="/icons/x_icon.png" alt="" draggable="false" style={styles.rejectBtnIcon} />
+          </motion.button>
 
           {/* Undo — always takes the same space so X/heart never shift */}
           <div style={styles.undoBtnSlot}>
@@ -1150,7 +1152,9 @@ function SwipePage() {
             </AnimatePresence>
           </div>
 
-          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')} aria-label={t('swipe.apply')}><span style={styles.acceptGlyph}>♥</span></motion.button>
+          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')} aria-label={t('swipe.apply')}>
+            <img src="/icons/heart_icon.png" alt="" draggable="false" style={styles.acceptBtnIcon} />
+          </motion.button>
         </div>
       )}
 
@@ -1279,23 +1283,46 @@ const styles = {
   lockedSub: { fontSize: '13px', color: '#8B82B8', margin: 0 },
   lockedBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 20px', cursor: 'pointer', fontWeight: 800, fontSize: '14px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
   buttons: { display: 'flex', gap: '24px', marginTop: '8px', flexShrink: 0, alignItems: 'center', direction: 'ltr' },
-  // Circles drawn in CSS rather than flat PNGs: they stay crisp at any density,
-  // scale with the button, and take a focus ring like any other control.
+  // The Pass / Like buttons render supplied artwork (x_icon.png, heart_icon.png)
+  // instead of the ✕ and ♥ text glyphs they used to. Those glyphs are font
+  // characters, so Windows, iOS and Android each drew them from a different font
+  // — different weight, different proportions, and ♥ turning into a colour emoji
+  // on some systems. The artwork is identical everywhere by construction.
+  //
+  // Each PNG already contains its own circle and drop shadow, so the button
+  // itself must draw neither — otherwise the circle and the shadow are doubled.
+  // borderRadius stays so the focus ring and the hit area remain circular.
   rejectBtn: {
     width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`,
-    borderRadius: '50%', background: '#FFFFFF', border: 'none', cursor: 'pointer', padding: 0,
+    borderRadius: '50%', background: 'transparent', border: 'none',
+    cursor: 'pointer', padding: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 8px 22px rgba(91,61,245,0.16)',
+    WebkitTapHighlightColor: 'transparent',
   },
-  rejectGlyph: { fontSize: '30px', fontWeight: 700, color: '#FF4D67', lineHeight: 1 },
   acceptBtn: {
     width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`,
-    borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0,
-    background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
+    borderRadius: '50%', background: 'transparent', border: 'none',
+    cursor: 'pointer', padding: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 12px 28px rgba(91,61,245,0.4)',
+    WebkitTapHighlightColor: 'transparent',
   },
-  acceptGlyph: { fontSize: '30px', color: '#FFFFFF', lineHeight: 1 },
+  // The two PNGs bake in different amounts of shadow padding, so at the same
+  // rendered size their solid circles do not match: measured on the 70px source,
+  // x_icon's circle covers 94% of its canvas and heart_icon's only 90%. Drawn at
+  // a flat 100% the Pass button reads ~4% larger than the Like button, which
+  // looks like a mistake rather than a design. Scaling each by the inverse of its
+  // own coverage lands both solid circles on ICON_SIZES.swipeButton.
+  // Re-measure if the artwork is ever re-exported.
+  rejectBtnIcon: {
+    width: `${Math.round(ICON_SIZES.swipeButton / 0.94)}px`,
+    height: `${Math.round(ICON_SIZES.swipeButton / 0.94)}px`,
+    objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none',
+  },
+  acceptBtnIcon: {
+    width: `${Math.round(ICON_SIZES.swipeButton / 0.90)}px`,
+    height: `${Math.round(ICON_SIZES.swipeButton / 0.90)}px`,
+    objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none',
+  },
   undoGlyph: { fontSize: '26px', color: '#F5A623', lineHeight: 1, position: 'relative', zIndex: 1 },
   undoBtnSlot: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   undoBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, borderRadius: '50%', background: '#FFFFFF', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: '0 8px 22px rgba(91,61,245,0.16)' },

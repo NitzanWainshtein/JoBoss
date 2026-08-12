@@ -36,6 +36,31 @@ Needs credentials that can write IAM. Idempotent. It creates:
 The role ARN is already hardcoded in `deploy.yml`, so there is nothing to copy
 afterwards and no GitHub secret to store.
 
+### If a deploy fails with `sts:AssumeRoleWithWebIdentity`
+
+```
+Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity
+```
+
+This means the `sub` claim in GitHub's token did not match the trust policy. AWS
+does not say which part differed, so check the claim the run actually presents:
+
+| The workflow | `sub` GitHub sends |
+|---|---|
+| push / dispatch on `main`, no environment | `repo:OWNER/REPO:ref:refs/heads/main` |
+| **any job with `environment: production`** | `repo:OWNER/REPO:environment:production` |
+| pull request | `repo:OWNER/REPO:pull_request` |
+| tag | `repo:OWNER/REPO:ref:refs/tags/TAG` |
+
+The environment row is the trap, and it is what broke the first deploy here: the
+job declared `environment: production`, so the branch never appeared in the claim
+and the branch-pinned trust policy rejected it. `deploy.yml` no longer declares an
+environment — see the comment on the `deploy` job before adding one back.
+
+A second, rarer cause is propagation: STS does not see a brand-new role or provider
+for a few seconds. `setup.ps1` waits 45s after creating a role for that reason. If
+the trust policy is right and it still fails, re-run once before digging.
+
 ## How a deploy happens now
 
 Push to `main` touching `frontend/**`, or run **Actions → Deploy frontend → Run

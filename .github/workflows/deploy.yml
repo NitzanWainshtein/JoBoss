@@ -66,7 +66,19 @@ jobs:
     name: Build and deploy
     needs: verify
     runs-on: ubuntu-latest
-    environment: production
+    # Deliberately NO `environment:`. Declaring one changes the OIDC token's `sub`
+    # claim from `repo:OWNER/REPO:ref:refs/heads/main` to
+    # `repo:OWNER/REPO:environment:production`, which the role's trust policy does
+    # not match — the first attempt at this failed with
+    # "Not authorized to perform sts:AssumeRoleWithWebIdentity" for exactly that
+    # reason.
+    #
+    # Trusting the environment form instead would work, but it is looser: the sub
+    # carries no branch, so any branch declaring `environment: production` could
+    # assume the role. Pinning to the branch needs no GitHub-side configuration to
+    # be safe. To add approval gates later, add the environment back, trust the
+    # environment sub, AND restrict that environment's deployment branches to main
+    # — all three, or the branch pin is lost.
     steps:
       - uses: actions/checkout@v4
         with:

@@ -22,7 +22,6 @@ $Account   = "171109860478"
 $RoleName  = "joboss-github-deploy"
 $PolicyName = "joboss-frontend-deploy"
 $Dir       = $PSScriptRoot
-$ProviderArn = "arn:aws:iam::${Account}:oidc-provider/token.actions.githubusercontent.com"
 
 function Test-AwsOk($step) {
     if ($LASTEXITCODE -ne 0) { Write-Error "FAILED: $step"; exit 1 }
@@ -74,7 +73,21 @@ aws iam put-role-policy --role-name $RoleName `
 Test-AwsOk "put-role-policy"
 Write-Host "    applied" -ForegroundColor Green
 
-# ── 4. Report ────────────────────────────────────────────────────────────────
+# ── 4. Wait for IAM to propagate ─────────────────────────────────────────────
+# IAM is eventually consistent, and STS in particular does not learn about a new
+# role or OIDC provider instantly. The first time this ran, a push landed 15
+# seconds after the role was created and the deploy failed with
+# "Not authorized to perform sts:AssumeRoleWithWebIdentity" — which reads like a
+# broken trust policy but was only a race. Pause here so the next step in the
+# instructions (push) is not the thing that hits it.
+if (-not $roleExists) {
+    Write-Host ""
+    Write-Host "==> Waiting 45s for IAM/STS propagation (new role)..." -ForegroundColor Cyan
+    Start-Sleep -Seconds 45
+    Write-Host "    done" -ForegroundColor Green
+}
+
+# ── 5. Report ────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "Role ARN (already referenced by .github/workflows/deploy.yml):" -ForegroundColor Cyan
 Write-Host "  arn:aws:iam::${Account}:role/${RoleName}"

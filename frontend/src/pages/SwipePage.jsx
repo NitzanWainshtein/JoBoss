@@ -634,6 +634,9 @@ function SwipePage() {
   const { t } = useTranslation();
   const [jobs, setJobs] = useState([]);
   const [totalJobs, setTotalJobs] = useState(0);
+  // Offset of the next unfetched page, or null once the whole list has been read.
+  const [nextOffset, setNextOffset] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastSwipe, setLastSwipe] = useState(null);
@@ -686,10 +689,13 @@ function SwipePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getJobs();
+      const data = await getJobs({ offset: 0 });
       const jobList = data.jobs || [];
       setJobs(jobList);
-      setTotalJobs(jobList.length);
+      // Total across the whole result set, not just this page. Falls back to the
+      // page length so an unpaginated response (older Lambda) still reports sanely.
+      setTotalJobs(data.page?.total ?? jobList.length);
+      setNextOffset(data.page?.nextOffset ?? null);
       setLocationFilterFailed(data.locationFilterFailed === true);
       const lat = localStorage.getItem('jobLatitude');
       const lng = localStorage.getItem('jobLongitude');
@@ -701,6 +707,36 @@ function SwipePage() {
       setError(t('swipe.noConnection'));
     } finally {
       setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pull the next page and append it.
+  //
+  // A page can contribute zero usable cards — the user may already have swiped
+  // every job in it — so this cannot assume one fetch refills the deck. The effect
+  // below re-runs after nextOffset advances and keeps paging; it terminates because
+  // nextOffset only ever moves forward and becomes null at the end of the list.
+  const loadMoreJobs = useCallback(async (offset) => {
+    setLoadingMore(true);
+    try {
+      const data = await getJobs({ offset });
+      const incoming = data.jobs || [];
+      setJobs((prev) => {
+        // Dedupe defensively: an undo re-inserts a job, and a job could in
+        // principle appear in a later page if the underlying data shifted.
+        const seen = new Set(prev.map((j) => j.jobId));
+        return [...prev, ...incoming.filter((j) => !seen.has(j.jobId))];
+      });
+      if (typeof data.page?.total === 'number') setTotalJobs(data.page.total);
+      setNextOffset(data.page?.nextOffset ?? null);
+    } catch (e) {
+      // Not fatal — the user still has whatever is already in the deck. Stop
+      // paging so a failing request is not retried on every swipe.
+      console.error('LOAD MORE JOBS FAILED:', e?.message);
+      setNextOffset(null);
+    } finally {
+      setLoadingMore(false);
     }
   }, []);
 
@@ -761,6 +797,22 @@ function SwipePage() {
   const filteredJobs = [...(discoveryActive ? allUnseen : primaryJobs)].sort(byMatchAsc);
   const currentJob = filteredJobs[filteredJobs.length - 1];
   const nextJob = filteredJobs[filteredJobs.length - 2];
+
+  // Keep the deck stocked. `filteredJobs` counts only cards the user can actually
+  // be shown — already-swiped jobs and, outside discovery mode, non-matching ones
+  // are excluded — so this measures the real remaining deck rather than how many
+  // jobs have been downloaded.
+  //
+  // Refetching on a low deck rather than all at once is the whole point: the
+  // endpoint used to hand over every match in one 494KB response.
+  const DECK_LOW_WATER_MARK = 8;
+
+  useEffect(() => {
+    if (loading || loadingMore) return;
+    if (nextOffset === null) return;              // whole list already fetched
+    if (filteredJobs.length >= DECK_LOW_WATER_MARK) return;
+    loadMoreJobs(nextOffset);
+  }, [filteredJobs.length, nextOffset, loading, loadingMore, loadMoreJobs]);
 
   // Only lock when quota is confirmed from backend — never while loading
   const isLocked = !quotaLoading && quota && !quota.unlimited && quota.remaining <= 0;
@@ -1056,6 +1108,14 @@ function SwipePage() {
             {/* Locked overlay (limit reached, jobs still in feed = blurred teaser) */}
             {isLocked && lockedOverlay}
           </>
+        ) : loadingMore ? (
+          // The deck is empty but there are more pages coming. Every job on the
+          // page just fetched can be one the user already swiped, so this is a
+          // normal step, not the end of the feed — showing "you're all caught up"
+          // here would be wrong and would flash away a moment later.
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '320px' }}>
+            <Spinner text={t('swipe.loading')} />
+          </div>
         ) : isLocked ? (
           // Daily limit reached AND the visible feed is exhausted: still show the
           // limit UI (blurred placeholder teaser + upgrade overlay), NOT the

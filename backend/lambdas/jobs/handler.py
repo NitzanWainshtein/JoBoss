@@ -281,6 +281,15 @@ def to_float(value):
         return None
 
 
+def to_int(value):
+    if value is None:
+        return None
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
 def haversine_distance_km(lat1, lng1, lat2, lng2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -803,8 +812,23 @@ def apply_preference_scoring(jobs, prefs, requested_lat=None, requested_lng=None
         job["jobDomains"] = get_job_domains(job)
         job["jobLevel"] = list(detect_job_level(job))
 
-    if has_prefs:
-        jobs.sort(key=lambda j: j.get("matchScore", 0), reverse=True)
+    # Sort best-first, with jobId as a tiebreaker so the order is a deterministic
+    # total order rather than "whatever the scan happened to return".
+    #
+    # Many jobs share a score, and Python's sort is stable — so without the
+    # tiebreaker their relative order came straight from the DynamoDB scan, which
+    # is not guaranteed to repeat between calls. That was invisible while the whole
+    # list was returned at once, but it makes offset pagination silently skip and
+    # duplicate jobs across pages. Unscored jobs sort last, matching how the
+    # frontend treats a missing score.
+    def sort_key(job):
+        score = job.get("matchScore")
+        # Explicit None check, not `or`: a score of 0 is falsy and would otherwise
+        # be treated as unscored.
+        rank = -1 if score is None else score
+        return (-rank, str(job.get("jobId", "")))
+
+    jobs.sort(key=sort_key)
 
     if not has_prefs:
         return jobs, {"prefsApplied": False}
@@ -889,6 +913,51 @@ def scan_all_jobs():
 
 # ── Route handlers ────────────────────────────────────────────────────────────
 
+# Largest page a caller may request. The whole scored list is held in memory
+# regardless; this bounds the RESPONSE, which is what actually breaks — Lambda caps
+# a synchronous response at 6MB, and at ~2.3KB per job the unpaginated list reaches
+# that around 2,600 jobs and the endpoint starts failing outright.
+MAX_PAGE_SIZE = 200
+
+
+def paginate(jobs, query_params):
+    """Slice the scored list according to ?limit / ?offset.
+
+    Pagination is OPT-IN: with no `limit` the full list is returned, exactly as
+    before. That keeps an already-deployed frontend working unchanged — it fetches
+    once and filters client-side, so silently truncating its list would empty the
+    swipe deck as soon as the user had swiped through the first page.
+
+    Returns (page, meta).
+    """
+    total = len(jobs)
+    raw_limit = to_int(query_params.get("limit"))
+    offset = max(0, to_int(query_params.get("offset")) or 0)
+
+    if raw_limit is None:
+        return jobs, {
+            "total": total,
+            "offset": 0,
+            "limit": None,
+            "paginated": False,
+            "hasMore": False,
+        }
+
+    limit = max(1, min(raw_limit, MAX_PAGE_SIZE))
+    page = jobs[offset:offset + limit]
+
+    return page, {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "paginated": True,
+        "hasMore": offset + len(page) < total,
+        # Where to ask for next. None at the end so the client has an explicit stop
+        # signal rather than having to compute it.
+        "nextOffset": (offset + len(page)) if offset + len(page) < total else None,
+    }
+
+
 def list_jobs(event):
     query_params = get_query_params(event)
 
@@ -906,11 +975,18 @@ def list_jobs(event):
     requested_lng = to_float(query_params.get("lng")) or prefs.get("longitude")
     scored_jobs, score_stats = apply_preference_scoring(filtered_jobs, prefs, requested_lat, requested_lng)
 
+    page, page_meta = paginate(scored_jobs, query_params)
+    print(f"LIST JOBS: returning {len(page)} of {page_meta['total']} "
+          f"(offset={page_meta['offset']}, limit={page_meta['limit']})")
+
     return build_response(200, {
         "message": "Jobs fetched successfully",
-        "count": len(scored_jobs),
+        # Number of jobs in THIS response. Equals total when not paginating, which
+        # is what it has always meant.
+        "count": len(page),
         "filters": {**geo_filters, **score_stats},
-        "jobs": scored_jobs,
+        "page": page_meta,
+        "jobs": page,
     })
 
 

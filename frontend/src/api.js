@@ -101,23 +101,40 @@ const apiCall = async (method, path, body = null) => {
 };
 
 // ===== JOBS =====
-export const getJobs = async () => {
+
+// How many jobs to pull per request. The endpoint used to return every match in one
+// response — 494KB for a typical account — which a Lambda caps at 6MB, so the
+// screen would have started failing outright somewhere near 2,600 jobs. A page of
+// 50 is ~150KB and already more than a day's worth of swipes on any plan.
+export const JOBS_PAGE_SIZE = 50;
+
+/**
+ * Fetch one page of jobs, best match first.
+ *
+ * The response carries a `page` object: { total, offset, hasMore, nextOffset }.
+ * `nextOffset` is null at the end of the list. Omitting `limit` still returns
+ * everything, so an older client keeps working — the server treats pagination as
+ * opt-in.
+ */
+export const getJobs = async ({ limit = JOBS_PAGE_SIZE, offset = 0 } = {}) => {
   const latitude = localStorage.getItem('jobLatitude');
   const longitude = localStorage.getItem('jobLongitude');
   const radius = localStorage.getItem('jobRadius');
 
+  const paging = `limit=${limit}&offset=${offset}`;
+
   if (latitude && longitude && radius) {
     try {
-      return await apiCall('GET', `/jobs?lat=${latitude}&lng=${longitude}&radius=${radius}`);
+      return await apiCall('GET', `/jobs?lat=${latitude}&lng=${longitude}&radius=${radius}&${paging}`);
     } catch (error) {
       // Fall back to unfiltered jobs, but tell the caller so the UI can show
       // that radius filtering is off instead of failing silently.
       console.warn('Location-filtered jobs failed, falling back to unfiltered:', error?.message);
-      const data = await apiCall('GET', '/jobs');
+      const data = await apiCall('GET', `/jobs?${paging}`);
       return { ...data, locationFilterFailed: true };
     }
   }
-  return apiCall('GET', '/jobs');
+  return apiCall('GET', `/jobs?${paging}`);
 };
 
 // ===== SWIPES =====

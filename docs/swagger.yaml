@@ -89,7 +89,22 @@ paths:
   /jobs:
     get:
       summary: Get job listings
-      description: Returns jobs filtered by location/radius and user preferences.
+      description: |
+        Returns jobs filtered by location/radius and scored against the caller's
+        preferences, best match first. No job is dropped by scoring — low scores
+        simply sort last, tagged with `matchesPreferences: false` so the client can
+        separate its primary deck from discovery.
+
+        The order is a deterministic total order (score descending, then `jobId`),
+        which is what makes offset paging safe: scores tie constantly and the
+        underlying scan order is not guaranteed to repeat.
+
+        **Pagination is opt-in.** Without `limit` the full result set is returned,
+        as it always was, so older clients keep working. With `limit`, a typical
+        account's first response drops from ~494KB to ~151KB. This matters beyond
+        bandwidth: Lambda caps a synchronous response at 6MB, and at ~2.3KB per job
+        the unpaginated list reaches that around 2,600 jobs, at which point the
+        endpoint fails outright rather than degrading.
       parameters:
         - in: query
           name: lat
@@ -103,15 +118,48 @@ paths:
           name: radius
           schema: { type: number }
           description: Radius in km
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200 }
+          description: |
+            Page size. Omit to return everything (legacy behaviour). Values above
+            200 are capped; an unparseable value is ignored rather than treated as
+            zero, so a malformed request can never return an empty deck.
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+          description: Index to start from. Negative or unparseable values become 0.
       responses:
         '200':
-          description: List of jobs
+          description: A page of scored jobs
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Job'
+                type: object
+                properties:
+                  message: { type: string }
+                  count:
+                    type: integer
+                    description: Jobs in THIS response (equals total when unpaginated)
+                  filters:
+                    type: object
+                    description: Geo and scoring diagnostics
+                  page:
+                    type: object
+                    properties:
+                      total:      { type: integer, description: Matches across the whole result set }
+                      offset:     { type: integer }
+                      limit:      { type: integer, nullable: true, description: null when unpaginated }
+                      paginated:  { type: boolean }
+                      hasMore:    { type: boolean }
+                      nextOffset:
+                        type: integer
+                        nullable: true
+                        description: Offset for the next page; null at the end of the list
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
 
   /jobs/{jobId}:
     get:

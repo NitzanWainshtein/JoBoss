@@ -1,7 +1,7 @@
 // JoBoss feature:
 // - F-24: Account Suspension Screen
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
@@ -17,6 +17,7 @@ import LegalPage from './pages/LegalPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import Spinner from './components/Spinner.jsx';
+import lazyWithReload from './utils/lazyWithReload.js';
 import { adminPing, createMyProfile, getMyProfile, getSubscription } from './api';
 import LanguageProvider from './i18n/LanguageProvider.jsx';
 import useTranslation from './i18n/useTranslation';
@@ -26,9 +27,13 @@ import './styles/global.css';
 // Split out of the main bundle: none of these are on a path a normal user takes,
 // so there is no reason for every visitor to download them up front.
 // AdminPage in particular is admin-only and one of the largest pages in the app.
-const AdminPage = lazy(() => import('./pages/AdminPage.jsx'));
-const SwipeMockupPage = lazy(() => import('./pages/SwipeMockupPage.jsx'));
-const JobCardPreviewPage = lazy(() => import('./pages/JobCardPreviewPage.jsx'));
+//
+// lazyWithReload, not plain lazy: a chunk that has gone missing since this session
+// started (a deploy changed the hashed filenames) reloads once instead of throwing
+// the user onto the error screen.
+const AdminPage = lazyWithReload(() => import('./pages/AdminPage.jsx'), 'admin');
+const SwipeMockupPage = lazyWithReload(() => import('./pages/SwipeMockupPage.jsx'), 'swipe-mockup');
+const JobCardPreviewPage = lazyWithReload(() => import('./pages/JobCardPreviewPage.jsx'), 'job-card-preview');
 
 function SplashScreen({ ready, onDone }) {
   // Show for a short minimum (branding) but dismiss as soon as auth resolved —

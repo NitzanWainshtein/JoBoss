@@ -1,0 +1,168 @@
+name: Deploy frontend
+
+# Deploys only what is committed on main, and only after CI has passed on that
+# exact commit. Replaces running deploy_frontend.ps1 from a laptop, which built
+# from the working tree — so uncommitted (or half-finished) code could reach
+# production and nothing recorded what was actually shipped.
+on:
+  push:
+    branches: [main]
+    # Backend and docs changes cannot affect the static bundle.
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy.yml'
+  # Manual button, for redeploying the current main without an empty commit.
+  workflow_dispatch:
+
+# No long-lived AWS keys. GitHub mints a short-lived OIDC token that the
+# joboss-github-deploy role trusts, scoped to this repo's main branch only.
+permissions:
+  contents: read
+  id-token: write
+
+# Never let two deploys interleave: they would race on S3 and each invalidate a
+# tree the other had partly overwritten. Queue instead of cancelling, so a merged
+# commit is never silently skipped.
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  BUCKET: joboss-frontend-171109860478
+  DISTRIBUTION_ID: E1E8CVAQ0HQE8E
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+      - name: Lint
+        working-directory: frontend
+        run: npx eslint src/
+      - name: i18n parity
+        working-directory: frontend
+        run: node scripts/check-i18n.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Backend tests
+        run: |
+          pip install boto3 pytest
+          pytest backend/tests -q
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+
+  deploy:
+    name: Build and deploy
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # version.json records the commit; a shallow clone is enough for that,
+          # but fetch-depth 0 keeps `git describe`-style lookups working if the
+          # build info plugin ever needs history.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Show what is about to ship
+        working-directory: frontend
+        run: cat dist/version.json
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::171109860478:role/joboss-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Order and cache headers mirror infrastructure/deploy/deploy_frontend.ps1.
+      # See that script for why each one is the way it is; the important parts:
+      #   - no --delete on assets, or a deploy 404s the lazy chunks of any session
+      #     that is currently open
+      #   - index.html and version.json go LAST and are never cached
+      - name: Upload hashed assets (1y immutable)
+        working-directory: frontend
+        run: |
+          aws s3 sync dist/assets "s3://$BUCKET/assets" \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Upload icons (1h cache)
+        working-directory: frontend
+        run: |
+          aws s3 cp dist/icons "s3://$BUCKET/icons" --recursive \
+            --cache-control "public, max-age=3600"
+          aws s3 sync dist/icons "s3://$BUCKET/icons" --delete \
+            --cache-control "public, max-age=3600"
+
+      - name: Upload remaining root files (1h cache)
+        working-directory: frontend
+        run: |
+          aws s3 cp dist "s3://$BUCKET" --recursive \
+            --exclude "assets/*" --exclude "icons/*" \
+            --exclude "index.html" --exclude "version.json" \
+            --cache-control "public, max-age=3600"
+
+      - name: Upload index.html and version.json (no-cache)
+        working-directory: frontend
+        run: |
+          aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html"
+          aws s3 cp dist/version.json "s3://$BUCKET/version.json" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/json"
+
+      - name: Invalidate CloudFront
+        run: |
+          ID=$(aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" --paths "/*" \
+            --query "Invalidation.Id" --output text)
+          echo "invalidation: $ID"
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$DISTRIBUTION_ID" --id "$ID"
+
+      # Proves the deploy actually took, rather than trusting that it did.
+      - name: Verify the live site serves this commit
+        run: |
+          LIVE=$(curl -fsS "https://d231wno34rvped.cloudfront.net/version.json")
+          echo "$LIVE"
+          LIVE_SHA=$(echo "$LIVE" | python3 -c "import json,sys; print(json.load(sys.stdin)['commit'])")
+          if [ "$LIVE_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::live site reports $LIVE_SHA but this run deployed $GITHUB_SHA"
+            exit 1
+          fi
+          echo "live site confirmed on $LIVE_SHA"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed"
+            echo ""
+            echo "- commit: \`$GITHUB_SHA\`"
+            echo "- https://d231wno34rvped.cloudfront.net"
+            echo "- https://d231wno34rvped.cloudfront.net/version.json"
+          } >> "$GITHUB_STEP_SUMMARY"

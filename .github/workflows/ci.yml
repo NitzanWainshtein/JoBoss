@@ -1,5 +1,12 @@
 name: CI
 
+# Pre-merge gate, and the check for pushes that deploy.yml ignores (backend-only
+# changes don't touch the bundle, so they never trigger a deploy — but they still
+# have to be green).
+#
+# deploy.yml re-runs these same checks before it ships. That duplication is
+# deliberate: the deploy proves the exact commit it is about to publish is green,
+# rather than inferring it from a separate workflow's history.
 on:
   push:
     branches: [main]

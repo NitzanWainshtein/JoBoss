@@ -1,77 +1,179 @@
-# Verification brief — JoBoss frontend
+# Verification brief — JoBoss
 
-Copy everything below the line into Claude Code in Chrome.
+Copy everything below the line into Claude in Chrome.
+
+Last updated for the changes deployed on 2026-08-12 (commit `bd370c4`).
 
 ---
 
-You are testing a React + Vite mobile web app (JoBoss) running at **http://localhost:5173/**. It is a Hebrew-first RTL job-search app with an English mode. A large refactor just landed and **nothing has been visually verified** — the person who wrote it had no browser. Your job is to find what is broken.
+You are testing **JoBoss**, a Hebrew-first RTL job-search PWA, live at
+**https://d231wno34rvped.cloudfront.net**. It has an English mode.
 
-The app talks to a **live production API**, so treat writes as real. Use a throwaway account for anything destructive. Do not delete real applications or cancel a real subscription unless you are on a test account.
+A large batch of changes shipped today and **almost none of it has been looked at in
+a browser** — the person who wrote it had no way to see the app. Your job is to find
+what is broken. **Do not fix anything. Only report.**
 
-Report back as a numbered list: what you tested, what happened, and a verdict (OK / BROKEN / CAN'T TEST). Include exact console errors. **Do not fix anything** — only report.
+## Ground rules
 
-## Highest-risk items — start here
+- This is **production with real user data**. Writes are real.
+- **Do not** cancel a subscription, delete applications, block or delete users in the
+  admin panel, or change another user's plan.
+- Swiping is fine but it consumes a real daily quota and creates real applications.
+- Start with `Ctrl+Shift+R` to make sure you are not on a cached bundle.
+- Keep the **browser console and the Network tab open the whole time.** Console
+  errors matter as much as anything visible.
 
-These are the places the author explicitly flagged as most likely to be wrong.
+Report as a numbered list: what you did, what happened, verdict
+(**OK / BROKEN / CAN'T TEST**), plus exact console text for anything that errors.
 
-### 1. Hebrew values used as enum keys (highest risk of data loss)
+---
 
-Several dropdowns store a **Hebrew string as the persisted value** while showing a translated label. If translation leaked into the value, saving silently breaks.
+## 0. First, confirm what you are testing
 
-- Go to **Profile → Settings → Job preferences**. Set "Experience level" and "Availability".
-- Reload the page. **Do the selections persist?**
-- Switch language to English, set them again, reload, switch back to Hebrew. Still correct?
-- Then check the same fields during **onboarding** (new account) and confirm the value carries into the profile afterwards.
-- **BROKEN** if a select shows a blank placeholder after reload, or shows a raw key like `profile.exp.student`.
+Open `https://d231wno34rvped.cloudfront.net/version.json`. It should be JSON with
+`"shortCommit": "bd370c4"` and `"dirty": false`.
 
-### 2. Raw translation keys leaking to the screen
+If it returns HTML instead of JSON, stop and report that — nothing else is
+meaningful.
 
-Anywhere showing text like `swipe.level.student`, `app.status.SUBMITTED`, `sub.row.analytics` is a bug. Sweep every screen in **both languages** and report every instance with the exact key and location. Pay extra attention to:
-- Job-domain chips on the swipe card (frontend / backend / etc.)
-- The match-score modal (levels and role chips)
-- Application status pills
-- Subscription plan feature lists and the comparison table
+---
 
-### 3. `t is not defined` crashes
+## 1. The swipe deck and its paging — highest risk
 
-This class of bug passed the build three times during the refactor. Open the browser console, then visit **every** screen in both languages: swipe, applications (both tabs), profile, settings, all settings sub-panels, subscription, login, onboarding. Report any `ReferenceError: t is not defined` with the screen it happened on.
+This is brand new today and the most likely thing to be broken. The screen used to
+download every job at once; it now fetches 50 at a time and fetches more when the
+visible deck drops below 8 cards.
 
-## Newly restructured navigation — verify it holds together
+1. Load the swipe screen. In the **Network tab**, find the `jobs` request. Its URL
+   should contain **`limit=50&offset=0`**. Report the URL exactly.
+2. Does a job card appear? Is the counter/total sensible, or does it claim a
+   suspicious number like 0 or 50 when there should be more?
+3. **Swipe left repeatedly** (pass — this does not consume apply quota) and count.
+   Somewhere after ~42 swipes a **second `jobs` request with `offset=50`** should
+   appear in the Network tab, without the deck ever going empty.
+   - **BROKEN** if the deck empties and shows "you're all caught up" / an empty state
+     while more jobs exist.
+   - **BROKEN** if you ever see **the same job twice**. Note its title if so.
+   - A brief spinner in the card area between pages is expected and correct.
+4. Keep going until it genuinely runs out. Does it end cleanly with the "no more
+   jobs" state, or does it spin forever / error?
+5. **Undo** (the middle button, appears after a swipe): does the previous card come
+   back exactly once, in the right position?
+6. Toggle **"show all jobs" / discovery mode** (Settings, or wherever it lives) and
+   confirm the deck repopulates with lower-relevance jobs and still pages correctly.
 
-Settings and Subscription just became **real routes** (`/settings`, `/subscription`) instead of in-page panels.
+## 2. Nothing is running on fake data
 
-4. From Profile, tap **Settings ›**. URL should become `/settings`. The **Profile tab in the bottom bar must stay highlighted** (this was specifically engineered — an exact-match bug would leave no tab lit).
-5. Same for **Subscription ›** → `/subscription`, Profile tab still lit.
-6. Press **browser Back** from `/settings` → should return to `/profile`, not exit the app.
-7. Inside Settings, open **Job preferences** and **Location & search** (sub-panels). The back arrow should go **Settings → Profile**, one level at a time.
-8. Navigate directly to `http://localhost:5173/settings` and `/subscription` by typing the URL. Both should load correctly with the bottom bar intact.
-9. Tap the **avatar in the top bar** → the dropdown should now contain **Settings** and **Subscription** entries that navigate correctly.
-10. Confirm the old **Profile / Subscription tab strip is gone** from the profile screen.
+Earlier today a deploy accidentally served **mock data** — the app looked wiped:
+empty admin, no profile picture, no CV, existing users pushed into onboarding. That
+is fixed, but verify it is truly gone everywhere.
 
-## Layout — both bars were just re-anchored
+7. You are logged into an existing account: **you must NOT see the onboarding
+   wizard.** If you do, that is a critical regression.
+8. **Profile**: is the profile picture there? Is a CV listed with a real filename?
+9. **Applications**: real applications with real company names?
+10. **Admin** (if the account is an admin): does the users list show ~29 real users,
+    and are the statistics non-zero?
+11. Search the page source / console for the string `mock-user`. It must not appear
+    anywhere.
 
-11. The **top bar** should be flush against the top edge (it used to float with a gap). Scroll a long page — **no content should be visible in a gap above or beside it**, and nothing should be clipped underneath it.
-12. The **bottom bar** should be flush to the bottom, same check.
-13. On the **swipe screen**, confirm the card and the like/pass buttons are fully visible and the buttons are **not** underneath the bottom bar.
-14. Resize the window (or rotate on mobile) while on each tab: the **purple highlight bubble must stay exactly behind the active tab's icon+label**. Switch tabs at several widths.
+## 3. The swipe Pass / Like buttons — new artwork
 
-## Specific features to exercise
+The ✕ and ♥ text characters were replaced with PNG artwork today.
 
-15. **Splash screen** — hard-reload (Ctrl+Shift+R). The logo should sit on a **white rounded tile** (it used to be a dark logo on a dark gradient and was nearly invisible), with drifting colour blobs and a sliding progress bar.
-16. **Applications table** — the list should render as a table with a header row (Company / Role / Status / Updated). Check at a narrow width (~375px) that it does not squash: the date should fold under the role. Check the company logos load.
-17. **Applications ⋮ menu** — open it on the **last row in the list**. Does it get clipped by the container's bottom edge? (Suspected issue: it opens downward with `overflow: hidden` on the table.)
-18. **Match score modal** — on the swipe screen, tap the "% match" badge on a job card. The modal must be **fully on screen, not clipped**, and **both the top and bottom bars must disappear behind its blur**. Confirm tapping the backdrop closes it.
-19. **Refresh button** on Applications — tap it. The icon should spin and the label change to "Refreshing…". Confirm it actually re-fetches.
-20. **Login screen in English** — trigger a success message (e.g. password reset flow). The message must appear in **green, not red**. This was a specific bug fix.
-21. **Auto-apply / auto-tailor toggles** in Settings on a FREE account: both should appear disabled, and tapping the row should navigate to `/subscription`.
-22. **Language toggle** — flip to English from both the avatar menu and Settings. Confirm the whole layout flips to LTR, the setting **survives a reload**, and back-arrows/chevrons point the correct way in both directions.
+12. The two round buttons: white circle with a red X, and a purple gradient circle
+    with a white heart. Are they **the same visual size as each other** and the same
+    size as the middle undo button?
+13. **Is there a double circle or a double drop shadow** around either? (The artwork
+    contains its own circle; the CSS circle was removed. A doubled edge means the
+    removal did not take.)
+14. **Look closely at the two icons: are they blurry or soft?** This is a genuine open
+    question — the source art is only 70×70 pixels and the buttons render at 70 CSS
+    pixels, so on a high-DPI screen they may look soft. Compare them against the
+    crisp text arrow `↩` on the undo button. **Zoom the browser to 200% and say
+    whether they degrade badly.** Screenshot if you can.
+15. Do both buttons still work on **click**, and does **dragging** the card still
+    swipe it?
 
-## Known-acceptable, do not report
+## 4. The Dashboard was showing invented numbers
 
-- Admin page, onboarding, and dev-only preview screens are still partly Hebrew in English mode — intentional, not yet translated.
-- "Member since" and "Payment History" are absent from the profile — the API does not supply them.
-- Hebrew strings inside `EXP_LEVELS`, `AVAILABILITY`, and `<option value="...">` are **intentional** persisted values. Only report them if the visible label is wrong.
+`/dashboard` had a hardcoded "3 swipes used" against a limit of 10 that matched no
+real plan, and its upgrade button did nothing.
+
+16. Go to `/dashboard`. Does "swipes left today" match what the swipe screen and the
+    profile say? Cross-check all three.
+17. The plan line should name your real plan and its real daily limit (FREE = 5,
+    PREMIUM = 30, PREMIUM+ = unlimited/∞).
+18. On a FREE account the **upgrade button must now navigate** to the subscription
+    screen. On a paid account it should not appear.
+
+## 5. English mode on newly translated screens
+
+Six screens were wired into translation today. Switch to **English** and check each
+for **leftover Hebrew** or **raw keys** (anything like `limit.titleSwipes`):
+
+19. **The limit modal** — swipe right until you hit the daily cap, or tap the
+    upgrade/locked prompt. Check the title, the "you used X of Y" sentence (**the
+    numbers must be bold and in the right place, not the end of the sentence**), the
+    countdown label, both plan cards, their feature lists, and "Maybe later".
+20. **Dashboard** — every stat label, the status pills, the empty state.
+21. **The mismatch warning** — tap AI CV tailoring on a poorly-matched job. The
+    heading and both buttons should be English; the AI's *reason* text stays Hebrew,
+    which is intentional.
+22. In English, confirm the whole layout is **LTR** and that the language survives a
+    reload.
+
+## 6. Production route hygiene
+
+23. `https://d231wno34rvped.cloudfront.net/swipe-mockup` — should **redirect to the
+    app**, not render a mockup screen. Same for `/job-card-preview`.
+24. `https://d231wno34rvped.cloudfront.net/this-does-not-exist` — should redirect
+    home, not show a blank white page.
+25. **Admin** now loads as a separate lazy chunk. Open `/admin` and watch the Network
+    tab for an `AdminPage-*.js` request. Does the page render, or does it hang or
+    error?
+
+## 7. Icons, PWA, and weight
+
+26. Sweep every screen for a **broken or missing image** (all icons were re-encoded
+    and three were deleted). Report any broken-image placeholder with its location.
+27. Do the icons look **noticeably worse than you would expect** anywhere? They were
+    downscaled aggressively.
+28. Check the **browser tab favicon** appears.
+29. Try **installing the PWA** (address bar install icon, or Chrome menu → Install).
+    Does it install, and is the **launcher icon sharp and uncropped** — not a huge
+    blurry image, and not with its corners cut off?
+30. In the Network tab, reload and report the **total transferred bytes** for a cold
+    load. It should be far smaller than before; icons were 14.4MB and are now 4.4MB.
+
+## 8. Errors and edge behaviour
+
+31. Report **every** console error or warning, with the screen it appeared on.
+32. Any screen that spins forever? Every request now has a 30-second cap, so a
+      failure should surface as an error, never an endless spinner.
+33. Open the app, leave it idle several minutes, come back and interact. Still works,
+    or do you get thrown to login?
+
+---
+
+## Known and intentional — do not report
+
+- **The admin panel is Hebrew-only**, including in English mode. Deliberate.
+- **Onboarding is partly Hebrew** in English mode. Not yet translated.
+- The Undo button still uses the `↩` **text character** rather than artwork —
+  a pending decision, not a bug.
+- Hebrew strings stored as `<option value="...">` are intentional persisted values.
+  Only report them if the visible *label* is wrong.
+- `dirty: false` in `version.json` is correct and expected.
+
+---
 
 ## Finally
 
-Give me your overall read: does this feel shippable, and what are the top 3 things you would fix first?
+Three questions I actually need answered:
+
+1. **Did the deck ever go empty or repeat a card while paging?** This is the one
+   thing most likely to be subtly wrong.
+2. **Are the new X / heart buttons acceptably sharp, or do they need re-exporting at
+   higher resolution?**
+3. What are the **top 3 things you would fix first**, and does this feel shippable?

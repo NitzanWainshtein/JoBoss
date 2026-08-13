@@ -202,7 +202,15 @@ const styles = {
   },
   hotBadge: {
     // Logical properties, not left/top: this modal renders in both RTL and LTR.
-    position: 'absolute', top: '8px', insetInlineStart: '8px',
+    //
+    // Must be inline-END, not inline-start. The card text (name/price/features)
+    // is textAlign: 'start', so it begins at the inline-start edge in both
+    // directions. A badge also pinned to inline-start sits directly on top of
+    // the plan name — this shipped exactly that way once (English mode, "Most
+    // popular" over "Premium+") because the pre-i18n version hardcoded `left`,
+    // which happened to be the far corner from RTL start-aligned text and
+    // looked correct by accident, not by construction.
+    position: 'absolute', top: '8px', insetInlineEnd: '8px',
     background: 'rgba(255,255,255,0.3)', fontSize: '10px', fontWeight: 700,
     padding: '2px 8px', borderRadius: '20px', color: 'white',
   },

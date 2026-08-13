@@ -14,7 +14,11 @@ import {
 
 const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: 'פרימיום', PREMIUM_PLUS: 'פרימיום+' };
 const PLAN_ICONS  = { FREE: '/icons/free_members_icon.png', PREMIUM: '/icons/premium_member_icon.png', PREMIUM_PLUS: '/icons/plus_members_icon.png' };
-const PLAN_COLORS = { FREE: '#888', PREMIUM: '#6C4FD4', PREMIUM_PLUS: '#FF6B6B' };
+// FREE was '#888': on the Badge component's own light tinted background
+// (color + alpha suffix) that read as washed-out gray-on-near-white, next to
+// PREMIUM/PREMIUM_PLUS which are fully saturated. Darker gray keeps it visually
+// "neutral" while giving it real contrast.
+const PLAN_COLORS = { FREE: '#5B6472', PREMIUM: '#6C4FD4', PREMIUM_PLUS: '#FF6B6B' };
 
 function Badge({ text, color }) {
   return (
@@ -501,7 +505,7 @@ export default function AdminPage() {
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
-                  { plan: 'FREE',         icon: '/icons/free_members_icon.png',    label: 'FREE',     sub: '5 swipes ביום · 0 AI',        color: '#888' },
+                  { plan: 'FREE',         icon: '/icons/free_members_icon.png',    label: 'FREE',     sub: '5 swipes ביום · 0 AI',        color: PLAN_COLORS.FREE },
                   { plan: 'PREMIUM',      icon: '/icons/premium_member_icon.png',  label: 'PREMIUM',  sub: '30 swipes ביום · 10 AI/חודש', color: '#6C4FD4' },
                   { plan: 'PREMIUM_PLUS', icon: '/icons/plus_members_icon.png',    label: 'PREMIUM+', sub: 'ללא הגבלה בכל מה',            color: '#FF6B6B' },
                 ].map(({ plan, icon, label, sub, color }) => (

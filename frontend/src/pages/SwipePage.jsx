@@ -1169,12 +1169,26 @@ function SwipePage() {
         )}
       </div>
 
-      {/* Action buttons — hidden while loading quota or confirmed locked */}
-      {filteredJobs.length > 0 && !isBlocked && (
+      {/*
+        Action buttons — hidden while loading quota or confirmed locked.
+
+        The row also stays mounted whenever an undo is pending (showUndo &&
+        lastSwipe), even with an empty deck. Swiping the LAST card makes
+        filteredJobs.length hit 0 on the very same render as the swipe that
+        just fired — so gating on `filteredJobs.length > 0` alone unmounted
+        this whole row, Undo button included, in the same tick as the swipe
+        that most needs to be undoable. The 5-second undo window became
+        physically unreachable at exactly the moment the deck was exhausted.
+        Reject/accept still hide individually since there is no currentJob to
+        act on.
+      */}
+      {(filteredJobs.length > 0 || (showUndo && lastSwipe)) && !isBlocked && (
         <div style={styles.buttons}>
-          <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')} aria-label={t('swipe.pass')}>
-            <img src="/icons/x_icon.png" alt="" draggable="false" style={styles.rejectBtnIcon} />
-          </motion.button>
+          {filteredJobs.length > 0 && (
+            <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')} aria-label={t('swipe.pass')}>
+              <img src="/icons/x_icon.png" alt="" draggable="false" style={styles.rejectBtnIcon} />
+            </motion.button>
+          )}
 
           {/* Undo — always takes the same space so X/heart never shift */}
           <div style={styles.undoBtnSlot}>
@@ -1212,9 +1226,11 @@ function SwipePage() {
             </AnimatePresence>
           </div>
 
-          <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')} aria-label={t('swipe.apply')}>
-            <img src="/icons/heart_icon.png" alt="" draggable="false" style={styles.acceptBtnIcon} />
-          </motion.button>
+          {filteredJobs.length > 0 && (
+            <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')} aria-label={t('swipe.apply')}>
+              <img src="/icons/heart_icon.png" alt="" draggable="false" style={styles.acceptBtnIcon} />
+            </motion.button>
+          )}
         </div>
       )}
 

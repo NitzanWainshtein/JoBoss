@@ -28,7 +28,18 @@ jobs:
       - run: npm ci
       - run: npx eslint src/
       - run: node scripts/check-i18n.mjs
+      # vite.config.js refuses to build without these (see the comment there — a
+      # production deploy once shipped mock data because they were silently
+      # absent). This job only proves the app BUILDS, it never deploys anywhere,
+      # so these are placeholders, not real infrastructure — deploy.yml's build
+      # step carries the real ones. Since a7f5473 added the guard, this step had
+      # been failing on every push for a day because only deploy.yml got the
+      # variables; CI stayed red the whole time and nothing paged on it.
       - run: npm run build
+        env:
+          VITE_API_URL: https://ci-placeholder.execute-api.us-east-1.amazonaws.com/prod
+          VITE_USER_POOL_ID: us-east-1_ciplaceholder
+          VITE_USER_POOL_CLIENT_ID: ciplaceholderclientid
 
   backend:
     runs-on: ubuntu-latest

@@ -1,0 +1,51 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "UpdateOnlyTheseLambdas",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:UpdateFunctionCode"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-admin",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-ai-tailor",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-auto-apply",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-jobs",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-jobs-importer",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-jobs-status-checker",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-profile-image",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-subscriptions",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-swipes",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-upload-resume",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-users"
+      ]
+    },
+    {
+      "Sid": "ListFunctionsForAudit",
+      "Effect": "Allow",
+      "Action": "lambda:ListFunctions",
+      "Resource": "*"
+    },
+    {
+      "Sid": "FrontendBreakGlassList",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::joboss-frontend-171109860478"
+    },
+    {
+      "Sid": "FrontendBreakGlassWrite",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:PutObjectAcl", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::joboss-frontend-171109860478/*"
+    },
+    {
+      "Sid": "FrontendBreakGlassInvalidate",
+      "Effect": "Allow",
+      "Action": ["cloudfront:CreateInvalidation", "cloudfront:GetInvalidation"],
+      "Resource": "arn:aws:cloudfront::171109860478:distribution/E1E8CVAQ0HQE8E"
+    }
+  ]
+}

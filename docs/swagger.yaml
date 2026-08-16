@@ -51,6 +51,16 @@ components:
         jobId:            { type: string }
         company:          { type: string }
         title:            { type: string }
+        location:
+          type: string
+          description: |
+            Snapshotted from the job at swipe time, server-side — not supplied by
+            the client. Together with company/title, this is what keeps the
+            application meaningful after its job is edited or deleted; the job
+            itself is not guaranteed to still exist.
+        applyUrl:
+          type: string
+          description: Snapshotted from the job at swipe time, same reasoning as `location`.
         status:           { type: string, enum: [applied, interviewing, rejected, offered] }
         tailoredResumeUrl:{ type: string }
         appliedAt:        { type: string, format: date-time }

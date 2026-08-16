@@ -76,20 +76,49 @@ def get_user_profile(user_id):
         return {}
 
 
-def get_job_apply_url(job_id):
-    """Fetch applyUrl from joboss-jobs. Returns '' on any failure."""
+def get_job_snapshot(job_id):
+    """Snapshot a job's display fields at the moment of the swipe.
+
+    An application used to store only whatever company/title the frontend happened
+    to pass in the request body — so it went blank on any client that omitted them
+    (the Chrome extension's auto-apply path, notably), and had no way to survive
+    the job being edited or deleted later. 68 applications in production carry no
+    company or title today because of exactly that, and none of them are
+    recoverable: the source job is gone, so there was never anywhere to backfill
+    the text from.
+
+    Reading from the jobs table server-side instead of trusting the client fixes
+    both causes at once. Returns {} on any failure — the caller falls back to
+    whatever the client sent rather than failing the swipe over a snapshot.
+    """
     try:
-        result = jobs_table.get_item(Key={"jobId": job_id}, ProjectionExpression="applyUrl")
-        return result.get("Item", {}).get("applyUrl", "") or ""
+        result = jobs_table.get_item(
+            Key={"jobId": job_id},
+            # "location" is a DynamoDB reserved word and needs an alias to appear
+            # in a ProjectionExpression.
+            ProjectionExpression="company, title, #loc, applyUrl",
+            ExpressionAttributeNames={"#loc": "location"},
+        )
+        item = result.get("Item") or {}
+        return {
+            "company": item.get("company", ""),
+            "title": item.get("title", ""),
+            "location": item.get("location", ""),
+            "applyUrl": item.get("applyUrl", ""),
+        }
     except Exception as e:
-        print(f"JOB FETCH ERROR: jobId={job_id}, error={e}")
-        return ""
+        print(f"JOB SNAPSHOT ERROR: jobId={job_id}, error={e}")
+        return {}
 
 
-def send_to_auto_apply_queue(user_id, job_id, body, plan, apply_url=""):
+def send_to_auto_apply_queue(user_id, job_id, job_info, plan, apply_url=""):
     """
     Push a message to joboss-auto-apply-queue.
     Fails silently — a queue hiccup must never block the swipe response.
+
+    `job_info` needs "title" and "company" keys — callers pass the application's
+    own app_item, which carries the server-side job snapshot rather than whatever
+    the request body happened to include.
     """
     if not SQS_QUEUE_URL:
         print("AUTO_APPLY: SQS_QUEUE_URL not configured, skipping")
@@ -100,8 +129,8 @@ def send_to_auto_apply_queue(user_id, job_id, body, plan, apply_url=""):
             "userId": user_id,
             "jobId": job_id,
             "jobUrl": apply_url,
-            "jobTitle": body.get("title", ""),
-            "company": body.get("company", ""),
+            "jobTitle": job_info.get("title", ""),
+            "company": job_info.get("company", ""),
             "aiTailoring": ai_tailoring,
         }
         send_kwargs = {"QueueUrl": SQS_QUEUE_URL, "MessageBody": json.dumps(message)}
@@ -254,11 +283,20 @@ def create_swipe(event):
         else:
             initial_auto_status = "manual"
 
+        # Server-side snapshot, not client-supplied: some callers (the Chrome
+        # extension's auto-apply path) never sent company/title at all, and even
+        # when a client does send them, the job can later be edited or deleted —
+        # either way the application ends up with no record of what it was for.
+        # The `body.get(...)` fallback only covers a job that vanished in the gap
+        # between this request being built and this line running.
+        snapshot = get_job_snapshot(job_id)
         app_item = {
             "userId": user_id,
             "jobId": job_id,
-            "company": body.get("company", ""),
-            "title": body.get("title", ""),
+            "company": snapshot.get("company") or body.get("company", ""),
+            "title": snapshot.get("title") or body.get("title", ""),
+            "location": snapshot.get("location", ""),
+            "applyUrl": snapshot.get("applyUrl", ""),
             "status": "SUBMITTED",
             "autoApplyStatus": initial_auto_status,
             "createdAt": now_iso(),
@@ -287,10 +325,11 @@ def create_swipe(event):
                 })
 
         if auto_apply_on and not ai_tailoring_on:
-            # Tailoring not involved — go straight to SQS.
-            apply_url = get_job_apply_url(job_id)
+            # Tailoring not involved — go straight to SQS. Reuses the snapshot
+            # already fetched for app_item instead of a second jobs_table read.
+            apply_url = snapshot.get("applyUrl", "")
             print(f"AUTO_APPLY: resolved applyUrl={apply_url!r} for jobId={job_id}")
-            send_to_auto_apply_queue(user_id, job_id, body, plan, apply_url=apply_url)
+            send_to_auto_apply_queue(user_id, job_id, app_item, plan, apply_url=apply_url)
         elif auto_apply_on and ai_tailoring_on:
             print(f"AUTO_APPLY: waiting for tailoring — autoApplyStatus=pending_tailoring userId={user_id} jobId={job_id}")
 

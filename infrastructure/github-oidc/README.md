@@ -90,13 +90,18 @@ possible from a local deploy, never from CI.
 
 ## After the first successful CI deploy
 
-Delete the laptop's access key. Until it is gone, the weakest link is still an
-admin key on a workstation:
+Done — `joboss-deploy` no longer holds `AdministratorAccess`. Its permissions are
+now `infrastructure/iam/joboss-deploy-policy.json`: update the 11 named Lambdas,
+list Lambdas (for `audit_lambdas.py`), and a frontend-bucket/CloudFront break-glass
+path mirroring what the OIDC role above already grants. See
+`infrastructure/iam/` for how that was done and how to change it.
 
-```powershell
-aws iam list-access-keys --user-name joboss-deploy
-aws iam delete-access-key --user-name joboss-deploy --access-key-id <id>
-```
+The key itself still exists — `deploy_all.py` (backend Lambda deploys) has no CI
+path yet and runs from a workstation, so something still needs to authenticate it.
+It is a materially smaller risk now than an admin key: if it leaked, the blast
+radius is "redeploy 11 known Lambdas," not "do anything in the account." Deleting
+it outright becomes possible once the backend deploy also moves to CI (tracked
+as future work, not yet done).
 
 `deploy_frontend.ps1` stays in the repo as the break-glass path for when GitHub is
 down — but it needs credentials, so keep those in a password manager rather than in

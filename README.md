@@ -176,10 +176,25 @@ Feature-level API documentation is available here:
 ## Testing & CI
 
 - Backend unit tests: `pytest backend/tests` (covers job matching/level
-  detection and upload sanitization).
+  detection, upload sanitization, and the two-tier job-closure checker).
+- Frontend unit tests: `cd frontend && npm run test:run` (Vitest + jsdom;
+  `npm test` for watch mode). Covers the logic where a regression is silent
+  rather than obvious: request handling in `api.js` (a 401 signs out exactly
+  once even across parallel calls, a timeout surfaces as `TIMEOUT`, a 403 is
+  deliberately left to the app), `getJobs` paging and its location-filter
+  fallback, the chunk-retry rule that must not let a broken lazy chunk reload
+  the page in a loop, the gate that decides whether a service-worker update may
+  reload the page and discard typed input, and placeholder/markup parity between
+  the two dictionaries.
 - Frontend lint: `cd frontend && npx eslint src/`.
-- GitHub Actions (`.github/workflows/ci.yml`) runs lint + build + tests on
-  every push and pull request.
+- i18n key parity: `cd frontend && node scripts/check-i18n.mjs`.
+- Not covered by unit tests: anything depending on real layout. jsdom does no
+  layout, so `offsetWidth` and friends are always 0 — the navbar's active-tab
+  pill (which had a zoom bug that only appears at an enlarged text size) can
+  only be checked in a real browser at a real viewport.
+- GitHub Actions (`.github/workflows/ci.yml`) runs lint + i18n + frontend tests
+  + build + backend tests on every push and pull request. `deploy.yml` re-runs
+  the same checks on the exact commit it is about to ship.
 
 ---
 

@@ -1,20 +1,29 @@
 // Tells the user when a newer build is live and offers to load it.
 //
-// Why this is needed even though index.html is served no-cache: the app is
-// installed as a PWA (manifest declares display: standalone), and an installed
-// app resumes from memory instead of reloading. index.html is never re-fetched,
-// so the cache headers never come into play and the user keeps running whatever
-// bundle they had when they first opened it.
+// Two independent detectors feed the same banner:
 //
-// No build-time version file: the bundle filename is already content-hashed and
-// changes on every meaningful build, so comparing it against a freshly fetched
-// index.html detects exactly the thing that matters, with nothing to keep in
-// sync.
+// 1. Service worker (sw-src/sw.js via registerServiceWorker.js) — the primary
+//    path. The browser's own SW update machinery diffs sw.js on its own,
+//    independent of whatever JS is currently running in the tab.
+//
+// 2. Polling index.html (below) — kept as a fallback for whenever the SW path
+//    cannot fire at all: SW registration can fail (some in-app/embedded
+//    browser webviews block it outright), and it does nothing for a session
+//    that was already running before this feature existed and never got a
+//    real reload to pick up the SW registration code itself. That case is
+//    exactly why this can't be the ONLY mechanism — but pairing it with the
+//    service worker as detector #1 covers new sessions immediately going
+//    forward. index.html is no-cache, so this needed no other build machinery.
+//
+// Either firing sets the same `stale` flag; the button behaves differently
+// underneath depending on which one fired (see handleReload).
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useTranslation from '../i18n/useTranslation';
+import { activateWaitingServiceWorker } from '../utils/registerServiceWorker';
 
 const POLL_MS = 5 * 60 * 1000;
+const SW_UPDATE_EVENT = 'sw-update-available';
 
 // The script tag this session is actually running.
 function currentBundle() {
@@ -28,6 +37,7 @@ export default function UpdateBanner() {
   const { t } = useTranslation();
   const [stale, setStale] = useState(false);
   const mine = useRef(currentBundle());
+  const swRegistration = useRef(null);
 
   const check = useCallback(async () => {
     if (!mine.current || stale) return;
@@ -57,12 +67,33 @@ export default function UpdateBanner() {
     };
   }, [check]);
 
+  useEffect(() => {
+    const onSwUpdate = (e) => {
+      swRegistration.current = e.detail?.registration || null;
+      setStale(true);
+    };
+    window.addEventListener(SW_UPDATE_EVENT, onSwUpdate);
+    return () => window.removeEventListener(SW_UPDATE_EVENT, onSwUpdate);
+  }, []);
+
+  const handleReload = () => {
+    if (swRegistration.current?.waiting) {
+      // Don't reload directly here — activating the waiting worker fires
+      // 'controllerchange' in registerServiceWorker.js, which does the reload
+      // once the new worker has actually taken control, not before.
+      activateWaitingServiceWorker(swRegistration.current);
+      return;
+    }
+    // Polling path: there is no service worker lifecycle to wait on.
+    window.location.reload();
+  };
+
   if (!stale) return null;
 
   return (
     <div style={S.wrap} role="status">
       <span style={S.text}>{t('update.available')}</span>
-      <button type="button" style={S.btn} onClick={() => window.location.reload()}>
+      <button type="button" style={S.btn} onClick={handleReload}>
         {t('update.reload')}
       </button>
     </div>

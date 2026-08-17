@@ -152,10 +152,12 @@ jobs:
         run: |
           aws s3 cp dist "s3://$BUCKET" --recursive \
             --exclude "assets/*" --exclude "icons/*" \
-            --exclude "index.html" --exclude "version.json" \
+            --exclude "index.html" --exclude "version.json" --exclude "sw.js" \
             --cache-control "public, max-age=3600"
 
-      - name: Upload index.html and version.json (no-cache)
+      # sw.js is diffed byte-for-byte by the browser to detect an update — at any
+      # cache duration that detection would lag by however long the cache holds.
+      - name: Upload index.html, version.json, and sw.js (no-cache)
         working-directory: frontend
         run: |
           aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
@@ -164,6 +166,9 @@ jobs:
           aws s3 cp dist/version.json "s3://$BUCKET/version.json" \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "application/json"
+          aws s3 cp dist/sw.js "s3://$BUCKET/sw.js" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/javascript"
 
       - name: Invalidate CloudFront
         run: |

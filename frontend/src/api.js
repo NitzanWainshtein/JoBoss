@@ -298,6 +298,10 @@ export const adminToggleJob      = (jid, act)   => apiCall('PUT',    `/admin/job
 export const adminTriggerImport  = ()           => apiCall('POST',   '/admin/jobs/import',              {});
 export const adminImportStatus   = ()           => apiCall('GET',    '/admin/jobs/import-status');
 export const adminDeleteJobs     = (jobIds)     => apiCall('DELETE', '/admin/jobs',                     { jobIds });
+// F-18: jobs the daily automated closure checker couldn't resolve on its own —
+// see backend/lambdas/jobs_status_checker for what lands here and why.
+export const adminGetPendingReviewJobs = ()             => apiCall('GET',  '/admin/jobs/pending-review');
+export const adminResolveJobReview     = (jid, action)  => apiCall('POST', `/admin/jobs/${jid}/resolve-review`, { action });
 export const adminResetMyQuota   = (plan)       => apiCall('POST',   '/admin/reset-my-quota',           { plan });
 export const adminResetMySwipes  = ()           => apiCall('POST',   '/admin/reset-my-swipes',           {});
 

@@ -1,0 +1,3 @@
+# Nothing to install — boto3 ships with the Lambda Python runtime.
+# This Lambda deploys in "single" mode (see infrastructure/deploy/deploy_all.py):
+# the package is just handler.py.

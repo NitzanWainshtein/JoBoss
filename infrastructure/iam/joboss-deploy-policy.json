@@ -7,7 +7,8 @@
       "Action": [
         "lambda:GetFunction",
         "lambda:GetFunctionConfiguration",
-        "lambda:UpdateFunctionCode"
+        "lambda:UpdateFunctionCode",
+        "lambda:InvokeFunction"
       ],
       "Resource": [
         "arn:aws:lambda:us-east-1:171109860478:function:joboss-admin",
@@ -16,6 +17,7 @@
         "arn:aws:lambda:us-east-1:171109860478:function:joboss-jobs",
         "arn:aws:lambda:us-east-1:171109860478:function:joboss-jobs-importer",
         "arn:aws:lambda:us-east-1:171109860478:function:joboss-jobs-status-checker",
+        "arn:aws:lambda:us-east-1:171109860478:function:joboss-job-status-checker-trigger",
         "arn:aws:lambda:us-east-1:171109860478:function:joboss-profile-image",
         "arn:aws:lambda:us-east-1:171109860478:function:joboss-subscriptions",
         "arn:aws:lambda:us-east-1:171109860478:function:joboss-swipes",

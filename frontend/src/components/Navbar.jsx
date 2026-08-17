@@ -73,11 +73,30 @@ function Navbar({ isAdmin = false, planKey = '' }) {
 
   useEffect(() => {
     measureBubble();
-    // Re-measure one frame after paint: web fonts and icon images can shift the
-    // tab widths after the first layout pass. `language` is a dependency because
-    // switching it swaps every tab label.
+    // Re-measure one frame after paint: icon images can shift the tab widths
+    // after the first layout pass. `language` is a dependency because switching
+    // it swaps every tab label.
     const raf = requestAnimationFrame(measureBubble);
-    return () => cancelAnimationFrame(raf);
+
+    // Heebo loads asynchronously (index.html defers it so it never blocks first
+    // paint) — the very first measurement can land before the swap from the
+    // fallback font, which changes label widths after the fact with nothing
+    // else here to notice. document.fonts.ready resolves once every requested
+    // font has actually loaded, so this catches exactly that swap. Also covers
+    // mobile browser chrome (Samsung Internet / Chrome's collapsing address
+    // bar) settling a beat after the resize/ResizeObserver listeners below
+    // already fired once — this was reported as the pill sitting visibly off
+    // the active tab on a real phone, not reproducible on desktop where both
+    // of these settle before React's first paint.
+    let cancelled = false;
+    document.fonts?.ready?.then(() => { if (!cancelled) measureBubble(); });
+    const settleTimer = setTimeout(measureBubble, 400);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      cancelled = true;
+      clearTimeout(settleTimer);
+    };
   }, [measureBubble, navItems.length, language]);
 
   // Keep the bubble locked to the active tab across viewport/orientation changes.

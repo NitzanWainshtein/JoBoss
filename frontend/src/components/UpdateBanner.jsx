@@ -17,10 +17,17 @@
 //
 // Either firing sets the same `stale` flag; the button behaves differently
 // underneath depending on which one fired (see handleReload).
+//
+// The banner is only how an update reaches a user who is LOOKING at the app —
+// yanking the page mid-swipe would be worse than a moment of staleness. Once the
+// tab is hidden there is nothing to disrupt, so both paths stop asking and just
+// take the update (see canApplySilently). That is what keeps this from being
+// opt-in: a user who never presses the button still lands on the new build the
+// next time they leave the app and come back.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useTranslation from '../i18n/useTranslation';
-import { activateWaitingServiceWorker } from '../utils/registerServiceWorker';
+import { activateWaitingServiceWorker, canApplySilently } from '../utils/registerServiceWorker';
 
 const POLL_MS = 5 * 60 * 1000;
 const SW_UPDATE_EVENT = 'sw-update-available';
@@ -55,17 +62,28 @@ export default function UpdateBanner() {
   }, [stale]);
 
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
-    // Resume is the moment that matters for an installed app: that is exactly
-    // when it comes back with a stale bundle and never re-fetches anything.
-    document.addEventListener('visibilitychange', onVisible);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Resume is the moment that matters for an installed app: that is
+        // exactly when it comes back with a stale bundle and never re-fetches
+        // anything.
+        check();
+      } else if (stale && canApplySilently()) {
+        // Already known stale and the user just left — take the update now
+        // rather than waiting for them to come back and press a button. Same
+        // reasoning as the service worker path in registerServiceWorker.js;
+        // this branch is what covers sessions where no SW is running at all.
+        window.location.reload();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
     const id = setInterval(check, POLL_MS);
     check();
     return () => {
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       clearInterval(id);
     };
-  }, [check]);
+  }, [check, stale]);
 
   useEffect(() => {
     const onSwUpdate = (e) => {

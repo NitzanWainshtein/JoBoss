@@ -8,6 +8,10 @@ import useTranslation from '../i18n/useTranslation';
 import AccessibilityMenu from './AccessibilityMenu';
 import AvatarCropper from './AvatarCropper';
 
+// The pill's height. Its vertical position is derived from the active button so
+// it stays centred on the icon+label; only the height is a design constant.
+const BUBBLE_HEIGHT = 52;
+
 const PLAN_LOGOS = {
   FREE:         '/icons/free_members_icon.png',
   PREMIUM:      '/icons/premium_member_icon.png',
@@ -28,7 +32,7 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   const menuRef   = useRef(null);
   const imgInputRef = useRef(null);
 
-  const [bubble, setBubble] = useState({ left: 0, width: 0 });
+  const [bubble, setBubble] = useState({ left: 0, width: 0, top: 0 });
   const [ready,  setReady]  = useState(false);
 
   const [profileImage,   setProfileImage]   = useState(null);
@@ -59,15 +63,34 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   // Measure the active tab button directly rather than deriving it from the
   // nav width + a hardcoded padding — that derivation silently drifts whenever
   // the navbar's CSS padding changes, and never reflects the real button box.
+  //
+  // offset* rather than getBoundingClientRect(): the accessibility menu's text
+  // size applies `zoom` to <body> (see global.css), and getBoundingClientRect()
+  // reports the VISUAL box — already multiplied by that zoom. Feeding those
+  // numbers back as `left`/`width` on the bubble, which lives inside the same
+  // zoomed subtree, applies the zoom a second time. The error is proportional to
+  // the distance from the nav's left edge, so every tab was off by a different
+  // amount (~14px, ~39px, ~65px across three tabs at 1.2x) and the bubble
+  // visibly slid off the tab and past the end of the bar. offsetLeft/offsetWidth
+  // are layout values in the nav's own coordinate space — the same space `left`
+  // is resolved in — so they survive any zoom or transform on an ancestor.
+  // offsetParent is the nav itself (it is position: fixed), and offset* excludes
+  // its 1px top border exactly as an absolute `top` does, so the two agree.
   const measureBubble = useCallback(() => {
-    const nav = navRef.current;
-    const el  = itemRefs.current[activeIndex];
-    if (!nav || !el || activeIndex < 0) return;
-    const navRect = nav.getBoundingClientRect();
-    const elRect  = el.getBoundingClientRect();
-    if (!elRect.width) return;           // not laid out yet
+    const el = itemRefs.current[activeIndex];
+    if (!navRef.current || !el || activeIndex < 0) return;
+    if (!el.offsetWidth) return;          // not laid out yet
     const INSET = 2;                      // keeps the bubble just inside the tab
-    setBubble({ left: elRect.left - navRect.left + INSET, width: elRect.width - INSET * 2 });
+    setBubble({
+      left:  el.offsetLeft + INSET,
+      width: el.offsetWidth - INSET * 2,
+      // Centre on the button instead of a hardcoded top. The icon and label sit
+      // between equal 8px paddings, so the button's centre is the content's
+      // centre and the pill ends up symmetric by construction — the previous
+      // fixed 7px left 3px of clearance above and 4px below, and drifted further
+      // whenever the label's line height changed with the font or text size.
+      top:   el.offsetTop + el.offsetHeight / 2 - BUBBLE_HEIGHT / 2,
+    });
     setReady(true);
   }, [activeIndex]);
 
@@ -79,15 +102,14 @@ function Navbar({ isAdmin = false, planKey = '' }) {
     const raf = requestAnimationFrame(measureBubble);
 
     // Heebo loads asynchronously (index.html defers it so it never blocks first
-    // paint) — the very first measurement can land before the swap from the
-    // fallback font, which changes label widths after the fact with nothing
-    // else here to notice. document.fonts.ready resolves once every requested
-    // font has actually loaded, so this catches exactly that swap. Also covers
-    // mobile browser chrome (Samsung Internet / Chrome's collapsing address
-    // bar) settling a beat after the resize/ResizeObserver listeners below
-    // already fired once — this was reported as the pill sitting visibly off
-    // the active tab on a real phone, not reproducible on desktop where both
-    // of these settle before React's first paint.
+    // paint), and the swap from the fallback font changes the label's line
+    // height — which changes the button height the pill is now centred on. Tab
+    // WIDTHS are immune (every tab is flex: 1), so this only matters vertically,
+    // but a pill a couple of pixels off centre is still visible.
+    // document.fonts.ready resolves once every requested font has loaded, so it
+    // catches exactly that swap; the timer covers mobile browser chrome
+    // (a collapsing address bar) settling a beat after the listeners below have
+    // already fired once.
     let cancelled = false;
     document.fonts?.ready?.then(() => { if (!cancelled) measureBubble(); });
     const settleTimer = setTimeout(measureBubble, 400);
@@ -248,7 +270,7 @@ function Navbar({ isAdmin = false, planKey = '' }) {
 
       <nav ref={navRef} style={styles.navbar}>
         {ready && activeIndex >= 0 && (
-          <div style={{ ...styles.bubble, left: bubble.left, width: bubble.width }} />
+          <div style={{ ...styles.bubble, left: bubble.left, width: bubble.width, top: bubble.top }} />
         )}
         {navItems.map((item, i) => {
           const active = matchesTab(item);
@@ -348,7 +370,8 @@ const styles = {
     padding: '0 6px env(safe-area-inset-bottom, 0px)', overflow: 'hidden',
   },
   bubble: {
-    position: 'absolute', top: '7px', height: '52px', borderRadius: '999px',
+    // top is set per-render from the measured button; see measureBubble.
+    position: 'absolute', height: `${BUBBLE_HEIGHT}px`, borderRadius: '999px',
     background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
     boxShadow: '0 10px 24px rgba(91,61,245,0.4)',
     pointerEvents: 'none', zIndex: 0,

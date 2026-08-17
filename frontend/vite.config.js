@@ -1,6 +1,22 @@
 import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+function resolveBuildSha() {
+  const git = (args, fallback) => {
+    try {
+      return execSync(`git ${args}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    } catch {
+      return fallback;
+    }
+  };
+  return process.env.GITHUB_SHA || git('rev-parse HEAD', 'unknown');
+}
 
 // Variables the app cannot function without in a real build.
 //
@@ -61,7 +77,7 @@ function buildInfoPlugin() {
     name: 'build-info',
     apply: 'build',
     generateBundle() {
-      const sha = process.env.GITHUB_SHA || git('rev-parse HEAD', 'unknown');
+      const sha = resolveBuildSha();
       const info = {
         commit: sha,
         shortCommit: sha.slice(0, 7),
@@ -76,6 +92,32 @@ function buildInfoPlugin() {
         type: 'asset',
         fileName: 'version.json',
         source: JSON.stringify(info, null, 2) + '\n',
+      });
+    },
+  };
+}
+
+// Emits dist/sw.js from sw-src/sw.js with the build SHA stamped in.
+//
+// The template lives outside public/ and outside src/ on purpose: public/ files
+// are copied byte-for-byte with no processing, which is exactly what must NOT
+// happen here — without the stamp, sw.js would be byte-identical across every
+// deploy, and the browser's update check (a raw byte diff of this exact file)
+// would never see a difference and would never detect a new version at all.
+// It is not under src/ because it is not a module the app imports; it runs in
+// its own worker context with a completely different global scope (self, not
+// window) and must never be pulled into the main bundle.
+function serviceWorkerPlugin() {
+  return {
+    name: 'service-worker',
+    apply: 'build',
+    generateBundle() {
+      const sha = resolveBuildSha();
+      const template = readFileSync(join(__dirname, 'sw-src', 'sw.js'), 'utf-8');
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sw.js',
+        source: template.replace('__JOBOSS_BUILD_ID__', sha),
       });
     },
   };
@@ -112,6 +154,6 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
-    plugins: [react(), iconVersionPlugin(), buildInfoPlugin()],
+    plugins: [react(), iconVersionPlugin(), buildInfoPlugin(), serviceWorkerPlugin()],
   }
 })

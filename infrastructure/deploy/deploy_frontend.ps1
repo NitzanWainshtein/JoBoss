@@ -3,6 +3,8 @@
 #
 # Cache strategy:
 #   index.html        -> no-cache (users always get the newest HTML)
+#   sw.js             -> no-cache (its whole job is to be diffable on every check —
+#                        see frontend/sw-src/sw.js)
 #   assets/* (JS/CSS) -> 1 year, immutable (Vite content-hashes the filenames)
 #   icons/* + images  -> 1 hour (updates propagate within the hour)
 #
@@ -66,13 +68,16 @@ if (Test-Path (Join-Path $Dist "icons")) {
 #    Excludes the dirs/files already handled above so their headers survive.
 Write-Host "==> Uploading remaining root files (1h cache)..." -ForegroundColor Cyan
 aws s3 cp "$Dist" "s3://$Bucket" --recursive `
-    --exclude "assets/*" --exclude "icons/*" --exclude "index.html" --exclude "version.json" `
+    --exclude "assets/*" --exclude "icons/*" --exclude "index.html" --exclude "version.json" --exclude "sw.js" `
     --cache-control "public, max-age=3600"
 Fail-IfError "upload root files"
 
-# 5. index.html and version.json LAST (so they never reference assets that aren't
-#    uploaded yet) and never cached. version.json is the answer to "what is live?" —
-#    at a 1h cache it would confidently report the previous deploy.
+# 5. index.html, version.json, and sw.js LAST (so they never reference assets that
+#    aren't uploaded yet) and never cached. version.json is the answer to "what is
+#    live?" — at a 1h cache it would confidently report the previous deploy. sw.js
+#    is diffed byte-for-byte by the browser to detect an update at all — at a 1h
+#    cache that detection would lag by up to an hour on top of whatever delay the
+#    browser's own SW recheck schedule already adds.
 Write-Host "==> Uploading index.html (no-cache)..." -ForegroundColor Cyan
 aws s3 cp "$Dist\index.html" "s3://$Bucket/index.html" `
     --cache-control "no-cache, no-store, must-revalidate" --content-type "text/html"
@@ -83,6 +88,13 @@ if (Test-Path (Join-Path $Dist "version.json")) {
     aws s3 cp "$Dist\version.json" "s3://$Bucket/version.json" `
         --cache-control "no-cache, no-store, must-revalidate" --content-type "application/json"
     Fail-IfError "upload version.json"
+}
+
+if (Test-Path (Join-Path $Dist "sw.js")) {
+    Write-Host "==> Uploading sw.js (no-cache)..." -ForegroundColor Cyan
+    aws s3 cp "$Dist\sw.js" "s3://$Bucket/sw.js" `
+        --cache-control "no-cache, no-store, must-revalidate" --content-type "application/javascript"
+    Fail-IfError "upload sw.js"
 }
 
 # 6. Invalidate CloudFront so the new versions are served immediately

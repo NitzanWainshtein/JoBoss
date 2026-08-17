@@ -155,5 +155,22 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: [react(), iconVersionPlugin(), buildInfoPlugin(), serviceWorkerPlugin()],
+
+    // Vitest resolves this config with command 'serve', so assertBuildEnv above
+    // does not fire and tests need no real credentials.
+    test: {
+      environment: 'jsdom',
+      include: ['src/**/*.test.{js,jsx}'],
+      restoreMocks: true,
+      // The default 'forks' pool never gets a worker up on this Windows setup —
+      // every run dies with "Timeout waiting for worker to respond" after 60s.
+      // Threads start fine and the suite has no need for process isolation.
+      pool: 'threads',
+      // api.js reads BASE_URL at module load. A placeholder keeps the assembled
+      // URLs assertable without pointing tests at anything real.
+      env: {
+        VITE_API_URL: 'https://api.test',
+      },
+    },
   }
 })

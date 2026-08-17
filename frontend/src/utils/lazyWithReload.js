@@ -38,8 +38,13 @@ const writeFlag = (key, value) => {
   }
 };
 
-export default function lazyWithReload(factory, key) {
-  return lazy(() =>
+// Split out from the default export so the retry rule can be tested directly.
+// Wrapped in React.lazy it is only reachable by rendering a Suspense tree, and
+// the thing worth pinning down here — that a permanently broken chunk reloads
+// exactly once and then surfaces the error instead of looping — is about the
+// promise, not about React.
+export function withChunkRetry(factory, key) {
+  return () =>
     factory()
       .then((module) => {
         // Clear on success so a later deploy gets its own retry.
@@ -56,6 +61,9 @@ export default function lazyWithReload(factory, key) {
         // resolving or rejecting here would render something for the split second
         // before the page goes away.
         return new Promise(() => {});
-      }),
-  );
+      });
+}
+
+export default function lazyWithReload(factory, key) {
+  return lazy(withChunkRetry(factory, key));
 }

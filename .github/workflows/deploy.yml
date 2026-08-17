@@ -52,6 +52,9 @@ jobs:
       - name: i18n parity
         working-directory: frontend
         run: node scripts/check-i18n.mjs
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm run test:run
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

@@ -28,6 +28,7 @@ jobs:
       - run: npm ci
       - run: npx eslint src/
       - run: node scripts/check-i18n.mjs
+      - run: npm run test:run
       # vite.config.js refuses to build without these (see the comment there — a
       # production deploy once shipped mock data because they were silently
       # absent). This job only proves the app BUILDS, it never deploys anywhere,

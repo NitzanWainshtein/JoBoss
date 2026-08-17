@@ -296,7 +296,10 @@ export const adminGrantAdmin     = (uid, pass)  => apiCall('POST',   `/admin/use
 export const adminRevokeAdmin    = (uid, pass)  => apiCall('POST',   `/admin/users/${uid}/revoke-admin`, { password: pass });
 export const adminToggleJob      = (jid, act)   => apiCall('PUT',    `/admin/jobs/${jid}`,              { active: act });
 export const adminTriggerImport  = ()           => apiCall('POST',   '/admin/jobs/import',              {});
-export const adminImportStatus   = ()           => apiCall('GET',    '/admin/jobs/import-status');
+// `since` is the server timestamp returned by adminTriggerImport. The importer is
+// invoked asynchronously and cannot report back, so progress is counted from the
+// createdAt of jobs inserted after that moment.
+export const adminImportStatus   = (since)      => apiCall('GET',    `/admin/jobs/import-status?since=${encodeURIComponent(since)}`);
 export const adminDeleteJobs     = (jobIds)     => apiCall('DELETE', '/admin/jobs',                     { jobIds });
 // F-18: jobs the daily automated closure checker couldn't resolve on its own —
 // see backend/lambdas/jobs_status_checker for what lands here and why.

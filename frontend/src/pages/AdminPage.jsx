@@ -89,6 +89,8 @@ export default function AdminPage() {
   const [selectedJobs, setSelectedJobs] = useState(new Set());
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  // Partial count while the run is still going; null when there is nothing to show.
+  const [importProgress, setImportProgress] = useState(null);
   const [grantAdminTarget, setGrantAdminTarget] = useState(null); // { userId, email }
   const [grantAdminPass, setGrantAdminPass] = useState('');
   const [grantAdminLoading, setGrantAdminLoading] = useState(false);
@@ -220,28 +222,54 @@ export default function AdminPage() {
   const doImport = async () => {
     if (importing) return;
     setImportResult(null);
+    setImportProgress(null);
     setImporting(true);
+
+    let since;
     try {
-      await adminTriggerImport();
+      const trigger = await adminTriggerImport();
+      // Server timestamp, so a skewed browser clock cannot make the run look
+      // empty. Falls back to local time only if the backend predates this field.
+      since = trigger?.triggeredAt || new Date().toISOString();
     } catch (e) {
       setImporting(false);
       showToast(`שגיאה: ${e?.status || ''} ${e?.message || 'unknown'}`, false);
       return;
     }
-    // The importer runs async and cannot report back, so poll the delta the
-    // admin Lambda derives from a snapshot taken at trigger time.
-    const started = Date.now();
+
+    // The importer is invoked async and cannot report back, so the count is read
+    // off the createdAt of jobs inserted since `since`. It is reported while the
+    // run is still going, which is why the panel shows a live count instead of an
+    // opaque spinner.
+    const startedAt = Date.now();
     const poll = async () => {
-      if (Date.now() - started > 5 * 60 * 1000) { setImporting(false); return; }
+      if (Date.now() - startedAt > 6 * 60 * 1000) {
+        setImporting(false);
+        setImportProgress(null);
+        showToast('הייבוא לא הסתיים בזמן — בדוק את הלוגים', false);
+        return;
+      }
       try {
-        const st = await adminImportStatus();
+        const st = await adminImportStatus(since);
         if (st && !st.running) {
           setImporting(false);
-          setImportResult({ added: st.added || 0, removed: st.removed || 0 });
+          setImportProgress(null);
+          setImportResult({ added: st.added ?? 0 });
           load();
           return;
         }
-      } catch { /* keep polling; a transient failure is not a result */ }
+        if (st) setImportProgress(st.added ?? 0);
+      } catch (e) {
+        // A 400 means the request itself is wrong and retrying cannot fix it —
+        // surface it instead of spinning for six minutes.
+        if (e?.status === 400) {
+          setImporting(false);
+          setImportProgress(null);
+          showToast(`שגיאה בבדיקת מצב הייבוא: ${e?.message || ''}`, false);
+          return;
+        }
+        // Anything else is likely transient; keep polling.
+      }
       setTimeout(poll, 5000);
     };
     setTimeout(poll, 6000);
@@ -464,16 +492,31 @@ export default function AdminPage() {
             });
           return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Import result: real numbers derived from a snapshot taken when the
-                run was triggered, not a guess. */}
+            {/* Counted from the createdAt of jobs inserted since the run started.
+                Deliberately says nothing about removals: the importer only ever
+                inserts, so the old "הוסרו N משרות לא רלוונטיות" was reporting TTL
+                expiry and closure-checker deletions that merely overlapped the run. */}
             {importResult && (
               <div style={{ background: '#EBFBF2', border: '1px solid #A9E9CB', borderRadius: 14,
                 padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#0E7A52' }}>
-                  נוספו {importResult.added} משרות חדשות · הוסרו {importResult.removed} משרות לא רלוונטיות
+                  {importResult.added > 0
+                    ? `הייבוא הסתיים · נוספו ${importResult.added} משרות חדשות`
+                    : 'הייבוא הסתיים · לא נמצאו משרות חדשות (כל המשרות בערוץ כבר קיימות)'}
                 </span>
                 <button onClick={() => setImportResult(null)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#0E7A52' }}>✕</button>
+              </div>
+            )}
+
+            {/* While the run is going: a live count, so "0 so far" is visibly
+                different from "finished with 0". */}
+            {importing && (
+              <div style={{ background: '#F3F0FE', border: '1px solid #D6CCFB', borderRadius: 14,
+                padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#5B3DF5' }}>
+                {importProgress === null
+                  ? 'הייבוא רץ… (עד כ-4 דקות)'
+                  : `הייבוא רץ… נוספו עד כה ${importProgress} משרות`}
               </div>
             )}
 

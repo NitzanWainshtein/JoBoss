@@ -5,7 +5,6 @@
 
 import json
 import os
-import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -20,15 +19,8 @@ SWIPES_TABLE  = os.getenv("SWIPES_TABLE",  "joboss-swipes")
 JOBS_TABLE    = os.getenv("JOBS_TABLE",    "joboss-jobs")
 SUBS_TABLE    = os.getenv("SUBS_TABLE",    "joboss-subscriptions")
 IMPORTER_FN   = os.getenv("IMPORTER_FN",  "joboss-jobs-importer")
-IMPORT_SNAPSHOT_KEY = "lastImport"
 IMPORT_RUN_WINDOW_SECS = 240  # generous: observed runs take 45-190s
 
-# Reuses the jobs table with a reserved key rather than adding infrastructure
-# for a single row.
-try:
-    state_table = jobs_table
-except NameError:
-    state_table = None
 USER_POOL_ID  = os.getenv("USER_POOL_ID",  "us-east-1_a8enAwcyl")
 APP_CLIENT_ID = os.getenv("APP_CLIENT_ID", "5o1mg9dtkh7kjuvqu145oafv00")
 
@@ -643,32 +635,52 @@ def handle_resolve_job_review(admin_id, job_id, body):
     return resp(200, {"success": True, "action": "keep", "jobId": job_id})
 
 
-def _job_counts():
-    total = 0
-    active = 0
-    for j in scan_all(jobs_table, ProjectionExpression="jobId, isActive"):
-        total += 1
-        if j.get("isActive") is not False:
-            active += 1
-    return {"total": total, "active": active}
+def handle_import_status(admin_id, since_iso):
+    """How many jobs the run started at `since_iso` has inserted so far.
 
+    Counted straight off createdAt rather than diffed against a snapshot of the
+    table size. The previous version compared total/active counts taken at
+    trigger time, which was wrong three ways even before it ran: it needed a
+    state row the code never managed to write, that row would have been stored in
+    the jobs table itself (inflating the very counts it was being compared
+    against, and liable to be served to users as a bogus job), and the "removed"
+    half measured TTL expiry and closure-checker deletions that happen to land in
+    the same window — the importer only ever inserts, so it removes nothing.
+    """
+    if not since_iso:
+        return resp(400, {"error": "since is required (ISO timestamp from the import trigger)"})
 
-def handle_import_status(admin_id):
-    """Delta between the snapshot taken at trigger time and now."""
-    snap = state_table.get_item(Key={"key": IMPORT_SNAPSHOT_KEY}).get("Item") if state_table else None
-    now = _job_counts()
-    if not snap:
-        return resp(200, {"running": False, "before": None, "now": now})
+    try:
+        started = datetime.fromisoformat(since_iso.replace("Z", "+00:00"))
+    except ValueError:
+        return resp(400, {"error": f"since is not an ISO timestamp: {since_iso}"})
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=timezone.utc)
 
-    started = float(snap.get("startedAt", 0))
-    age = time.time() - started
+    added = 0
+    for j in scan_all(jobs_table, ProjectionExpression="createdAt"):
+        created = j.get("createdAt")
+        if not created:
+            continue
+        try:
+            when = datetime.fromisoformat(str(created).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        if when >= started:
+            added += 1
+
+    age = (datetime.now(timezone.utc) - started).total_seconds()
     return resp(200, {
+        # The importer is invoked async and cannot report back, so "finished" can
+        # only mean "long enough has passed that it must have". Until then the
+        # count is reported as partial so the UI can show progress instead of a
+        # blank spinner.
         "running": age < IMPORT_RUN_WINDOW_SECS,
         "ageSecs": int(age),
-        "before": {"total": int(snap.get("total", 0)), "active": int(snap.get("active", 0))},
-        "now": now,
-        "added": max(0, now["total"] - int(snap.get("total", 0))),
-        "removed": max(0, int(snap.get("active", 0)) - now["active"]),
+        "added": added,
+        "since": started.isoformat(),
     })
 
 
@@ -688,24 +700,15 @@ def handle_toggle_job(admin_id, job_id, body):
 
 def handle_trigger_import(admin_id):
     log_action(admin_id, "TRIGGER_IMPORT")
-    # Snapshot first: the importer runs async and cannot report back to us
-    # (it is deploy-mode manual and bundles telethon), so the delta is derived
-    # here instead.
     try:
-        counts = _job_counts()
-        if state_table:
-            state_table.put_item(Item={
-                "key": IMPORT_SNAPSHOT_KEY,
-                "startedAt": Decimal(str(time.time())),
-                "total": counts["total"],
-                "active": counts["active"],
-            })
-    except Exception as e:
-        print(f"[ADMIN_ERROR] import snapshot failed: {e}")
-
-    try:
+        # Stamped before the invoke so a job inserted immediately cannot land
+        # ahead of it. Returned to the caller, which passes it back to
+        # import-status — a server timestamp, so a skewed browser clock cannot
+        # make the run look empty. No state row is stored: the previous attempt to
+        # keep one silently failed on every call (see handle_import_status).
+        triggered_at = datetime.now(timezone.utc).isoformat()
         lam.invoke(FunctionName=IMPORTER_FN, InvocationType="Event", Payload=b"{}")
-        return resp(200, {"success": True, "message": "Import triggered"})
+        return resp(200, {"success": True, "message": "Import triggered", "triggeredAt": triggered_at})
     except Exception as e:
         # Was returned to the client and never logged, so an AccessDenied here
         # looked identical to any other failure. JoBossLambdaRole has no
@@ -834,7 +837,8 @@ def lambda_handler(event, context):
             return handle_list_jobs(admin_id)
 
         if method == "GET" and path.endswith("/admin/jobs/import-status"):
-            return handle_import_status(admin_id)
+            params = event.get("queryStringParameters") or {}
+            return handle_import_status(admin_id, params.get("since"))
 
         # Jobs the automated closure checker (F-18) could not resolve on its own
         if method == "GET" and path.endswith("/admin/jobs/pending-review"):

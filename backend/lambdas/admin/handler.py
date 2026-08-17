@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import boto3
+from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
 REGION        = os.getenv("AWS_REGION", "us-east-1")
@@ -584,6 +585,64 @@ def handle_delete_jobs(admin_id, body):
     return resp(200, {"success": True, "deleted": deleted, "swipesRemoved": swipes_removed})
 
 
+def handle_list_pending_review_jobs(admin_id):
+    """Jobs the automated closure checker (F-18) could not confidently classify
+    after 2 consecutive full-pipeline attempts (Tier 1 HTTP + Tier 2 Playwright) —
+    see backend/lambdas/jobs_status_checker/jobs_repository.py's module docstring
+    for the full state machine. These are neither auto-deleted nor auto-kept;
+    an admin resolves each via handle_resolve_job_review below."""
+    log_action(admin_id, "LIST_PENDING_REVIEW_JOBS")
+    jobs = scan_all(
+        jobs_table,
+        FilterExpression=Attr("reviewStatus").eq("pending_review"),
+        ProjectionExpression=(
+            "jobId, company, title, #loc, applyUrl, reviewReason, "
+            "reviewFlaggedAt, checkFailCount, createdAt"
+        ),
+        ExpressionAttributeNames={"#loc": "location"},
+    )
+    jobs.sort(key=lambda j: j.get("reviewFlaggedAt", ""), reverse=True)
+    return resp(200, {"jobs": jobs, "total": len(jobs)})
+
+
+def handle_resolve_job_review(admin_id, job_id, body):
+    """Admin verdict on a pending-review job.
+
+    action="delete": the admin manually confirmed the posting is gone — delete it,
+    same as an automated "closed" verdict would have.
+    action="keep": the admin confirmed it is still open (or the check itself was
+    the problem — a site that always blocks bots, say). Clears every field the
+    checker uses, so it resumes normal daily checking from a clean slate rather
+    than immediately re-escalating on the next inconclusive result.
+    """
+    action = (body.get("action") or "").lower()
+    if action not in ("delete", "keep"):
+        return resp(400, {"error": "action must be 'delete' or 'keep'"})
+
+    item = jobs_table.get_item(Key={"jobId": job_id}).get("Item")
+    if not item:
+        return resp(404, {"error": "Job not found"})
+    if item.get("reviewStatus") != "pending_review":
+        return resp(409, {"error": "Job is not pending review"})
+
+    log_action(admin_id, "RESOLVE_JOB_REVIEW",
+               f"jobId={job_id} action={action} title={item.get('title', '')!r}")
+
+    if action == "delete":
+        jobs_table.delete_item(Key={"jobId": job_id})
+        return resp(200, {"success": True, "action": "delete", "jobId": job_id})
+
+    jobs_table.update_item(
+        Key={"jobId": job_id},
+        UpdateExpression=(
+            "SET checkFailCount = :zero "
+            "REMOVE reviewStatus, reviewReason, reviewFlaggedAt, tier2Pending, lastCheckReason"
+        ),
+        ExpressionAttributeValues={":zero": 0},
+    )
+    return resp(200, {"success": True, "action": "keep", "jobId": job_id})
+
+
 def _job_counts():
     total = 0
     active = 0
@@ -777,12 +836,23 @@ def lambda_handler(event, context):
         if method == "GET" and path.endswith("/admin/jobs/import-status"):
             return handle_import_status(admin_id)
 
+        # Jobs the automated closure checker (F-18) could not resolve on its own
+        if method == "GET" and path.endswith("/admin/jobs/pending-review"):
+            return handle_list_pending_review_jobs(admin_id)
+
         if method == "DELETE" and path.endswith("/admin/jobs"):
             return handle_delete_jobs(admin_id, body)
 
         # Trigger import
         if method == "POST" and path.endswith("/admin/jobs/import"):
             return handle_trigger_import(admin_id)
+
+        # Admin verdict on a pending-review job
+        if "/resolve-review" in path and method == "POST":
+            parts = path.split("/")
+            job_id = parts[parts.index("jobs") + 1] if "jobs" in parts else None
+            if job_id:
+                return handle_resolve_job_review(admin_id, job_id, body)
 
         # Toggle job
         if "/admin/jobs/" in path and method == "PUT":

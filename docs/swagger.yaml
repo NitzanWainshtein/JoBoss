@@ -573,7 +573,10 @@ paths:
         group was assigned. Every mutating action is written to the log as
         `[ADMIN_AUDIT]`.
 
-        Includes: job management, user management, quota/swipe reset, analytics.
+        Includes: job management, user management, quota/swipe reset, analytics,
+        and the F-18 automated-closure review queue (`GET /admin/jobs/pending-review`,
+        `POST /admin/jobs/{jobId}/resolve-review` with `{"action": "delete"|"keep"}`)
+        for jobs the daily checker could not confidently classify itself.
       parameters:
         - in: path
           name: proxy

@@ -35,6 +35,7 @@ LAMBDAS = [
     {"fn": "joboss-ai-tailor",           "dir": "backend/lambdas/ai",                 "mode": "single", "entry": "handler.py"},
     {"fn": "joboss-upload-resume",       "dir": "backend/lambdas/uploads",            "mode": "single", "entry": "lambda_function.py"},
     {"fn": "joboss-jobs-status-checker", "dir": "backend/lambdas/jobs_status_checker","mode": "dir",    "entry": "handler.py"},
+    {"fn": "joboss-job-status-checker-trigger", "dir": "backend/lambdas/job_status_checker_trigger", "mode": "single", "entry": "handler.py"},
     {"fn": "joboss-subscriptions",       "dir": "backend/lambdas/subscriptions",      "mode": "bundle", "entry": "handler.py",
      "deps": "backend/lambdas/subscriptions/vendor"},  # gitignored; rebuild: pip install stripe -t backend/lambdas/subscriptions/vendor
     {"fn": "joboss-admin",                "dir": "backend/lambdas/admin",              "mode": "single", "entry": "handler.py"},

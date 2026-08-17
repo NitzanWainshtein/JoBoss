@@ -1,0 +1,11 @@
+# Installed into the Playwright image (see Dockerfile).
+#
+# playwright MUST stay in lockstep with the base image tag in the Dockerfile
+# (mcr.microsoft.com/playwright/python:v1.44.0-jammy) — same reasoning as
+# backend/fargate/auto-apply/requirements.txt, which this pins identically so the
+# two tasks share one known-good image/library combination.
+playwright==1.44.0
+playwright-stealth==1.0.6
+
+# No preinstalled boto3 in this image, unlike Lambda.
+boto3>=1.34,<2.0

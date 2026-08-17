@@ -10,6 +10,7 @@ import {
   adminUpdateUserPlan, adminResetUserQuota, adminBlockUser, adminDeleteUser,
   adminGrantAdmin, adminRevokeAdmin, adminToggleJob, adminTriggerImport,
   adminImportStatus, adminDeleteJobs, adminResetMyQuota, adminResetMySwipes,
+  adminGetPendingReviewJobs, adminResolveJobReview,
 } from '../api';
 
 const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: 'פרימיום', PREMIUM_PLUS: 'פרימיום+' };
@@ -40,6 +41,22 @@ function StatCard({ label, value, color = '#6C4FD4', sub }) {
       {sub && <p style={{ fontSize: 11, color: '#aaa', margin: '2px 0 0', unicodeBidi: 'embed' }}>{sub}</p>}
     </div>
   );
+}
+
+// F-18: translates the checker's internal reason codes (shared with
+// backend/lambdas/jobs_status_checker/job_status_detector.py and
+// backend/fargate/job-status-checker/check_jobs.py) into something an admin can
+// act on without reading source code.
+function reviewReasonLabel(reason) {
+  if (!reason) return 'סיבה לא ידועה';
+  if (reason === 'no_apply_url') return 'למשרה הזו אין קישור להגשה';
+  if (reason === 'empty_response') return 'הדף לא הציג תוכן — כנראה טעון ב-JavaScript';
+  if (reason === 'playwright_timeout') return 'הדפדפן לא הצליח לטעון את הדף בזמן';
+  if (reason.startsWith('http_')) return `האתר חסם את הבדיקה (קוד ${reason.slice(5)})`;
+  if (reason.startsWith('fetch_error:') || reason.startsWith('playwright_error:')) {
+    return `שגיאת רשת בבדיקה (${reason.split(':')[1] || reason})`;
+  }
+  return reason;
 }
 
 function ActionBtn({ label, color, onClick }) {
@@ -78,6 +95,10 @@ export default function AdminPage() {
   const [revokeAdminTarget, setRevokeAdminTarget] = useState(null); // { userId, email }
   const [revokeAdminPass, setRevokeAdminPass] = useState('');
   const [revokeAdminLoading, setRevokeAdminLoading] = useState(false);
+  // F-18: jobs the daily automated closure checker couldn't resolve itself.
+  // Loaded on mount (not just when the tab is opened) so the tab badge acts as
+  // an actual notification — an admin who never clicks in still sees the count.
+  const [pendingReview, setPendingReview] = useState([]);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -96,6 +117,9 @@ export default function AdminPage() {
       } else if (tab === 'jobs') {
         const d = await adminGetJobs();
         setJobs(d.jobs || []);
+      } else if (tab === 'review') {
+        const d = await adminGetPendingReviewJobs();
+        setPendingReview(d.jobs || []);
       }
     } catch (e) {
       showToast('שגיאה בטעינה: ' + (e.message || e.status || ''), false);
@@ -105,6 +129,25 @@ export default function AdminPage() {
   }, [tab]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Runs once on mount, independent of which tab is active — this is what makes
+  // the badge a notification rather than something only visible after clicking
+  // into the review tab. A failure here is silent: the badge just stays at 0,
+  // which is the same as "nothing pending" from the admin's point of view, and
+  // load() above will report a real error if they do open the tab.
+  useEffect(() => {
+    adminGetPendingReviewJobs().then(d => setPendingReview(d.jobs || [])).catch(() => {});
+  }, []);
+
+  const doResolveReview = async (jobId, action) => {
+    try {
+      await adminResolveJobReview(jobId, action);
+      showToast(action === 'delete' ? 'המשרה נמחקה' : 'המשרה סומנה כפתוחה — הבדיקה היומית תמשיך לעקוב אחריה');
+      setPendingReview(prev => prev.filter(j => j.jobId !== jobId));
+    } catch (e) {
+      showToast('שגיאה: ' + (e?.data?.error || e.message || ''), false);
+    }
+  };
 
   const doUpdatePlan = async (uid, plan) => {
     try { await adminUpdateUserPlan(uid, plan); showToast('Plan עודכן'); load(); }
@@ -261,14 +304,15 @@ export default function AdminPage() {
         <div style={{ display: 'flex', gap: 8, background: 'white', padding: 8,
           borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
           {[
-            { key: 'stats', icon: '/icons/stats_logo.png',      label: 'סטטיסטיקות' },
-            { key: 'users', icon: '/icons/members_icon.png',    label: 'משתמשים'    },
-            { key: 'jobs',  icon: '/icons/jobs_icon.png',       label: 'משרות'      },
-            { key: 'self',  icon: '/icons/admin_edit_icon.png', label: 'כלי Admin'  },
+            { key: 'stats',  icon: '/icons/stats_logo.png',      label: 'סטטיסטיקות'  },
+            { key: 'users',  icon: '/icons/members_icon.png',    label: 'משתמשים'     },
+            { key: 'jobs',   icon: '/icons/jobs_icon.png',       label: 'משרות'       },
+            { key: 'review', icon: '/icons/process_icon.png',    label: 'ממתין לאישור' },
+            { key: 'self',   icon: '/icons/admin_edit_icon.png', label: 'כלי Admin'   },
           ].map(({ key, icon, label }) => (
             <button key={key}
               style={{ flex: 1, padding: '10px 4px', border: 'none', borderRadius: 12, cursor: 'pointer',
-                fontWeight: 600, fontSize: 12,
+                fontWeight: 600, fontSize: 12, position: 'relative',
                 background: tab === key ? 'linear-gradient(135deg,#6C4FD4,#1E2A4A)' : 'transparent',
                 color: tab === key ? 'white' : '#777',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
@@ -276,6 +320,17 @@ export default function AdminPage() {
               <img src={icon} alt="" style={{ width: 22, height: 22, objectFit: 'contain',
                 filter: tab === key ? 'brightness(0) invert(1)' : 'none' }} />
               {label}
+              {key === 'review' && pendingReview.length > 0 && (
+                <span style={{
+                  position: 'absolute', top: 2, insetInlineEnd: 10,
+                  background: '#FF4D67', color: 'white', borderRadius: 999,
+                  fontSize: 9, fontWeight: 800, minWidth: 15, height: 15, lineHeight: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                  boxShadow: '0 0 0 2px white',
+                }}>
+                  {pendingReview.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -492,6 +547,50 @@ export default function AdminPage() {
           </div>
           );
         })()}
+
+        {/* REVIEW — F-18: jobs the daily automated closure checker (Tier 1 HTTP +
+            Tier 2 Playwright) could not confidently classify after 2 consecutive
+            attempts. Neither auto-deleted nor auto-kept — an admin decides. */}
+        {!loading && tab === 'review' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {pendingReview.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#aaa', padding: 40 }}>
+                🎉 אין משרות שממתינות לבדיקה ידנית כרגע
+              </p>
+            ) : (
+              pendingReview.map(j => (
+                <div key={j.jobId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1.5px solid #FFD98A' }}>
+                  <div style={{ direction: 'ltr', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <p style={{ fontWeight: 700, fontSize: 14, color: '#1E2A4A', margin: 0 }}>{j.company || '—'}</p>
+                      <Badge text={`${j.checkFailCount ?? '?'} ניסיונות בדיקה`} color="#F5A623" />
+                    </div>
+                    <p style={{ fontSize: 13, color: '#6C4FD4', fontWeight: 600, margin: '2px 0' }}>{j.title || '—'}</p>
+                    {j.location && <p style={{ fontSize: 11, color: '#999', margin: 0 }}>📍 {j.location}</p>}
+                  </div>
+                  <p style={{ fontSize: 12, color: '#B45309', fontWeight: 700, margin: '8px 0 0',
+                    direction: 'rtl', textAlign: 'right' }}>
+                    ⚠️ {reviewReasonLabel(j.reviewReason)}
+                  </p>
+                  {j.applyUrl && (
+                    <a href={j.applyUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 12, color: '#6C4FD4', fontWeight: 600, display: 'inline-block',
+                        marginTop: 4, direction: 'rtl' }}>
+                      🔗 פתח את דף המשרה לבדיקה ידנית
+                    </a>
+                  )}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12, direction: 'rtl' }}>
+                    <ActionBtn label="✅ עדיין פתוחה" color="#4CAF50"
+                      onClick={() => doResolveReview(j.jobId, 'keep')} />
+                    <ActionBtn label="🗑 נסגרה — מחק" color="#F44336"
+                      onClick={() => doResolveReview(j.jobId, 'delete')} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* SELF */}
         {tab === 'self' && (

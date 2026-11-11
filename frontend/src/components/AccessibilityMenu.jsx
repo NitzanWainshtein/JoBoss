@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTranslation from '../i18n/useTranslation';
+import Icon from './Icon';
 
 const STORAGE_KEY = 'a11yPrefs';
 const DEFAULTS = { zoom: 0, contrast: false, noMotion: false, links: false };
@@ -86,7 +87,7 @@ export default function AccessibilityMenu() {
         title={t('a11y.title')}
         style={S.fab}
       >
-        ♿
+        <Icon name="a11y" size={23} />
       </button>
 
       {open && (
@@ -130,20 +131,19 @@ export default function AccessibilityMenu() {
 const S = {
   // Physical right, not inset-inline-end: the logical property maps to LEFT in
   // an RTL document, which stacked this straight on top of the avatar.
-  wrap: { position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)' },
+  wrap: { position: 'relative' },
   fab: {
-    width: '34px', height: '34px', borderRadius: '50%',
-    border: '1px solid rgba(124,92,255,0.28)', background: 'rgba(255,255,255,0.9)',
-    cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: 0,
+    width: '38px', height: '38px', borderRadius: '50%',
+    border: 'none', background: 'transparent', color: '#4A4560',
+    cursor: 'pointer', padding: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 4px 12px rgba(108,79,212,0.18)',
   },
   panel: {
-    position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-    width: '232px', background: 'rgba(255,255,255,0.98)',
+    position: 'absolute', top: 'calc(100% + 8px)', insetInlineEnd: '-48px',
+    width: '232px', background: '#fff',
     backdropFilter: 'blur(20px)', borderRadius: '16px',
     border: '1px solid rgba(124,92,255,0.14)',
-    boxShadow: '0 18px 50px rgba(70,45,160,0.24)',
+    boxShadow: '0 14px 36px rgba(30,20,70,0.16)',
     padding: '12px', zIndex: 400, display: 'flex', flexDirection: 'column', gap: '6px',
   },
   heading: { margin: '0 0 4px', fontSize: '13px', fontWeight: 900, color: '#1E2A4A' },
@@ -152,13 +152,13 @@ const S = {
   zoomBtns: { display: 'flex', gap: '5px' },
   zoomBtn: {
     minWidth: '34px', padding: '5px 8px', borderRadius: '9px',
-    border: '1px solid #E9E4FB', background: '#F8F6FF',
-    cursor: 'pointer', fontSize: '12px', fontWeight: 800, color: '#5B3DF5',
+    border: '1px solid #E7E3F0', background: '#F8F6FF',
+    cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: '#5B3DF5',
   },
   row: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     gap: '8px', width: '100%', padding: '9px 10px', borderRadius: '10px',
-    border: '1px solid #EFEBFB', background: 'white', cursor: 'pointer',
+    border: '1px solid #F0EDF6', background: 'white', cursor: 'pointer',
     fontSize: '12.5px', fontWeight: 700, color: '#3F3A52', textAlign: 'start',
   },
   rowOn: { background: '#F1ECFF', borderColor: '#C9BBFF' },
@@ -170,10 +170,10 @@ const S = {
   pillOn: { background: '#12A96F', borderColor: '#12A96F' },
   reset: {
     marginTop: '2px', border: 'none', borderRadius: '9px', background: '#F5F3FC',
-    padding: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: '#5A5478',
+    padding: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: '#5F5A72',
   },
   statement: {
     border: 'none', background: 'transparent', cursor: 'pointer',
-    fontSize: '12px', fontWeight: 800, color: '#5B3DF5', padding: '4px', textAlign: 'start',
+    fontSize: '12px', fontWeight: 700, color: '#5B3DF5', padding: '4px', textAlign: 'start',
   },
 };

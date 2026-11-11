@@ -5,11 +5,13 @@
 import { useState, useEffect } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { CompanyLogo } from '../utils/companyLogos';
+import Icon from '../components/Icon';
 import useTranslation from '../i18n/useTranslation';
 import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, clearApplicationTailoring, explainFailure, deleteApplications, getMyProfile } from '../api';
 import LimitModal from '../components/LimitModal';
 import MismatchWarningModal from '../components/MismatchWarningModal';
 import Spinner from '../components/Spinner';
+import { isStalePending } from '../utils/autoApply';
 
 // ── Track B: user-set funnel status ──────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -115,7 +117,7 @@ function CVRenderer({ text }) {
       if (SECTION_KEYWORDS.test(title)) {
         elements.push(
           <div key={i} style={{ marginTop: '16px', marginBottom: '5px', borderBottom: '2px solid #7C5CFF', paddingBottom: '2px' }}>
-            <h2 style={{ fontSize: '12px', fontWeight: 800, color: '#1E2A4A', margin: 0, letterSpacing: '1.5px', textTransform: 'uppercase' }}>{title}</h2>
+            <h2 style={{ fontSize: '12px', fontWeight: 700, color: '#1E2A4A', margin: 0, letterSpacing: '1.5px', textTransform: 'uppercase' }}>{title}</h2>
           </div>
         );
       } else {
@@ -309,6 +311,24 @@ function AutoApplyResult({ app, planKey, canExplain }) {
 
   // ── pending: Fargate is running ────────────────────────────────────────────
   if (app.autoApplyStatus === 'pending') {
+    // Stalled: nothing will ever move this record on its own. Say so honestly —
+    // the bot may or may not have submitted before it died — and offer the
+    // manual route rather than leaving the user watching a spinner.
+    if (isStalePending(app)) {
+      const stalled = AUTO_APPLY_CONFIG.failed;
+      return (
+        <div style={{ ...styles.autoBox, background: stalled.bg, borderColor: stalled.border, flexWrap: 'wrap' }}>
+          <img src="/icons/waiting_to_apply_icon.png" alt="" style={{ width: `${ICON_SIZES.manualBlock}px`, height: `${ICON_SIZES.manualBlock}px`, objectFit: 'contain', flexShrink: 0 }} />
+          <div style={styles.autoTextRow}>
+            <p style={{ ...styles.autoTitle, color: stalled.text }}>{t('app.autoStalled')}</p>
+            <p style={{ ...styles.autoSub, color: stalled.text }}>{t('app.autoStalledSub')}</p>
+          </div>
+          {jobUrl && (
+            <button type="button" style={{ ...styles.failActionBtn, flexShrink: 0 }} onClick={openJob}>{manualLabel}</button>
+          )}
+        </div>
+      );
+    }
     return (
       <div style={{ ...styles.autoBox, background: cfg.bg, borderColor: cfg.border }}>
         <img src="/icons/process_icon.png" alt="" style={{ width: `${ICON_SIZES.autoApplyBlock}px`, height: `${ICON_SIZES.autoApplyBlock}px`, objectFit: 'contain' }} />
@@ -404,10 +424,10 @@ function ConfirmDeleteModal({ count, onConfirm, onCancel }) {
   const { t } = useTranslation();
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-      <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: '24px', padding: '28px 24px', width: 'min(340px, 95vw)', display: 'flex', flexDirection: 'column', gap: '16px', direction: 'inherit', boxShadow: '0 24px 60px rgba(30,20,70,0.28)' }}>
+      <div style={{ background: '#fff', borderRadius: '24px', padding: '28px 24px', width: 'min(340px, 95vw)', display: 'flex', flexDirection: 'column', gap: '16px', direction: 'inherit', boxShadow: '0 1px 3px rgba(30,20,70,0.06)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center' }}>
           <span style={{ fontSize: '40px' }}>🗑</span>
-          <p style={{ fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: 0 }}>{t('app.deleteTitle')}</p>
+          <p style={{ fontSize: '17px', fontWeight: 700, color: '#1E2A4A', margin: 0 }}>{t('app.deleteTitle')}</p>
           <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>
             {t('app.deleteQ2')} <strong>{count}</strong> {count === 1 ? t('app.one') : t('app.many')} {t('app.permanently')}<br />
             <span style={{ fontSize: '12px', color: '#FF4D67' }}>{t('app.deleteIrreversible')}</span>
@@ -415,13 +435,13 @@ function ConfirmDeleteModal({ count, onConfirm, onCancel }) {
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
-            style={{ flex: 1, padding: '12px', borderRadius: '999px', border: 'none', background: '#FF4D67', color: 'white', fontSize: '14px', fontWeight: 800, cursor: 'pointer' }}
+            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#FF4D67', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
             onClick={onConfirm}
           >
             מחק
           </button>
           <button
-            style={{ flex: 1, padding: '12px', borderRadius: '999px', border: '1.5px solid #E9E4FB', background: 'white', color: '#5A5478', fontSize: '14px', fontWeight: 800, cursor: 'pointer' }}
+            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1.5px solid #E7E3F0', background: 'white', color: '#5F5A72', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
             onClick={onCancel}
           >
             ביטול
@@ -437,7 +457,9 @@ function PanelTab({ applications, userName, userImage }) {
   const { t } = useTranslation();
   const total        = applications.length;
   const manualPending = applications.filter(a => a.autoApplyStatus === 'manual').length;
-  const inProgress   = applications.filter(a => a.autoApplyStatus === 'pending' || a.autoApplyStatus === 'pending_tailoring').length;
+  const inProgress   = applications.filter(a =>
+    a.autoApplyStatus === 'pending_tailoring' ||
+    (a.autoApplyStatus === 'pending' && !isStalePending(a))).length;
   const autoSuccess  = applications.filter(a => a.autoApplyStatus === 'success').length;
   const reviewed     = applications.filter(a => a.status === 'REVIEWED').length;
   const interviews   = applications.filter(a => a.status === 'INTERVIEW').length;
@@ -458,13 +480,13 @@ function PanelTab({ applications, userName, userImage }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
       {/* Hero card */}
-      <div style={{ background: 'linear-gradient(135deg, #5B3DF5 0%, #7C5CFF 60%, #9B7BFF 120%)', borderRadius: '24px', boxShadow: '0 16px 40px rgba(91,61,245,0.32)', padding: '18px 20px', color: 'white', direction: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+      <div style={{ background: 'linear-gradient(135deg, #5B3DF5 0%, #7C5CFF 60%, #9B7BFF 120%)', borderRadius: '24px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)', padding: '18px 20px', color: 'white', direction: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, opacity: 0.85, display: 'flex', alignItems: 'center', gap: '5px' }}>
             <img src="/icons/panel_icons/wave_icon.png" alt="" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
             {t('app.hello')}, {userName ? userName.split(' ')[0] : ''}!
           </p>
-          <p style={{ margin: 0, fontSize: '22px', fontWeight: 800, letterSpacing: '-0.3px' }}>
+          <p style={{ margin: 0, fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px' }}>
             {t('app.yourPanel')}
           </p>
         </div>
@@ -486,8 +508,8 @@ function PanelTab({ applications, userName, userImage }) {
 
       {/* Recent applications */}
       {recent.length > 0 && (
-        <div style={{ background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', borderRadius: '20px', padding: '16px', direction: 'inherit' }}>
-          <p style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: 800, color: '#1E2A4A' }}>{t('app.recent')}</p>
+        <div style={{ background: '#fff', border: '1px solid #E7E3F0', boxShadow: '0 1px 3px rgba(30,20,70,0.06)', borderRadius: '20px', padding: '16px', direction: 'inherit' }}>
+          <p style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: 700, color: '#1E2A4A' }}>{t('app.recent')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {recent.map(app => {
               const isPendingManual = app.autoApplyStatus === 'manual';
@@ -501,7 +523,7 @@ function PanelTab({ applications, userName, userImage }) {
                     <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E2A4A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.company}</p>
                     <p style={{ margin: 0, fontSize: '11px', color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.title}</p>
                   </div>
-                  <span style={{ fontSize: '10px', fontWeight: 800, color: badgeCfg.color, background: `${badgeCfg.color}18`, padding: '3px 8px', borderRadius: '999px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: badgeCfg.color, background: `${badgeCfg.color}18`, padding: '3px 8px', borderRadius: '12px', flexShrink: 0 }}>
                     {t(badgeCfg.labelKey)}
                   </span>
                 </div>
@@ -512,7 +534,7 @@ function PanelTab({ applications, userName, userImage }) {
       )}
 
       {total === 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 24px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', borderRadius: '20px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 24px', background: '#fff', border: '1px solid #E7E3F0', boxShadow: '0 1px 3px rgba(30,20,70,0.06)', borderRadius: '20px', textAlign: 'center' }}>
           <p style={{ fontSize: '48px', margin: 0 }}>📊</p>
           <p style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>{t('app.noData')}</p>
           <p style={{ fontSize: '14px', color: '#777', margin: 0 }}>{t('app.swipeForStats')}</p>
@@ -540,7 +562,7 @@ function ApplicationsPage() {
   // Wide layout gets the full 5-column table from the design; narrow folds the
   // date under the role so the row still fits a phone.
   const [isWide, setIsWide] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 480px)').matches
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 99999px)').matches
   );
   const PAGE_SIZE = 10;
   const [loading, setLoading] = useState(true);
@@ -647,8 +669,24 @@ function ApplicationsPage() {
   // by the bot, silently re-fetch every 20s so statuses advance without F5.
   // Keyed on a boolean (not the array) so the interval is stable, and the
   // fetch only commits state when something meaningful actually changed.
+  //
+  // That last part is why the tick below exists: staleness is time-based, but a
+  // record that simply stops changing commits nothing and so produces no
+  // re-render — a stalled card would keep spinning until the user navigated
+  // away.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
   const hasInFlight = applications.some(a =>
-    a.autoApplyStatus === 'pending' || a.autoApplyStatus === 'pending_tailoring');
+    a.autoApplyStatus === 'pending_tailoring' ||
+    (a.autoApplyStatus === 'pending' && !isStalePending(a, nowTick)));
+
+  // Self-terminating: once the last in-flight record resolves or goes stale,
+  // hasInFlight flips to false and both of these intervals are cleared.
+  useEffect(() => {
+    if (!hasInFlight) return;
+    const tick = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(tick);
+  }, [hasInFlight]);
 
   useEffect(() => {
     if (!hasInFlight) return;
@@ -731,7 +769,7 @@ function ApplicationsPage() {
   };
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 480px)');
+    const mq = window.matchMedia('(min-width: 99999px)');
     const onChange = e => setIsWide(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
@@ -945,14 +983,7 @@ function ApplicationsPage() {
             onClick={handleRefresh}
             disabled={refreshing}
           >
-            <img
-              src="/icons/refresh_icon.png"
-              alt=""
-              style={{
-                width: `${ICON_SIZES.cvButton}px`, height: `${ICON_SIZES.cvButton}px`, objectFit: 'contain',
-                animation: refreshing ? 'spin 0.8s linear infinite' : 'none',
-              }}
-            />
+            <Icon name="refresh" size={17} strokeWidth={2.4} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
             {refreshing ? t('app.refreshing') : t('app.refresh')}
           </button>
         </div>
@@ -964,7 +995,6 @@ function ApplicationsPage() {
             onClick={() => setPageTab('my-applications')}
           >
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <img src="/icons/applies_icon.png" alt="" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
               {t('app.myApplications')}
             </span>
           </button>
@@ -973,7 +1003,6 @@ function ApplicationsPage() {
             onClick={() => setPageTab('panel')}
           >
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <img src="/icons/panel_icons/panel_icon.png" alt="" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
               {t('app.panel')}
             </span>
           </button>
@@ -991,6 +1020,18 @@ function ApplicationsPage() {
             RTL: the first child renders rightmost, so ערוך sits on the right and
             the pills scroll independently beside it. */}
         <div style={styles.filterBar}>
+          <div style={styles.filterRow}>
+            {PRIMARY_TABS.map(tab => (
+              <button
+                key={tab.key}
+                style={{ ...styles.filterBtn, ...(primaryTab === tab.key ? styles.filterActive : {}) }}
+                onClick={() => selectPrimary(tab.key)}
+              >
+                {t(tab.labelKey)}
+              </button>
+            ))}
+          </div>
+          <div style={styles.editRow}>
           {!editMode ? (
             <button style={styles.editBtn} onClick={() => { setEditMode(true); setSelected(new Set()); }}>
               {t('app.edit')}
@@ -1009,24 +1050,13 @@ function ApplicationsPage() {
               </button>
             </>
           )}
-
-          <div style={styles.filterRow}>
-            {PRIMARY_TABS.map(tab => (
-              <button
-                key={tab.key}
-                style={{ ...styles.filterBtn, ...(primaryTab === tab.key ? styles.filterActive : {}) }}
-                onClick={() => selectPrimary(tab.key)}
-              >
-                {t(tab.labelKey)}
-              </button>
-            ))}
           </div>
         </div>
 
         {/* Search + sort trigger */}
         <div style={styles.searchRow}>
           <div style={styles.searchBox}>
-            <img src="/icons/search_icon.png" alt="" style={styles.searchIcon} />
+            <Icon name="search" size={19} color="#9A95AC" />
             <input
               type="search"
               value={search}
@@ -1082,8 +1112,17 @@ function ApplicationsPage() {
             </div>
           )}
           <div style={styles.table}>
-            {/* Column headers — the design's table head. Hidden on narrow
-                screens, where the row folds into two lines. */}
+            {/* Column headers. The phone-width shell can't fit separate company
+                and role columns, so narrow shows company+role as one column. */}
+            {!isWide && (
+              <div style={styles.tableHead}>
+                {editMode && <span style={{ flex: '0 0 16px' }} />}
+                <span style={{ ...styles.headCell, flex: '1 1 auto' }}>{t('app.col.company')} / {t('app.col.role')}</span>
+                <span style={{ ...styles.headCell, flex: '0 0 84px', textAlign: 'center' }}>{t('app.col.status')}</span>
+                <span style={{ ...styles.headCell, flex: '0 0 62px', textAlign: 'center' }}>{t('app.col.updated')}</span>
+                <span style={{ flex: '0 0 28px' }} />
+              </div>
+            )}
             {isWide && (
               <div style={styles.tableHead}>
                 <span style={{ ...styles.headCell, flex: '1 1 34%' }}>{t('app.col.company')}</span>
@@ -1128,25 +1167,18 @@ function ApplicationsPage() {
                     <div style={{ ...styles.cellRole, flex: isWide ? '1 1 38%' : '1 1 auto' }}>
                       {!isWide && <span style={styles.companyName}>{app.company || app.jobId}</span>}
                       <span style={styles.roleText}>{app.title || t('app.job')}</span>
-                      {!isWide && (
-                        <span style={styles.dateText}>
-                          {app.createdAt ? new Date(app.createdAt).toLocaleDateString('he-IL') : ''}
-                        </span>
-                      )}
                     </div>
 
                     {/* Status pill — soft tint instead of a solid fill */}
-                    <div style={{ ...styles.cellStatus, flex: isWide ? '0 0 96px' : '0 0 auto' }}>
+                    <div style={{ ...styles.cellStatus, flex: isWide ? '0 0 96px' : '0 0 84px' }}>
                       <span style={{ ...styles.statusPill, color: cfg.color, background: `${cfg.color}1A`, borderColor: `${cfg.color}33` }}>
                         {t(cfg.labelKey)}
                       </span>
                     </div>
 
-                    {isWide && (
-                      <div style={{ ...styles.cellDate, flex: '0 0 72px' }}>
-                        {app.createdAt ? new Date(app.createdAt).toLocaleDateString('he-IL') : ''}
-                      </div>
-                    )}
+                    <div style={{ ...styles.cellDate, flex: isWide ? '0 0 72px' : '0 0 62px' }}>
+                      {app.createdAt ? new Date(app.createdAt).toLocaleDateString('he-IL') : ''}
+                    </div>
 
                     {/* Row menu — status changes live here to keep the row clean */}
                     <div style={styles.cellMenu} onClick={e => e.stopPropagation()}>
@@ -1169,7 +1201,7 @@ function ApplicationsPage() {
                               disabled={isUpdating}
                               style={{
                                 ...styles.rowMenuItem,
-                                color: app.status === s ? '#fff' : STATUS_CONFIG[s]?.color || '#5A5478',
+                                color: app.status === s ? '#fff' : STATUS_CONFIG[s]?.color || '#5F5A72',
                                 background: app.status === s ? STATUS_CONFIG[s]?.color || '#7C5CFF' : 'transparent',
                               }}
                               onClick={() => { handleStatusChange(app.jobId, s); setOpenRowMenu(null); }}
@@ -1356,125 +1388,119 @@ function ApplicationsPage() {
 
 const styles = {
   container: { minHeight: '100vh', background: 'transparent' },
-  content: { padding: '12px 16px', maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' },
+  content: { padding: '6px 16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' },
 
   /* Page header */
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  pageTitle: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A' },
-  refreshBtn: { display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '999px', padding: '6px 14px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#5A5478', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
+  pageTitle: { fontSize: '26px', fontWeight: 800, color: '#1E2A4A', letterSpacing: '-0.3px' },
+  refreshBtn: { display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', borderRadius: '999px', padding: '6px 4px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#5B3DF5' },
 
   /* Page-level tabs */
-  pageTabs: { display: 'flex', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', borderRadius: '18px', padding: '5px', gap: '4px' },
-  pageTabBtn: { flex: 1, padding: '9px 8px', borderRadius: '14px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#8B82B8', transition: 'all 0.15s' },
-  pageTabActive: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', boxShadow: '0 6px 16px rgba(91,61,245,0.35)' },
+  pageTabs: { display: 'flex', borderBottom: '1px solid #E7E3F0', margin: '0 -16px', padding: '0 16px' },
+  pageTabBtn: { flex: 1, padding: '10px 8px 12px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '15.5px', fontWeight: 700, color: '#9A95AC', transition: 'color 0.15s', marginBottom: '-1px', borderBottom: '3px solid transparent' },
+  pageTabActive: { color: '#1E2A4A', borderBottom: '3px solid #7C5CFF' },
 
   /* Compact stats strip (kept for possible future use) */
-  statsStrip: { display: 'flex', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', borderRadius: '18px', overflow: 'hidden' },
+  statsStrip: { display: 'flex', background: '#fff', border: '1px solid #E7E3F0', boxShadow: '0 1px 3px rgba(30,20,70,0.06)', borderRadius: '18px', overflow: 'hidden' },
   statChip: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', gap: '3px' },
-  statChipNum: { fontSize: '20px', fontWeight: 800, lineHeight: 1.1 },
+  statChipNum: { fontSize: '20px', fontWeight: 700, lineHeight: 1.1 },
   statChipIcon: { width: '13px', height: '13px', objectFit: 'contain' },
-  statChipLabel: { fontSize: '9px', color: '#6B5E9E', fontWeight: 700, textAlign: 'center' },
-  statChipDiv: { width: '1px', background: '#EDE8FC', alignSelf: 'stretch', flexShrink: 0 },
+  statChipLabel: { fontSize: '9px', color: '#6F6A84', fontWeight: 700, textAlign: 'center' },
+  statChipDiv: { width: '1px', background: '#E7E3F0', alignSelf: 'stretch', flexShrink: 0 },
 
   autoBox: { borderRadius: '14px', border: '1px solid', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '9px', direction: 'inherit' },
   autoBoxCol: { borderRadius: '14px', border: '1px solid', padding: '9px 12px', display: 'flex', flexDirection: 'column', gap: '2px', direction: 'inherit' },
   // Title and its explanatory line share one baseline-aligned row, wrapping only
   // when there genuinely isn't room — keeps these notes one line tall.
   autoTextRow: { display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', flex: 1, minWidth: 0 },
-  autoTitle: { margin: 0, fontSize: '13px', fontWeight: 800 },
+  autoTitle: { margin: 0, fontSize: '13px', fontWeight: 700 },
   autoSub: { margin: 0, fontSize: '12px', opacity: 0.85 },
-  failActionBtn: { border: 'none', borderRadius: '999px', background: '#1E2A4A', color: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
-  detailBtn: { border: '1.5px solid', borderRadius: '999px', background: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
+  failActionBtn: { border: 'none', borderRadius: '12px', background: '#1E2A4A', color: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' },
+  detailBtn: { border: '1.5px solid', borderRadius: '12px', background: 'white', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' },
   detailPanel: { overflow: 'hidden', transition: 'max-height 0.3s ease, opacity 0.3s ease' },
   detailInner: { paddingTop: '10px' },
-  editBtn: { flexShrink: 0, padding: '7px 14px', borderRadius: '999px', border: '1.5px solid #E9E4FB', background: 'white', fontSize: '12px', fontWeight: 700, color: '#5A5478', cursor: 'pointer', whiteSpace: 'nowrap' },
+  editBtn: { flexShrink: 0, padding: '7px 14px', borderRadius: '999px', border: '1.5px solid #CFCADD', background: 'white', fontSize: '12.5px', fontWeight: 700, color: '#1E2A4A', cursor: 'pointer', whiteSpace: 'nowrap' },
   pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', paddingTop: '4px' },
-  pageBtn: { width: '34px', height: '34px', borderRadius: '50%', border: '1.5px solid #E9E4FB', background: 'white', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  pageInfo: { fontSize: '13px', fontWeight: 700, color: '#5A5478', minWidth: '50px', textAlign: 'center' },
+  pageBtn: { width: '34px', height: '34px', borderRadius: '50%', border: '1.5px solid #E7E3F0', background: 'white', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pageInfo: { fontSize: '13px', fontWeight: 700, color: '#5F5A72', minWidth: '50px', textAlign: 'center' },
   // Edit controls stay put; only the pills scroll when they overflow.
-  filterBar: { display: 'flex', gap: '8px', alignItems: 'center', direction: 'inherit' },
-  filterRow: { flex: 1, minWidth: 0, display: 'flex', gap: '7px', overflowX: 'auto', paddingBottom: '3px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' },
-  filterBtn: { flexShrink: 0, padding: '7px 15px', borderRadius: '999px', border: '1.5px solid #E9E4FB', background: 'rgba(255,255,255,0.9)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#5A5478', whiteSpace: 'nowrap' },
-  filterActive: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', borderColor: 'transparent', color: 'white', boxShadow: '0 6px 16px rgba(91,61,245,0.3)' },
-  subFilterRow: { display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', marginTop: '-4px', paddingRight: '4px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' },
-  subFilterBtn: { flexShrink: 0, padding: '5px 13px', borderRadius: '999px', border: '1px solid #E9E4FB', background: '#F1ECFF', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: '#7C5CFF', whiteSpace: 'nowrap' },
-  subFilterActive: { background: '#1E2A4A', borderColor: 'transparent', color: 'white' },
+  filterBar: { display: 'flex', flexDirection: 'column', gap: '8px', direction: 'inherit' },
+  editRow: { display: 'flex', gap: '8px', alignItems: 'center' },
+  filterRow: { display: 'flex', gap: '5px', width: '100%' },
+  filterBtn: { flex: '1 1 auto', minWidth: 0, padding: '7px 6px', borderRadius: '999px', border: '1.5px solid #E7E3F0', background: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#5F5A72', whiteSpace: 'nowrap' },
+  filterActive: { background: '#1E2A4A', borderColor: '#1E2A4A', color: 'white' },
+  subFilterRow: { display: 'flex', flexWrap: 'wrap', gap: '6px', paddingBottom: '2px', marginTop: '-4px', paddingRight: '4px' },
+  subFilterBtn: { flexShrink: 0, padding: '5px 13px', borderRadius: '999px', border: '1px solid #E0D6FA', background: '#F4F0FF', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: '#5B3DF5', whiteSpace: 'nowrap' },
+  subFilterActive: { background: '#7C5CFF', borderColor: 'transparent', color: 'white' },
   list: { display: 'flex', flexDirection: 'column', gap: '10px' },
 
   /* ── Applications table (design-matched) ───────────────────────────────── */
   searchRow: { display: 'flex', gap: '8px', alignItems: 'center', direction: 'inherit' },
   searchBox: {
     flex: 1, display: 'flex', alignItems: 'center', gap: '8px',
-    background: 'rgba(255,255,255,0.9)', border: '1px solid #E9E4FB',
-    borderRadius: '999px', padding: '9px 14px',
-    boxShadow: '0 4px 14px rgba(108,79,212,0.06)',
+    background: 'transparent', borderBottom: '1.5px solid #D9D4E6',
+    padding: '9px 2px',
   },
   searchIcon: { width: '15px', height: '15px', objectFit: 'contain', opacity: 0.5, flexShrink: 0 },
   searchInput: {
     flex: 1, border: 'none', outline: 'none', background: 'transparent',
-    fontSize: '13px', fontWeight: 600, color: '#1E2A4A', minWidth: 0,
+    fontSize: '15px', fontWeight: 500, color: '#1E2A4A', minWidth: 0,
   },
   sortPill: {
-    flexShrink: 0, border: '1px solid #E9E4FB', borderRadius: '999px',
-    background: 'rgba(255,255,255,0.9)', padding: '9px 14px', cursor: 'pointer',
-    fontSize: '12px', fontWeight: 700, color: '#5A5478', direction: 'inherit',
-    boxShadow: '0 4px 14px rgba(108,79,212,0.06)',
+    flexShrink: 0, border: '1.5px solid #E7E3F0', borderRadius: '999px',
+    background: 'white', padding: '8px 12px', cursor: 'pointer',
+    fontSize: '12px', fontWeight: 700, color: '#5F5A72', direction: 'inherit',
   },
 
   table: {
-    background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255,255,255,0.9)', borderRadius: '20px',
-    boxShadow: '0 6px 20px rgba(108,79,212,0.08)',
-    overflow: 'hidden', direction: 'inherit',
+    background: 'transparent', margin: '0 -16px', direction: 'inherit',
   },
   tableHead: {
     display: 'flex', alignItems: 'center', gap: '10px',
-    padding: '12px 16px', borderBottom: '1px solid #EFEBFB',
-    background: 'rgba(248,246,255,0.6)',
+    padding: '8px 16px', borderBottom: '1px solid #E7E3F0',
   },
-  headCell: { fontSize: '11px', fontWeight: 800, color: '#6B5E9E' },
+  headCell: { fontSize: '11px', fontWeight: 700, color: '#6F6A84' },
 
   // One application = row + its always-visible note / CV blocks.
   // Separator between applications is deliberately stronger than any divider
   // inside a row, so the eye groups each job as one block.
-  rowGroup: { borderBottom: '2px solid #DFD5F7', paddingBottom: '10px', marginBottom: '4px', transition: 'background 0.15s' },
-  row: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px' },
+  rowGroup: { borderBottom: '1px solid #E7E3F0', paddingBottom: '6px', transition: 'background 0.15s' },
+  row: { display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px 10px' },
   cellCompany: { display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 },
   rowLogo: {
-    width: '38px', height: '38px', borderRadius: '11px', objectFit: 'contain',
-    background: 'white', border: '1px solid #EFEBFB', flexShrink: 0,
+    width: '44px', height: '44px', borderRadius: '50%', objectFit: 'contain',
+    background: 'white', border: '1px solid #E7E3F0', flexShrink: 0, fontSize: '19px',
   },
   companyName: {
-    fontSize: '14px', fontWeight: 800, color: '#1E2A4A',
+    fontSize: '16px', fontWeight: 700, color: '#1E2A4A',
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-    direction: 'ltr', textAlign: 'right', unicodeBidi: 'plaintext',
+    textAlign: 'start', unicodeBidi: 'plaintext',
   },
   cellRole: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
   roleText: {
-    fontSize: '12.5px', fontWeight: 600, color: '#6F6790', lineHeight: 1.35,
-    direction: 'ltr', textAlign: 'right', unicodeBidi: 'plaintext',
+    fontSize: '13.5px', fontWeight: 500, color: '#5F5A72', lineHeight: 1.35,
+    textAlign: 'start', unicodeBidi: 'plaintext',
     display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
   },
-  dateText: { fontSize: '10.5px', color: '#7D719F', fontWeight: 600 },
+  dateText: { fontSize: '11.5px', color: '#9A95AC', fontWeight: 500 },
   cellStatus: { display: 'flex', justifyContent: 'center', minWidth: 0 },
   statusPill: {
-    fontSize: '10.5px', fontWeight: 800, padding: '5px 10px', borderRadius: '999px',
+    fontSize: '11px', fontWeight: 700, padding: '4px 11px', borderRadius: '999px',
     border: '1px solid', textAlign: 'center', lineHeight: 1.3, display: 'inline-block',
   },
-  cellDate: { fontSize: '11px', color: '#6B5E9E', fontWeight: 600, textAlign: 'center' },
+  cellDate: { fontSize: '11px', color: '#6F6A84', fontWeight: 600, textAlign: 'center' },
   cellMenu: { flex: '0 0 28px', position: 'relative', display: 'flex', justifyContent: 'center' },
   kebabBtn: {
     width: '28px', height: '28px', borderRadius: '50%', border: 'none',
     background: 'transparent', cursor: 'pointer', fontSize: '17px',
-    color: '#6B5E9E', lineHeight: 1, padding: 0,
+    color: '#6F6A84', lineHeight: 1, padding: 0,
   },
   rowMenu: {
     position: 'absolute', top: 'calc(100% + 6px)', insetInlineEnd: 0, zIndex: 50,
-    background: 'rgba(255,255,255,0.98)', backdropFilter: 'blur(20px)',
-    border: '1px solid rgba(124,92,255,0.12)', borderRadius: '14px',
-    boxShadow: '0 18px 44px rgba(70,45,160,0.22)', padding: '6px', minWidth: '150px',
+    background: '#fff', border: '1px solid #E7E3F0', borderRadius: '14px',
+    boxShadow: '0 14px 36px rgba(30,20,70,0.16)', padding: '6px', minWidth: '150px',
   },
-  rowMenuTitle: { margin: '4px 8px 6px', fontSize: '10px', fontWeight: 800, color: '#7D719F' },
+  rowMenuTitle: { margin: '4px 8px 6px', fontSize: '10px', fontWeight: 700, color: '#8F8AA3' },
   rowMenuItem: {
     display: 'block', width: '100%', textAlign: 'right', border: 'none',
     borderRadius: '9px', padding: '8px 10px', fontSize: '12.5px', fontWeight: 700,
@@ -1482,28 +1508,28 @@ const styles = {
   },
   rowExtras: { padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: '8px' },
   tailoredBox: { background: '#EBFBF2', border: '1px solid #A9E9CB', borderRadius: '14px', padding: '9px 11px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px', direction: 'inherit' },
-  tailoredTitle: { margin: 0, fontSize: '12px', fontWeight: 800, color: '#166534' },
+  tailoredTitle: { margin: 0, fontSize: '12px', fontWeight: 700, color: '#166534' },
   tailoredSub: { margin: 0, fontSize: '11px', color: '#15803D' },
   tailoredActions: { display: 'flex', gap: '6px', flexShrink: 0 },
-  tailoredButton: { border: '1px solid #86EFAC', borderRadius: '999px', background: 'white', color: '#166534', padding: '5px 11px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' },
+  tailoredButton: { border: '1px solid #86EFAC', borderRadius: '12px', background: 'white', color: '#166534', padding: '5px 11px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' },
   tailoringBox: { background: '#FFF4EC', border: '1px solid #F7D9A8', borderRadius: '14px', padding: '9px 12px', display: 'flex', alignItems: 'center', gap: '10px' },
   tailoringSpinner: { fontSize: '20px', animation: 'spin 1.5s linear infinite' },
   tailoringTitle: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#F57F17' },
   tailoringSub: { margin: 0, fontSize: '11px', color: '#F9A825' },
-  manualTailorBtn: { width: '100%', padding: '9px', borderRadius: '999px', border: '1.5px dashed #7C5CFF', background: '#F1ECFF', color: '#7C5CFF', fontSize: '13px', fontWeight: 800, cursor: 'pointer' },
-  manualTailorBtnLocked: { width: '100%', padding: '9px', borderRadius: '999px', border: '1.5px dashed #D5CEE8', background: '#F5F3FC', color: '#6B5E9E', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '48px 24px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', borderRadius: '20px', textAlign: 'center' },
+  manualTailorBtn: { width: '100%', padding: '9px', borderRadius: '999px', border: '1.5px solid #D5C9FF', background: '#F7F4FF', color: '#5B3DF5', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
+  manualTailorBtnLocked: { width: '100%', padding: '9px', borderRadius: '999px', border: '1px solid #E7E3F0', background: '#F7F6FA', color: '#6B6680', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' },
+  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '64px 24px', textAlign: 'center' },
   emptyTitle: { fontSize: '18px', fontWeight: 700, margin: 0 },
-  emptySub: { fontSize: '14px', color: '#6B5E9E', margin: 0 },
-  retryBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '12px 24px', cursor: 'pointer', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
+  emptySub: { fontSize: '14px', color: '#6F6A84', margin: 0 },
+  retryBtn: { background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '999px', padding: '13px 28px', cursor: 'pointer', fontWeight: 700 },
   previewOverlay: { position: 'fixed', inset: 0, background: 'rgba(30,20,70,0.42)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 },
-  previewModal: { width: 'min(760px, 96vw)', maxHeight: '86vh', background: 'rgba(255,255,255,0.97)', borderRadius: '24px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 24px 80px rgba(15, 23, 42, 0.25)', direction: 'inherit' },
+  previewModal: { width: 'min(760px, 96vw)', maxHeight: '86vh', background: '#fff', borderRadius: '24px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)', direction: 'inherit' },
   previewHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },
-  previewTitle: { margin: 0, fontSize: '18px', fontWeight: 800, color: '#1E2A4A' },
+  previewTitle: { margin: 0, fontSize: '18px', fontWeight: 700, color: '#1E2A4A' },
   previewSub: { margin: '4px 0 0', fontSize: '13px', color: '#7C5CFF', fontWeight: 700 },
-  closePreview: { border: '1px solid #E9E4FB', borderRadius: '999px', background: 'white', padding: '8px 12px', cursor: 'pointer', fontWeight: 800 },
-  previewText: { margin: 0, padding: '16px', background: '#F8F6FF', border: '1px solid #EDE8FC', borderRadius: '16px', overflow: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'Arial, sans-serif', fontSize: '13px', lineHeight: 1.65, color: '#111827', direction: 'ltr', textAlign: 'left' },
-  downloadPreview: { alignSelf: 'flex-start', border: 'none', borderRadius: '999px', background: '#12A96F', color: 'white', padding: '10px 16px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' },
+  closePreview: { border: '1px solid #E7E3F0', borderRadius: '12px', background: 'white', padding: '8px 12px', cursor: 'pointer', fontWeight: 700 },
+  previewText: { margin: 0, padding: '16px', background: '#F8F6FF', border: '1px solid #E7E3F0', borderRadius: '16px', overflow: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'Arial, sans-serif', fontSize: '13px', lineHeight: 1.65, color: '#111827', direction: 'ltr', textAlign: 'left' },
+  downloadPreview: { alignSelf: 'flex-start', border: 'none', borderRadius: '12px', background: '#12A96F', color: 'white', padding: '10px 16px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
 };
 
 export default ApplicationsPage;

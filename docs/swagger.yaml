@@ -577,6 +577,22 @@ paths:
         and the F-18 automated-closure review queue (`GET /admin/jobs/pending-review`,
         `POST /admin/jobs/{jobId}/resolve-review` with `{"action": "delete"|"keep"}`)
         for jobs the daily checker could not confidently classify itself.
+
+        **Importer (F-17).** `POST /admin/jobs/import` invokes the Telegram
+        importer asynchronously (`InvocationType: Event`, because a run takes
+        45-190s and would outlast API Gateway's 29s timeout) and returns
+        `{"success": true, "triggeredAt": "<ISO>"}`. Since the importer cannot
+        report back, progress is polled from
+        `GET /admin/jobs/import-status?since=<ISO>`, passing that `triggeredAt`
+        straight back — it is a server timestamp so a skewed client clock cannot
+        make a run look empty. The response is
+        `{"running": bool, "ageSecs": int, "added": int, "since": "<ISO>"}`, where
+        `added` counts jobs whose `createdAt` is at or after `since`, and `running`
+        is simply whether less than 240s has elapsed (the only available proxy for
+        "finished", given the async invoke). `since` is required; a missing or
+        unparsable value is a 400. There is deliberately no `removed` field: the
+        importer only ever inserts, so the figure this endpoint used to report was
+        TTL expiry and closure-checker deletions that merely overlapped the run.
       parameters:
         - in: path
           name: proxy

@@ -81,7 +81,7 @@ const inputStyle = {
 };
 const dropdownStyle = {
   position: 'absolute', top: '100%', left: 0, right: 0, background: 'white',
-  borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+  borderRadius: '12px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   zIndex: 200, overflow: 'hidden', marginTop: '4px',
 };
 const itemStyle = {

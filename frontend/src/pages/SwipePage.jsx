@@ -16,6 +16,7 @@ import { CompanyLogo } from '../utils/companyLogos';
 import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
+import Icon from '../components/Icon';
 import LimitModal from '../components/LimitModal';
 import { getJobs, createSwipe, getMySwipes, undoSwipe, getQuotaStatus, tailorCVForJob } from '../api';
 import useTranslation from '../i18n/useTranslation';
@@ -301,10 +302,10 @@ function MatchModal({ score, breakdown, domains = [], onClose }) {
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1E2A4A' }}>{t('swipe.matchBreakdown')}</h3>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1E2A4A' }}>{t('swipe.matchBreakdown')}</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 22, fontWeight: 800,
-                             color: score >= 70 ? '#12A96F' : score >= 50 ? '#C2410C' : '#8B82B8' }}>
+              <span style={{ fontSize: 22, fontWeight: 700,
+                             color: score >= 70 ? '#12A96F' : score >= 50 ? '#C2410C' : '#7A7592' }}>
                 {score}%
               </span>
               <button onClick={onClose} style={{ background: '#F5F3FC', border: 'none', borderRadius: '50%',
@@ -390,16 +391,16 @@ function MatchBadge({ score, onClick }) {
       style={{
         // Translucent so the job image reads through, with a dark scrim and
         // blur so the coloured score stays legible over any photo.
-        fontSize: '12px', fontWeight: 800,
+        fontSize: '12px', fontWeight: 700,
         color: 'rgba(255,255,255,0.92)',
         background: 'rgba(12,8,32,0.42)',
         backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         border: '1px solid rgba(255,255,255,0.28)',
-        padding: '5px 11px', borderRadius: '999px',
+        padding: '7px 13px', borderRadius: '999px',
         whiteSpace: 'nowrap', flexShrink: 0,
         cursor: 'pointer', userSelect: 'none',
         display: 'inline-flex', alignItems: 'center', gap: '5px',
-        boxShadow: '0 4px 14px rgba(0,0,0,0.28)',
+        boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
       }}
     >
       <span style={{ color, fontWeight: 900, textShadow: '0 1px 3px rgba(0,0,0,0.45)' }}>{score}%</span>
@@ -411,6 +412,8 @@ function MatchBadge({ score, onClick }) {
 
 // ── Job card ─────────────────────────────────────────────────────────────────
 // ── Job background image mapping ─────────────────────────────────────────────
+// Mock: local cover art per job family (the real app loads remote photos, which
+// the mock's content-security policy deliberately blocks).
 const JOB_BG_IMAGES = {
   frontend:   'https://images.unsplash.com/photo-1547658719-da2b51169166?w=480&auto=format&q=75',
   backend:    'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=480&auto=format&q=75',
@@ -478,8 +481,9 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
   return (
     <>
     <motion.div
+      className="pro-card"
       animate={cardControls}
-      style={{ x, rotate, opacity, ...styles.card, zIndex: 1, filter: locked ? 'blur(4px)' : 'none' }}
+      style={{ x, rotate, opacity, zIndex: 1, filter: locked ? 'blur(4px)' : 'none' }}
       drag={locked ? false : 'x'}
       dragConstraints={{ left: 0, right: 0 }}
       onDragStart={() => !locked && setIsDragging(true)}
@@ -488,77 +492,67 @@ function JobCard({ job, onSwipe, onOpenDetail, locked }) {
         if (matchTapRef.current) { matchTapRef.current = false; return; }
         if (locked || isDragging) return;
         await cardControls.start({
-          scale: [1, 1.03, 1],
-          y: [0, -8, 0],
-          transition: { duration: 0.25, ease: 'easeInOut' },
+          scale: [1, 1.02, 1],
+          transition: { duration: 0.22, ease: 'easeInOut' },
         });
         onOpenDetail();
       }}
       whileTap={locked ? {} : { cursor: 'grabbing' }}
     >
-      {!locked && <motion.div style={{ ...styles.stamp, ...styles.likeStamp, opacity: likeOpacity, pointerEvents: 'none' }}><img src="/icons/yes_icon.png" alt="YES" draggable="false" style={{ height: `${ICON_SIZES.stampYes}px`, objectFit: 'contain' }} /></motion.div>}
-      {!locked && <motion.div style={{ ...styles.stamp, ...styles.nopeStamp, opacity: nopeOpacity, pointerEvents: 'none' }}><img src="/icons/nope_icon.png" alt="NOPE" draggable="false" style={{ height: `${ICON_SIZES.stampNope}px`, objectFit: 'contain' }} /></motion.div>}
+      {!locked && <motion.div className="pro-stamp like" style={{ opacity: likeOpacity }}>YES</motion.div>}
+      {!locked && <motion.div className="pro-stamp nope" style={{ opacity: nopeOpacity }}>NOPE</motion.div>}
 
-      {/* Hero — full-image with overlaid content */}
-      <div style={styles.cardHero}>
+      {/* Hero: photo with match badge, title/place on the left, company on the right
+          (square logo chip, name above it) - same layout as the previous design. */}
+      <div className="pro-card-hero">
         <img
+          className="pro-card-img"
           src={getJobBgImage(job.title, job.technologies || job.requirements || [])}
           alt=""
-          style={styles.cardHeroImg}
           draggable="false"
-          loading="lazy"
         />
-        <div style={styles.cardHeroOverlay} />
+        <div className="pro-card-hero-shade" />
 
-        {/* Top-left: match badge */}
         {job.matchScore != null && (
-          <div style={styles.cardHeroMatchBadge}>
+          <div className="pro-card-match">
             <MatchBadge score={job.matchScore} onClick={handleBadgeClick} />
           </div>
         )}
 
-        {/* Bottom row: title+location on left, company chip on right */}
-        <div style={styles.cardHeroBottom}>
+        <div className="pro-card-hero-bottom">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={styles.cardHeroTitle}>{job.title}</h3>
-            <p style={styles.cardHeroMeta}>📍 {job.location}</p>
+            <h3 className="pro-card-title">{job.title}</h3>
+            <p className="pro-card-place"><Icon name="pin" size={14} />{job.location}</p>
             {job.distanceKm != null && (
-              <p style={styles.cardHeroDistance} dir="rtl">
-                🚗 <span dir="ltr">{job.distanceKm.toFixed(1)}</span> {t('swipe.kmAway')}
+              <p className="pro-card-distance" dir="rtl">
+                <span dir="ltr">{job.distanceKm.toFixed(1)}</span> {t('swipe.kmAway')}
               </p>
             )}
           </div>
-          <div style={styles.cardHeroLogoWrap}>
-            <span style={styles.cardHeroCompany}>{job.company}</span>
-            <div style={styles.cardHeroLogoChip}>
-              <CompanyLogo company={job.company} style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain', background: 'white', flexShrink: 0 }} />
+          <div className="pro-card-logo-wrap">
+            <span className="pro-card-logo-name">{job.company}</span>
+            <div className="pro-card-logo-chip">
+              <CompanyLogo company={job.company} style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain', background: 'white', flexShrink: 0, fontSize: '16px' }} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Card body — chips + description + tech */}
-      <div style={styles.cardBody}>
+      {/* Body: white, summary left-aligned, tech chips, "full details" hint */}
+      <div className="pro-card-body">
         {job.matchesPreferences === false && (
           <DomainTags domains={job.jobDomains} levels={job.jobLevel} />
         )}
-        <p style={styles.description}>{job.shortDescription || getJobSummary(job.description)}</p>
-        <div style={styles.techContainer}>
-          {(job.technologies || job.requirements || []).slice(0, 4).map(tech => <span key={tech} style={styles.techBadge}>{tech}</span>)}
+        <p className="pro-card-desc">{job.shortDescription || getJobSummary(job.description)}</p>
+        <div className="pro-card-tags">
+          {(job.technologies || job.requirements || []).slice(0, 4).map(tech => <span key={tech} className="pro-tag-glass">{tech}</span>)}
         </div>
         {!locked && (
-          <div style={styles.tapHint}>
-            {/* Was a PNG with "View Details" baked into the artwork, so it could
-                never follow the app language. Now real text. */}
-            <motion.div
-              style={styles.detailsBtn}
+          <div className="pro-card-more">
+            <motion.span
               animate={!isDragging ? { y: [0, -3, 0] } : {}}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <span style={styles.detailsBtnIcon}>✦</span>
-              <span>{t('swipe.fullDetails')}</span>
-              <span style={styles.detailsBtnArrow}>→</span>
-            </motion.div>
+            >{'✦'} {t('swipe.fullDetails')} {'→'}</motion.span>
           </div>
         )}
       </div>
@@ -575,44 +569,63 @@ function QuotaBar({ quota, onUpgradeClick, onRefresh }) {
   const { t } = useTranslation();
   // PREMIUM_PLUS is unlimited — no counter needed.
   // FREE and PREMIUM both have a finite daily limit: show the bar for both.
-  if (!quota || quota.unlimited) return null;
+  if (!quota) return null;
+
+  const refreshBtn = (
+    <button className="pro-quota-refresh" onClick={onRefresh} aria-label={t('swipe.refreshJobs')} title={t('swipe.refreshJobs')}>
+      <Icon name="refresh" size={15} strokeWidth={2.4} />
+    </button>
+  );
+
+  // Unlimited plans get no counter, but still need the refresh control.
+  if (quota.unlimited) {
+    return <div className="pro-quota-frame"><div className="pro-quota" style={{ justifyContent: 'flex-end' }}>{refreshBtn}</div></div>;
+  }
 
   const plan = quota.plan || 'FREE';
   const pct = Math.min(100, Math.round(((quota.used ?? 0) / quota.limit) * 100));
   const barColor = pct >= 100 ? '#FF4D67' : pct >= 80 ? '#F5A623' : '#7C5CFF';
 
+  const limit = quota.limit || 0;
+  const used = quota.used ?? 0;
+
   return (
     <motion.div
-      style={styles.quotaBar}
-      initial={{ opacity: 0, y: -8 }}
+      className="pro-quota-frame"
+      initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div style={styles.quotaBarTop}>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C5CFF' }}>
+      <div className="pro-quota">
+        <span className="pro-quota-text" style={{ color: quota.remaining === 0 ? '#FF4D67' : undefined }}>
           {quota.remaining === 0
             ? t('swipe.limitReached')
-            : <><span dir="ltr">{quota.used ?? 0} / {quota.limit}</span> {t('swipe.swipesToday')}</>}
+            : <><span dir="ltr">{used} / {limit}</span> {t('swipe.swipesToday')}</>}
         </span>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button style={styles.quotaRefreshBtn} onClick={onRefresh} title={t('swipe.refreshJobs')}>
-            <img src="/icons/refresh_icon.png" alt={t('swipe.refresh')} style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
-          </button>
-          {plan === 'FREE' && (
-            <button style={styles.quotaUpgradeBtn} onClick={onUpgradeClick}>{t('swipe.upgradeStar')}</button>
-          )}
-        </div>
-      </div>
-      <div style={styles.quotaBarBg}>
-        <motion.div
-          style={{ ...styles.quotaBarFill, background: barColor }}
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.5 }}
-        />
+        {/* Up to 10 a day reads best as one segment per application. */}
+        {limit > 0 && limit <= 10 ? (
+          <div className="pro-quota-track" dir="ltr" aria-hidden="true">
+            {Array.from({ length: limit }).map((_, i) => (
+              <i key={i} className={i < used ? 'on' : ''} style={i < used ? { background: barColor } : undefined} />
+            ))}
+          </div>
+        ) : (
+          <div className="pro-quota-bar" dir="ltr">
+            <motion.div
+              style={{ height: '100%', borderRadius: '2px', background: barColor }}
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+        )}
+        {refreshBtn}
+        {plan === 'FREE' && (
+          <button className="pro-chip-btn" onClick={onUpgradeClick}>{t('swipe.upgradeStar')}</button>
+        )}
       </div>
 
       {plan === 'PREMIUM' && quota.tailorLimit != null && (
-        <div style={styles.tailorQuotaRow}>
+        <div className="pro-quota" style={{ paddingTop: 0, justifyContent: 'space-between' }}>
           <span style={styles.tailorQuotaLabel}>
             <img src="/icons/robot_icon.png" alt="" style={{ width: '13px', height: '13px', objectFit: 'contain', verticalAlign: 'middle' }} />
             {' '}{t('swipe.aiMonthly')}
@@ -983,7 +996,7 @@ function SwipePage() {
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', gap: '16px' }}>
       <p style={{ fontSize: '48px' }}>⚠️</p>
       <p style={{ fontSize: '18px', fontWeight: 700, color: '#FF4D67' }}>{error}</p>
-      <button style={{ background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '12px 24px', cursor: 'pointer', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' }} onClick={loadJobs}>{t('swipe.retry')}</button>
+      <button style={{ background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '12px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700, boxShadow: '0 1px 3px rgba(30,20,70,0.06)' }} onClick={loadJobs}>{t('swipe.retry')}</button>
     </div>
   );
 
@@ -1006,7 +1019,7 @@ function SwipePage() {
   );
 
   return (
-    <div style={styles.container}>
+    <div className="pro-swipe">
       {/* Quota bar */}
       <QuotaBar quota={quota} onUpgradeClick={() => navigate('/profile?tab=subscription')} onRefresh={loadJobs} />
 
@@ -1072,7 +1085,7 @@ function SwipePage() {
       </AnimatePresence>
 
       <div
-        style={styles.cardContainer}
+        className="pro-deck"
         role="group"
         aria-label={t('swipe.deckLabel')}
       >
@@ -1080,18 +1093,10 @@ function SwipePage() {
           <>
             {/* Next card preview */}
             {nextJob && (
-              <motion.div style={{ ...styles.card, position: 'absolute', zIndex: 0, top: '10px', filter: 'blur(1.5px)', opacity: 0.6, transform: 'scale(0.95)', pointerEvents: 'none' }}>
-                <div style={styles.cardHero}>
-                  <img src={getJobBgImage(nextJob.title, nextJob.technologies || nextJob.requirements || [])} alt="" style={styles.cardHeroImg} draggable="false" />
-                  <div style={styles.cardHeroOverlay} />
-                  <div style={styles.cardHeroBottom}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={styles.cardHeroTitle}>{nextJob.title}</h3>
-                      <p style={styles.cardHeroMeta}>📍 {nextJob.location}</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+              <div className="pro-card behind" style={{ zIndex: 0 }}>
+                <img className="pro-card-img" src={getJobBgImage(nextJob.title, nextJob.technologies || nextJob.requirements || [])} alt="" draggable="false" />
+                <div className="pro-card-shade" style={{ height: '100%', opacity: 0.55 }} />
+              </div>
             )}
 
             <AnimatePresence>
@@ -1122,16 +1127,21 @@ function SwipePage() {
           // "all done" empty state.
           <>
             <motion.div
+              className="pro-card"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ ...styles.card, filter: 'blur(5px)', opacity: 0.5, pointerEvents: 'none' }}
+              style={{ filter: 'blur(5px)', pointerEvents: 'none', cursor: 'default' }}
             >
-              <div style={styles.cardHeader}>
-                <div style={{ ...styles.logo_placeholder }}>★</div>
-                <div><h2 style={styles.company}>{t('swipe.anotherJob')}</h2><p style={styles.location}>{t('swipe.afterUpgrade')}</p></div>
+              <div className="pro-card-hero">
+                <img className="pro-card-img" src={JOB_BG_IMAGES.default} alt="" draggable="false" />
+                <div className="pro-card-hero-shade" />
+                <div className="pro-card-hero-bottom">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 className="pro-card-title">{t('swipe.jobWaiting')}</h3>
+                    <p className="pro-card-place">{t('swipe.anotherJob')} · {t('swipe.afterUpgrade')}</p>
+                  </div>
+                </div>
               </div>
-              <h3 style={styles.title}>{t('swipe.jobWaiting')}</h3>
-              <p style={styles.salary}>💰 ———</p>
             </motion.div>
             {lockedOverlay}
           </>
@@ -1167,72 +1177,69 @@ function SwipePage() {
             <motion.button style={styles.emptyBtn} whileHover={{ scale: 1.05 }} onClick={() => navigate('/applications')}>{t('swipe.seeApplications')}</motion.button>
           </motion.div>
         )}
-      </div>
 
-      {/*
-        Action buttons — hidden while loading quota or confirmed locked.
+        {/*
+          Action rings — hidden while loading quota or confirmed locked.
 
-        The row also stays mounted whenever an undo is pending (showUndo &&
-        lastSwipe), even with an empty deck. Swiping the LAST card makes
-        filteredJobs.length hit 0 on the very same render as the swipe that
-        just fired — so gating on `filteredJobs.length > 0` alone unmounted
-        this whole row, Undo button included, in the same tick as the swipe
-        that most needs to be undoable. The 5-second undo window became
-        physically unreachable at exactly the moment the deck was exhausted.
-        Reject/accept still hide individually since there is no currentJob to
-        act on.
-      */}
-      {(filteredJobs.length > 0 || (showUndo && lastSwipe)) && !isBlocked && (
-        <div style={styles.buttons}>
-          {filteredJobs.length > 0 && (
-            <motion.button style={styles.rejectBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')} aria-label={t('swipe.pass')}>
-              <img src="/icons/x_icon.png" alt="" draggable="false" style={styles.rejectBtnIcon} />
-            </motion.button>
-          )}
+          The row also stays mounted whenever an undo is pending (showUndo &&
+          lastSwipe), even with an empty deck: swiping the LAST card empties the
+          deck on the same render, and Undo must stay reachable for its 5 seconds.
+          Pass / apply hide individually since there is no currentJob. Details open
+          by tapping the card; refresh lives in the quota row beside Upgrade.
+        */}
+        {(filteredJobs.length > 0 || (showUndo && lastSwipe)) && !isBlocked && (
+          <div className={`pro-actions${filteredJobs.length > 0 ? '' : ' light solo'}`}>
+            {/* Undo only exists for the 5s after a swipe (ring = countdown). The slot
+                keeps its width while hidden so Pass/Apply do not shift. */}
 
-          {/* Undo — always takes the same space so X/heart never shift */}
-          <div style={styles.undoBtnSlot}>
-            <AnimatePresence>
+            {filteredJobs.length > 0 && (
+              <motion.button className="pro-img-btn" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('left')} aria-label={t('swipe.pass')} title={t('swipe.pass')}>
+                <img src="/icons/x_icon.png" alt="" draggable="false" style={{ width: Math.round(ICON_SIZES.swipeButton / 0.94), height: Math.round(ICON_SIZES.swipeButton / 0.94) }} />
+              </motion.button>
+            )}
+
+            <button className="pro-ring undo" onClick={handleUndo} disabled={!(showUndo && lastSwipe)}
+              style={showUndo && lastSwipe ? undefined : { visibility: 'hidden' }} aria-label={t('swipe.undo')} title={t('swipe.undo')}>
               {showUndo && lastSwipe && (
-                <motion.button
-                  style={styles.undoBtn}
-                  initial={{ opacity: 0, scale: 0.4 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.4 }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-                  whileTap={{ scale: 0.85 }}
-                  onClick={handleUndo}
-                  aria-label={t('swipe.undo')}
-                >
-                  {/* Countdown ring */}
-                  <svg style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', overflow: 'visible', pointerEvents: 'none' }}>
-                    <motion.circle
-                      key={lastSwipe.job.jobId}
-                      cx="50%" cy="50%" r="50%"
-                      fill="none"
-                      stroke="#7C5CFF"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      style={{ rotate: -90, transformOrigin: '50% 50%' }}
-                      strokeDasharray={`${2 * Math.PI * 35}`}
-                      initial={{ strokeDashoffset: 0 }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * 35 }}
-                      transition={{ duration: 5, ease: 'linear' }}
-                    />
-                  </svg>
-                  <span style={styles.undoGlyph}>↩</span>
-                </motion.button>
+                <svg style={{ position: 'absolute', inset: '-5px', width: 'calc(100% + 10px)', height: 'calc(100% + 10px)', overflow: 'visible', pointerEvents: 'none' }}>
+                  <motion.circle
+                    key={lastSwipe.job.jobId}
+                    cx="50%" cy="50%" r="50%"
+                    fill="none"
+                    stroke="#F7B733"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    style={{ rotate: -90, transformOrigin: '50% 50%' }}
+                    strokeDasharray={`${2 * Math.PI * 30}`}
+                    initial={{ strokeDashoffset: 0 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 30 }}
+                    transition={{ duration: 5, ease: 'linear' }}
+                  />
+                </svg>
               )}
-            </AnimatePresence>
-          </div>
+              <Icon name="undo" size={22} strokeWidth={2.6} />
+            </button>
 
-          {filteredJobs.length > 0 && (
-            <motion.button style={styles.acceptBtn} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')} aria-label={t('swipe.apply')}>
-              <img src="/icons/heart_icon.png" alt="" draggable="false" style={styles.acceptBtnIcon} />
-            </motion.button>
-          )}
-        </div>
-      )}
+            {filteredJobs.length > 0 && (
+              <motion.button className="pro-img-btn" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleSwipe('right')} aria-label={t('swipe.apply')} title={t('swipe.apply')}>
+                <img src="/icons/heart_icon.png" alt="" draggable="false" style={{ width: Math.round(ICON_SIZES.swipeButton / 0.90), height: Math.round(ICON_SIZES.swipeButton / 0.90) }} />
+              </motion.button>
+            )}
+          </div>
+        )}
+
+        {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
+          <motion.p key={lastSwipe.job.jobId} className="pro-feedback" initial={{ opacity: 0, y: -8, x: '-50%' }} animate={{ opacity: [0, 1, 1, 0], y: 0, x: '-50%' }} transition={{ duration: 3.2, times: [0, 0.1, 0.8, 1] }}>
+            {lastSwipe.direction === 'right'
+              ? activeTailorJobs.some(j => j.jobId === lastSwipe.job.jobId)
+                ? autoApply
+                  ? t('swipe.autoAfterTailor')
+                  : `${t('swipe.savedTo')} ${lastSwipe.job.company}`
+                : autoApply ? `${t('swipe.cvSentTo')}${lastSwipe.job.company}!` : `${t('swipe.savedTo')} ${lastSwipe.job.company}`
+              : `${t('swipe.passedOn')} ${lastSwipe.job.company}`}
+          </motion.p>
+        )}
+      </div>
 
       {/* Locked action buttons hint */}
       {filteredJobs.length > 0 && isLocked && (
@@ -1259,18 +1266,6 @@ function SwipePage() {
         </motion.div>
       )}
 
-      {lastSwipe && filteredJobs.length > 0 && !isBlocked && (
-        <motion.p key={lastSwipe.job.jobId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.feedback}>
-          {lastSwipe.direction === 'right'
-            ? activeTailorJobs.some(j => j.jobId === lastSwipe.job.jobId)
-              ? autoApply
-                ? t('swipe.autoAfterTailor')
-                : `${t('swipe.savedTo')} ${lastSwipe.job.company}`
-              : autoApply ? `${t('swipe.cvSentTo')}${lastSwipe.job.company}!` : `${t('swipe.savedTo')} ${lastSwipe.job.company}`
-            : `${t('swipe.passedOn')} ${lastSwipe.job.company}`}
-        </motion.p>
-      )}
-
       {/* Limit modal */}
       <LimitModal
         visible={limitModal}
@@ -1291,27 +1286,27 @@ function SwipePage() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
   container: { height: 'calc(100svh - 138px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '8px', paddingBottom: '4px', boxSizing: 'border-box', overflow: 'hidden' },
-  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderRadius: '16px', padding: '10px 14px', boxShadow: '0 6px 20px rgba(108,79,212,0.08)', border: '1px solid rgba(255,255,255,0.9)' },
+  quotaBar: { width: 'min(360px, 95vw)', marginBottom: '6px', background: '#fff', borderRadius: '16px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)', border: '1px solid #E7E3F0' },
   quotaBarTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
-  quotaUpgradeBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 800, boxShadow: '0 6px 16px rgba(91,61,245,0.35)' },
+  quotaUpgradeBtn: { background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '12px', padding: '4px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, boxShadow: '0 1px 3px rgba(30,20,70,0.06)' },
   quotaRefreshBtn: { width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #7C5CFF', background: 'white', color: '#7C5CFF', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 },
-  quotaBarBg: { height: '5px', borderRadius: '3px', background: '#EDE8FC', overflow: 'hidden' },
+  quotaBarBg: { height: '5px', borderRadius: '3px', background: '#E7E3F0', overflow: 'hidden' },
   quotaBarFill: { height: '100%', borderRadius: '3px', transition: 'width 0.5s ease' },
-  tailorQuotaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '7px', paddingTop: '6px', borderTop: '1px solid #EDE8FC' },
-  tailorQuotaLabel: { fontSize: '11px', fontWeight: 600, color: '#6B5E9E', display: 'flex', alignItems: 'center', gap: '4px' },
-  tailorQuotaCount: { fontSize: '12px', fontWeight: 800 },
+  tailorQuotaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '7px', paddingTop: '6px', borderTop: '1px solid #E7E3F0' },
+  tailorQuotaLabel: { fontSize: '11px', fontWeight: 600, color: '#6F6A84', display: 'flex', alignItems: 'center', gap: '4px' },
+  tailorQuotaCount: { fontSize: '12px', fontWeight: 700 },
   locationFilter: { fontSize: '12px', fontWeight: 600, color: '#12A96F', margin: 0, textAlign: 'right' },
-  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '0', maxHeight: 'min(480px, calc(100svh - 280px))', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '26px' },
-  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '26px', padding: 0, boxShadow: '0 16px 40px rgba(91,61,245,0.22)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
+  cardContainer: { position: 'relative', zIndex: 1, width: 'min(360px, 95vw)', flex: '1', minHeight: '0', maxHeight: 'min(480px, calc(100svh - 280px))', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '18px' },
+  card: { width: 'min(360px, 95vw)', background: 'white', borderRadius: '18px', padding: 0, boxShadow: '0 1px 3px rgba(30,20,70,0.06)', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', cursor: 'grab', userSelect: 'none', position: 'absolute', overflow: 'hidden' },
   cardHero: { width: '100%', height: 'clamp(150px, 34svh, 210px)', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   cardHeroImg: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   cardHeroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 28%, rgba(0,0,0,0.52) 62%, rgba(0,0,0,0.84) 100%)' },
   cardHeroMatchBadge: { position: 'absolute', top: '12px', left: '12px', zIndex: 2 },
   cardHeroBottom: { position: 'absolute', bottom: '12px', left: '12px', right: '12px', display: 'flex', alignItems: 'flex-end', gap: '10px', zIndex: 2, direction: 'ltr' },
   cardHeroLogoWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', flexShrink: 0 },
-  cardHeroLogoChip: { width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '16px', flexShrink: 0 },
+  cardHeroLogoChip: { width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '16px', flexShrink: 0 },
   cardHeroCompany: { color: 'white', fontSize: '12px', fontWeight: 700, maxWidth: '100px', textAlign: 'center', textShadow: '0 1px 4px rgba(0,0,0,0.6)', lineHeight: 1.2, wordBreak: 'break-word' },
-  cardHeroTitle: { color: 'white', fontSize: '18px', fontWeight: 800, margin: '0 0 4px', lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.5)', direction: 'ltr', textAlign: 'left' },
+  cardHeroTitle: { color: 'white', fontSize: '18px', fontWeight: 700, margin: '0 0 4px', lineHeight: 1.2, textShadow: 'none', direction: 'ltr', textAlign: 'left' },
   cardHeroMeta: { color: 'rgba(255,255,255,0.88)', fontSize: '12px', fontWeight: 500, margin: 0, direction: 'ltr', textAlign: 'left' },
   cardHeroDistance: { display: 'inline-block', color: 'white', fontSize: '11px', fontWeight: 600, margin: '4px 0 0', padding: '2px 8px', background: 'rgba(0,0,0,0.35)', borderRadius: '8px', lineHeight: 1.4 },
   cardBody: { padding: '10px 16px 12px', display: 'flex', flexDirection: 'column', gap: '7px', flex: 1, overflow: 'hidden', minHeight: 0 },
@@ -1323,14 +1318,14 @@ const styles = {
   // name + location align left, instead of being flipped right by the global RTL.
   cardHeader: { display: 'flex', alignItems: 'center', gap: '12px', direction: 'ltr', textAlign: 'left' },
   logo_img: { width: '52px', height: '52px', borderRadius: '12px', objectFit: 'contain', border: '1px solid #eee' },
-  logo_placeholder: { width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, color: 'white' },
+  logo_placeholder: { width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, color: 'white' },
   company: { fontSize: '18px', fontWeight: 700, color: 'var(--text-dark)', margin: 0 },
   location: { color: 'var(--text-light)', fontSize: '13px', margin: 0 },
   title: { fontSize: '20px', fontWeight: 700, color: 'var(--primary)', margin: 0 },
   salary: { fontSize: '15px', fontWeight: 600, color: 'var(--secondary)', margin: 0 },
   distance: { fontSize: '13px', fontWeight: 600, color: '#12A96F', margin: 0 },
   shortSummaryBlock: { marginTop: '4px' },
-  shortSummaryTitle: { fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 4px'},
+  shortSummaryTitle: { fontSize: '17px', fontWeight: 700, color: '#1E2A4A', margin: '0 0 4px'},
   description: {
     fontSize: '14px', color: 'var(--text-light)', lineHeight: 1.6, margin: 0,
     // Shrinkable and clamped: everything below it is flexShrink: 0, so this is
@@ -1346,18 +1341,18 @@ const styles = {
     padding: '9px 20px', borderRadius: '999px', flexShrink: 0,
     background: 'linear-gradient(135deg, #F3EEFF, #EAE1FF)',
     border: '1px solid rgba(124,92,255,0.28)',
-    color: '#5B3DF5', fontSize: '13.5px', fontWeight: 800,
-    boxShadow: '0 6px 18px rgba(124,92,255,0.18)',
+    color: '#5B3DF5', fontSize: '13.5px', fontWeight: 700,
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
     whiteSpace: 'nowrap', userSelect: 'none',
   },
   detailsBtnIcon: { fontSize: '13px', color: '#7C5CFF' },
   // U+2192 is bidi-mirrored, so it points the right way in both directions.
   detailsBtnArrow: { fontSize: '15px', opacity: 0.75, lineHeight: 1 },
-  lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '20px', background: 'rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
-  lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '24px' },
-  lockedTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
-  lockedSub: { fontSize: '13px', color: '#8B82B8', margin: 0 },
-  lockedBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 20px', cursor: 'pointer', fontWeight: 800, fontSize: '14px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
+  lockedOverlay: { position: 'absolute', inset: 0, borderRadius: '14px', background: 'rgba(14,8,40,0.35)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5, cursor: 'pointer' },
+  lockedContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', padding: '26px 28px', background: '#fff', borderRadius: '22px', boxShadow: '0 18px 44px rgba(14,8,40,0.35)', maxWidth: '300px' },
+  lockedTitle: { fontSize: '18px', fontWeight: 700, color: '#1E2A4A', margin: 0 },
+  lockedSub: { fontSize: '13px', color: '#7A7592', margin: 0 },
+  lockedBtn: { background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '999px', padding: '11px 26px', marginTop: '6px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)' },
   buttons: { display: 'flex', gap: '24px', marginTop: '8px', flexShrink: 0, alignItems: 'center', direction: 'ltr' },
   // The Pass / Like buttons render supplied artwork (x_icon.png, heart_icon.png)
   // instead of the ✕ and ♥ text glyphs they used to. Those glyphs are font
@@ -1401,29 +1396,29 @@ const styles = {
   },
   undoGlyph: { fontSize: '26px', color: '#F5A623', lineHeight: 1, position: 'relative', zIndex: 1 },
   undoBtnSlot: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  undoBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, borderRadius: '50%', background: '#FFFFFF', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: '0 8px 22px rgba(91,61,245,0.16)' },
-  unlockBtn: { marginTop: '24px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
+  undoBtn: { width: `${ICON_SIZES.swipeButton}px`, height: `${ICON_SIZES.swipeButton}px`, borderRadius: '50%', background: '#FFFFFF', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: '0 1px 3px rgba(30,20,70,0.06)' },
+  unlockBtn: { marginTop: '24px', background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '12px', padding: '14px 28px', cursor: 'pointer', fontSize: '15px', fontWeight: 700, boxShadow: '0 1px 3px rgba(30,20,70,0.06)' },
   tailorLimitToast: { marginTop: '6px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '12px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#B45309', textAlign: 'center', maxWidth: 'min(360px, 95vw)' },
-  tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(124,92,255,0.10)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderRadius: '14px', padding: '7px 12px', border: '1px solid rgba(124,92,255,0.2)', overflow: 'hidden' },
+  tailorProgressBanner: { width: 'min(360px, 95vw)', marginBottom: '6px', background: 'rgba(124,92,255,0.10)', borderRadius: '14px', padding: '7px 12px', border: '1px solid rgba(124,92,255,0.2)', overflow: 'hidden' },
   tailorProgressRow: { display: 'flex', alignItems: 'center', gap: '7px', direction: 'inherit' },
   tailorProgressIcon: { width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 },
   tailorProgressText: { fontSize: '12px', fontWeight: 600, color: '#7C5CFF', flex: 1 },
   tailorProgressDots: { fontSize: '8px', color: '#7C5CFF', letterSpacing: '2px', flexShrink: 0 },
   feedback: { marginTop: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '24px' },
-  emptyTitle: { fontSize: '24px', fontWeight: 800, margin: 0 },
-  emptySubtitle: { fontSize: '14px', color: '#6B5E9E', margin: 0 },
-  emptyStats: { display: 'flex', alignItems: 'center', gap: '24px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '24px', padding: '20px 32px', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
+  emptyTitle: { fontSize: '24px', fontWeight: 700, margin: 0 },
+  emptySubtitle: { fontSize: '14px', color: '#6F6A84', margin: 0 },
+  emptyStats: { display: 'flex', alignItems: 'center', gap: '24px', background: '#fff', border: '1px solid #E7E3F0', borderRadius: '24px', padding: '20px 32px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)' },
   emptyStatItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
-  emptyStatNumber: { fontSize: '28px', fontWeight: 900, color: '#7C5CFF', margin: 0 },
-  emptyStatLabel: { fontSize: '12px', color: '#6B5E9E', margin: 0 },
-  emptyStatDivider: { width: '1px', height: '40px', background: '#EDE8FC' },
-  emptyBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '14px 28px', cursor: 'pointer', fontWeight: 800, fontSize: '16px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
+  emptyStatNumber: { fontSize: '28px', fontWeight: 700, color: '#7C5CFF', margin: 0 },
+  emptyStatLabel: { fontSize: '12px', color: '#6F6A84', margin: 0 },
+  emptyStatDivider: { width: '1px', height: '40px', background: '#E7E3F0' },
+  emptyBtn: { background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '12px', padding: '14px 28px', cursor: 'pointer', fontWeight: 700, fontSize: '16px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)' },
 };
 
 const modal = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(30,20,70,0.42)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', zIndex: 200, display: 'flex', justifyContent: 'center', alignItems: 'flex-end' },
-  sheet: { background: 'rgba(255,255,255,0.97)', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: '480px', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  sheet: { background: '#fff', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: '480px', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
   // MatchModal renders its content directly (no stickyHeader/scrollBody/stickyFooter
   // children), so it needs its own padding and its own scroll container — reusing
   // `sheet` left the content flush to the edges and clipped by overflow: hidden.
@@ -1444,38 +1439,38 @@ const modal = {
     maxHeight: 'min(78svh, 640px)',
     overflowY: 'auto', WebkitOverflowScrolling: 'touch',
     padding: '22px',
-    boxShadow: '0 26px 70px rgba(15,8,50,0.5)',
-    border: '1px solid rgba(255,255,255,0.9)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
+    border: '1px solid #E7E3F0',
     boxSizing: 'border-box',
   },
-  dragHandle: { width: '40px', height: '4px', background: '#DDD6F2', borderRadius: '999px', alignSelf: 'center', marginBottom: '12px', flexShrink: 0 },
-  stickyHeader: { padding: '12px 24px 0', flexShrink: 0, borderBottom: '1px solid #F1EEFC' },
+  dragHandle: { width: '40px', height: '4px', background: '#DDD6F2', borderRadius: '12px', alignSelf: 'center', marginBottom: '12px', flexShrink: 0 },
+  stickyHeader: { padding: '12px 24px 0', flexShrink: 0, borderBottom: '1px solid #F0EDF6' },
   scrollBody: { flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  stickyFooter: { display: 'flex', gap: '12px', padding: '12px 24px 32px', flexShrink: 0, borderTop: '1px solid #F1EEFC', background: 'white' },
+  stickyFooter: { display: 'flex', gap: '12px', padding: '12px 24px 32px', flexShrink: 0, borderTop: '1px solid #F0EDF6', background: 'white' },
   header: { display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px' },
-  logo: { width: '56px', height: '56px', borderRadius: '16px', objectFit: 'contain', border: '1px solid #EDE8FC', flexShrink: 0 },
-  logo_placeholder: { width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 700, color: 'white', flexShrink: 0 },
-  title: { fontSize: '20px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
+  logo: { width: '56px', height: '56px', borderRadius: '16px', objectFit: 'contain', border: '1px solid #E7E3F0', flexShrink: 0 },
+  logo_placeholder: { width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 700, color: 'white', flexShrink: 0 },
+  title: { fontSize: '20px', fontWeight: 700, color: '#1E2A4A', margin: 0 },
   company: { fontSize: '14px', color: '#7C5CFF', fontWeight: 600, margin: 0 },
   closeBtn: { background: '#F5F3FC', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', flexShrink: 0, marginRight: 'auto' },
   meta: { display: 'flex', gap: '12px', flexWrap: 'wrap', paddingBottom: '12px' },
   metaItem: { background: '#F1ECFF', color: '#7C5CFF', padding: '6px 12px', borderRadius: '999px', fontSize: '13px', fontWeight: 700 },
   section: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  sectionTitle: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
+  sectionTitle: { fontSize: '14px', fontWeight: 700, color: '#1E2A4A', margin: 0 },
   tags: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-  tag: { background: '#F1ECFF', color: '#7C5CFF', padding: '4px 12px', borderRadius: '999px', fontSize: '13px', fontWeight: 700 },
-  description: { fontSize: '14px', color: '#8B82B8', lineHeight: 1.7, margin: 0 },
+  tag: { background: '#F1ECFF', color: '#7C5CFF', padding: '4px 12px', borderRadius: '12px', fontSize: '13px', fontWeight: 700 },
+  description: { fontSize: '14px', color: '#7A7592', lineHeight: 1.7, margin: 0 },
   descriptionPanel: { display: 'flex', flexDirection: 'column', gap: '14px' },
-  descriptionSection: { background: '#F8F6FF', border: '1px solid #EDE8FC', borderRadius: '18px', padding: '14px' },
-  descriptionHeading: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 8px' },
-  descriptionText: { fontSize: '14px', color: '#5A5478', lineHeight: 1.65, margin: 0 },
+  descriptionSection: { background: '#F8F6FF', border: '1px solid #E7E3F0', borderRadius: '18px', padding: '14px' },
+  descriptionHeading: { fontSize: '14px', fontWeight: 700, color: '#1E2A4A', margin: '0 0 8px' },
+  descriptionText: { fontSize: '14px', color: '#5F5A72', lineHeight: 1.65, margin: 0 },
   bulletList: { margin: 0, paddingInlineStart: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px', direction: 'ltr', textAlign: 'left' },
-  bulletItem: { fontSize: '14px', color: '#5A5478', lineHeight: 1.55 },
+  bulletItem: { fontSize: '14px', color: '#5F5A72', lineHeight: 1.55 },
   techList: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   techPill: { background: 'white', color: '#7C5CFF', border: '1px solid #E0D6FA', borderRadius: '999px', padding: '5px 10px', fontSize: '12px', fontWeight: 700 },  applyLink: { color: '#7C5CFF', fontSize: '14px', fontWeight: 700 },
   footer: { display: 'flex', gap: '12px', paddingTop: '8px' },
-  passBtn: { flex: 1, padding: '14px', borderRadius: '999px', border: '2px solid #FF4D67', background: 'white', color: '#FF4D67', fontSize: '15px', fontWeight: 800, cursor: 'pointer' },
-  applyBtn: { flex: 1, padding: '14px', borderRadius: '999px', border: 'none', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', fontSize: '15px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
+  passBtn: { flex: 1, padding: '14px', borderRadius: '999px', border: '1.5px solid #FF4D67', background: 'white', color: '#FF4D67', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
+  applyBtn: { flex: 1, padding: '14px', borderRadius: '999px', border: 'none', background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', fontSize: '15px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 3px rgba(30,20,70,0.06)' },
 };
 
 export default SwipePage;

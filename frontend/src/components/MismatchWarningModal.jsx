@@ -57,7 +57,7 @@ const styles = {
   modal: {
     background: 'white', borderRadius: '24px', padding: '32px 24px',
     maxWidth: '380px', width: '100%', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '14px', boxShadow: '0 24px 64px rgba(0,0,0,0.22)',
+    alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
     direction: 'inherit', textAlign: 'center',
   },
   iconWrap: {
@@ -65,7 +65,7 @@ const styles = {
     background: 'linear-gradient(135deg, #FFF3CD, #FFC107)',
     display: 'flex', justifyContent: 'center', alignItems: 'center',
   },
-  title: { fontSize: '20px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
+  title: { fontSize: '20px', fontWeight: 700, margin: 0, color: '#1E2A4A' },
   body: { fontSize: '14px', color: '#374151', margin: 0, lineHeight: 1.65 },
   sub: { fontSize: '12px', color: '#9CA3AF', margin: 0 },
   actions: { display: 'flex', gap: '10px', width: '100%', marginTop: '4px' },

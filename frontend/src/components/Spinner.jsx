@@ -23,4 +23,4 @@ const styleSheet = document.createElement('style');
 styleSheet.innerHTML = `@keyframes spin { to { transform: rotate(360deg); } }`;
 document.head.appendChild(styleSheet);
 
-export default Spinner;
+export default Spinner;

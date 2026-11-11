@@ -296,7 +296,10 @@ export const adminGrantAdmin     = (uid, pass)  => apiCall('POST',   `/admin/use
 export const adminRevokeAdmin    = (uid, pass)  => apiCall('POST',   `/admin/users/${uid}/revoke-admin`, { password: pass });
 export const adminToggleJob      = (jid, act)   => apiCall('PUT',    `/admin/jobs/${jid}`,              { active: act });
 export const adminTriggerImport  = ()           => apiCall('POST',   '/admin/jobs/import',              {});
-export const adminImportStatus   = ()           => apiCall('GET',    '/admin/jobs/import-status');
+// `since` is the server timestamp returned by adminTriggerImport. The importer is
+// invoked asynchronously and cannot report back, so progress is counted from the
+// createdAt of jobs inserted after that moment.
+export const adminImportStatus   = (since)      => apiCall('GET',    `/admin/jobs/import-status?since=${encodeURIComponent(since)}`);
 export const adminDeleteJobs     = (jobIds)     => apiCall('DELETE', '/admin/jobs',                     { jobIds });
 // F-18: jobs the daily automated closure checker couldn't resolve on its own —
 // see backend/lambdas/jobs_status_checker for what lands here and why.
@@ -304,6 +307,15 @@ export const adminGetPendingReviewJobs = ()             => apiCall('GET',  '/adm
 export const adminResolveJobReview     = (jid, action)  => apiCall('POST', `/admin/jobs/${jid}/resolve-review`, { action });
 export const adminResetMyQuota   = (plan)       => apiCall('POST',   '/admin/reset-my-quota',           { plan });
 export const adminResetMySwipes  = ()           => apiCall('POST',   '/admin/reset-my-swipes',           {});
+
+// ===== SUPPORT ("Contact us") =====
+// User side: /support (own tickets only). Admin side: /admin/support.
+export const getMySupportTickets   = ()             => apiCall('GET', '/support');
+export const createSupportTicket   = (data)         => apiCall('POST', '/support', data);
+export const markSupportRead       = (ticketId)     => apiCall('PUT', '/support', { ticketId });
+export const adminGetSupportTickets = ()            => apiCall('GET', '/admin/support');
+export const adminGetSupportUnread  = ()            => apiCall('GET', '/admin/support/unread');
+export const adminUpdateSupportTicket = (ticketId, data) => apiCall('PUT', `/admin/support/${encodeURIComponent(ticketId)}`, data);
 
 export const tailorCVForJob = async (jobId, force = false) => {
   return apiCall('POST', '/ai/tailor', { jobId, ...(force && { force: true }) });

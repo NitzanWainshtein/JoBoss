@@ -5,13 +5,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import {
   adminGetStats, adminGetUsers, adminGetJobs,
   adminUpdateUserPlan, adminResetUserQuota, adminBlockUser, adminDeleteUser,
   adminGrantAdmin, adminRevokeAdmin, adminToggleJob, adminTriggerImport,
   adminImportStatus, adminDeleteJobs, adminResetMyQuota, adminResetMySwipes,
-  adminGetPendingReviewJobs, adminResolveJobReview,
+  adminGetPendingReviewJobs, adminResolveJobReview, adminGetSupportUnread,
 } from '../api';
+import AdminSupportPanel from '../components/AdminSupportPanel';
 
 const PLAN_LABELS = { FREE: 'חינמי', PREMIUM: 'פרימיום', PREMIUM_PLUS: 'פרימיום+' };
 const PLAN_ICONS  = { FREE: '/icons/free_members_icon.png', PREMIUM: '/icons/premium_member_icon.png', PREMIUM_PLUS: '/icons/plus_members_icon.png' };
@@ -33,10 +35,10 @@ function Badge({ text, color }) {
 function StatCard({ label, value, color = '#6C4FD4', sub }) {
   const isHebrew = /[֐-׿]/.test(label);
   return (
-    <div style={{ background: 'white', borderRadius: 16, padding: '16px 20px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flex: '1 1 132px', minWidth: 0,
+    <div style={{ background: '#F4F2F9', borderRadius: 14, padding: '16px 18px',
+      flex: '1 1 132px', minWidth: 0,
       direction: isHebrew ? 'rtl' : 'ltr', textAlign: isHebrew ? 'right' : 'left' }}>
-      <p style={{ fontSize: 26, fontWeight: 800, color, margin: 0, unicodeBidi: 'embed' }}>{value ?? '--'}</p>
+      <p style={{ fontSize: 28, fontWeight: 800, color, margin: 0, unicodeBidi: 'embed' }}>{value ?? '--'}</p>
       <p style={{ fontSize: 12, color: '#777', margin: '4px 0 0', fontWeight: 600, unicodeBidi: 'embed' }}>{label}</p>
       {sub && <p style={{ fontSize: 11, color: '#aaa', margin: '2px 0 0', unicodeBidi: 'embed' }}>{sub}</p>}
     </div>
@@ -75,7 +77,12 @@ function ActionBtn({ label, color, onClick }) {
 const PAGE_GUARD = { maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' };
 
 export default function AdminPage() {
-  const [tab, setTab]     = useState('stats');
+  // ?tab=support deep-links here from the navbar's "new report" toast.
+  const [tab, setTab]     = useState(() => {
+    const q = new URLSearchParams(window.location.search).get('tab');
+    return ['stats', 'users', 'jobs', 'review', 'support', 'self'].includes(q) ? q : 'stats';
+  });
+  const [supportUnread, setSupportUnread] = useState(0);
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [jobs, setJobs]   = useState([]);
@@ -101,6 +108,16 @@ export default function AdminPage() {
   // Loaded on mount (not just when the tab is opened) so the tab badge acts as
   // an actual notification — an admin who never clicks in still sees the count.
   const [pendingReview, setPendingReview] = useState([]);
+
+  useEffect(() => {
+    adminGetSupportUnread().then(d => setSupportUnread(d?.unread || 0)).catch(() => {});
+  }, []);
+
+  // The toast can link here while the admin is already on /admin.
+  const { search } = useLocation();
+  useEffect(() => {
+    if (new URLSearchParams(search).get('tab') === 'support') setTab('support');
+  }, [search]);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -315,12 +332,12 @@ export default function AdminPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F0F2FF', direction: 'rtl', ...PAGE_GUARD }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px 90px', ...PAGE_GUARD }}>
+    <div style={{ minHeight: '100vh', background: '#FDFDFD', direction: 'rtl', ...PAGE_GUARD }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '8px 16px 40px', ...PAGE_GUARD }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1E2A4A', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.3px', color: '#1E2A4A', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <img src="/icons/admin_edit_icon.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
             Admin Panel — JoBoss
           </h1>
@@ -329,32 +346,45 @@ export default function AdminPage() {
           <Badge text="ADMIN" color="#FF6B6B" />
         </div>
 
-        <div style={{ display: 'flex', gap: 8, background: 'white', padding: 8,
-          borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 4, background: '#F4F2F9', padding: 5,
+          borderRadius: 16, marginBottom: 18 }}>
           {[
             { key: 'stats',  icon: '/icons/stats_logo.png',      label: 'סטטיסטיקות'  },
             { key: 'users',  icon: '/icons/members_icon.png',    label: 'משתמשים'     },
             { key: 'jobs',   icon: '/icons/jobs_icon.png',       label: 'משרות'       },
             { key: 'review', icon: '/icons/process_icon.png',    label: 'ממתין לאישור' },
+            { key: 'support', icon: null,                         label: 'דיווחים'      },
             { key: 'self',   icon: '/icons/admin_edit_icon.png', label: 'כלי Admin'   },
           ].map(({ key, icon, label }) => (
             <button key={key}
               style={{ flex: 1, padding: '10px 4px', border: 'none', borderRadius: 12, cursor: 'pointer',
                 fontWeight: 600, fontSize: 12, position: 'relative',
-                background: tab === key ? 'linear-gradient(135deg,#6C4FD4,#1E2A4A)' : 'transparent',
+                background: tab === key ? '#1E2A4A' : 'transparent',
                 color: tab === key ? 'white' : '#777',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
               onClick={() => setTab(key)}>
-              <img src={icon} alt="" style={{ width: 22, height: 22, objectFit: 'contain',
-                filter: tab === key ? 'brightness(0) invert(1)' : 'none' }} />
+              {icon
+                ? <img src={icon} alt="" style={{ width: 22, height: 22, objectFit: 'contain',
+                    filter: tab === key ? 'brightness(0) invert(1)' : 'none' }} />
+                : <span style={{ fontSize: 18, lineHeight: '22px', height: 22 }}>✉️</span>}
               {label}
+              {key === 'support' && supportUnread > 0 && (
+                <span style={{
+                  position: 'absolute', top: 2, insetInlineEnd: 10,
+                  background: '#FF4D67', color: 'white', borderRadius: 999,
+                  fontSize: 9, fontWeight: 700, minWidth: 15, height: 15, lineHeight: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                }}>
+                  {supportUnread}
+                </span>
+              )}
               {key === 'review' && pendingReview.length > 0 && (
                 <span style={{
                   position: 'absolute', top: 2, insetInlineEnd: 10,
                   background: '#FF4D67', color: 'white', borderRadius: 999,
-                  fontSize: 9, fontWeight: 800, minWidth: 15, height: 15, lineHeight: 1,
+                  fontSize: 9, fontWeight: 700, minWidth: 15, height: 15, lineHeight: 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
-                  boxShadow: '0 0 0 2px white',
+                  boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
                 }}>
                   {pendingReview.length}
                 </span>
@@ -363,7 +393,8 @@ export default function AdminPage() {
           ))}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
+        {/* The Reports tab has its own refresh (it loads its own data). */}
+        {tab !== 'support' && <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
           <button onClick={load}
             style={{ background: 'white', border: '1.5px solid #ddd', borderRadius: 20,
               padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#555',
@@ -371,7 +402,7 @@ export default function AdminPage() {
             <img src="/icons/refresh_icon.png" alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} />
             רענן
           </button>
-        </div>
+        </div>}
 
         {loading && <p style={{ textAlign: 'center', color: '#6C4FD4', padding: 40 }}>טוען...</p>}
 
@@ -392,14 +423,14 @@ export default function AdminPage() {
                 value={stats.bedrockAvailable ? '✓ זמין' : '✗ לא זמין'}
                 color={stats.bedrockAvailable ? '#4CAF50' : '#F44336'} />
             </div>
-            <div style={{ background: 'white', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ background: 'white', border: '1px solid #E7E3F0', borderRadius: 16, padding: 20 }}>
               <p style={{ fontWeight: 700, color: '#1E2A4A', margin: '0 0 12px' }}>פילוח משתמשים לפי סוג המנוי</p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {Object.entries(stats.planBreakdown || {}).map(([plan, count]) => (
                   <div key={plan} style={{ background: (PLAN_COLORS[plan] || '#888') + '15',
                     borderRadius: 16, padding: '20px 32px', textAlign: 'center', flex: 1 }}>
                     {PLAN_ICONS[plan] && <img src={PLAN_ICONS[plan]} alt={PLAN_LABELS[plan] || plan} style={{ width: 72, height: 72, objectFit: 'contain', display: 'block', margin: '0 auto 12px' }} />}
-                    <p style={{ fontSize: 36, fontWeight: 800, color: PLAN_COLORS[plan] || '#888', margin: 0 }}>{count}</p>
+                    <p style={{ fontSize: 36, fontWeight: 700, color: PLAN_COLORS[plan] || '#888', margin: 0 }}>{count}</p>
                   </div>
                 ))}
               </div>
@@ -434,11 +465,10 @@ export default function AdminPage() {
               if (userSort === 'admin') return (b.isAdmin ? 1 : 0) - (a.isAdmin ? 1 : 0);
               return 0;
             }).map(u => (
-              <div key={u.userId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: u.blocked ? 0.65 : 1 }}>
+              <div key={u.userId} style={{ background: 'white', border: '1px solid #E7E3F0', borderRadius: 16, padding: '14px 16px', opacity: u.blocked ? 0.65 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, direction: 'rtl' }}>
                   {/* buttons first in RTL flow = right side */}
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', direction: 'ltr', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', direction: 'ltr', minWidth: 0, maxWidth: '100%' }}>
                     <select
                       defaultValue={u.plan}
                       onChange={e => doUpdatePlan(u.userId, e.target.value)}
@@ -523,7 +553,7 @@ export default function AdminPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
               <select value={jobSort} onChange={e => setJobSort(e.target.value)}
                 style={{ flex: '1 1 130px', minWidth: 0, padding: '7px 10px', borderRadius: 10,
-                  border: '1.5px solid #E9E4FB', background: 'white', fontSize: 12, fontWeight: 600, color: '#5A5478' }}>
+                  border: '1.5px solid #E7E3F0', background: 'white', fontSize: 12, fontWeight: 600, color: '#5F5A72' }}>
                 <option value="date_desc">נשאבו לאחרונה</option>
                 <option value="date_asc">נשאבו ראשונים</option>
                 <option value="company">שם חברה</option>
@@ -532,7 +562,7 @@ export default function AdminPage() {
 
               <select value={jobSource} onChange={e => setJobSource(e.target.value)}
                 style={{ flex: '1 1 130px', minWidth: 0, padding: '7px 10px', borderRadius: 10,
-                  border: '1.5px solid #E9E4FB', background: 'white', fontSize: 12, fontWeight: 600, color: '#5A5478' }}>
+                  border: '1.5px solid #E7E3F0', background: 'white', fontSize: 12, fontWeight: 600, color: '#5F5A72' }}>
                 <option value="all">כל המקורות</option>
                 {[...new Set(jobs.map(j => j.source).filter(Boolean))].sort().map(src => (
                   <option key={src} value={src}>{src}</option>
@@ -542,7 +572,7 @@ export default function AdminPage() {
               {selectedJobs.size > 0 && (
                 <button onClick={doDeleteJobs}
                   style={{ background: '#FF4D67', color: 'white', border: 'none', borderRadius: 999,
-                    padding: '7px 14px', cursor: 'pointer', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                    padding: '7px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
                   🗑 מחק ({selectedJobs.size})
                 </button>
               )}
@@ -550,14 +580,13 @@ export default function AdminPage() {
               <button onClick={doImport} disabled={importing}
                 style={{ background: importing ? '#B9AEE8' : 'linear-gradient(135deg,#7C5CFF,#5B3DF5)', color: 'white',
                   border: 'none', borderRadius: 999, padding: '8px 16px',
-                  cursor: importing ? 'default' : 'pointer', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                  cursor: importing ? 'default' : 'pointer', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
                 {importing ? '⏳ מייבא...' : '⚡ הפעל Importer'}
               </button>
             </div>
 
             {visibleJobs.map(j => (
-              <div key={j.jobId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: j.isActive === false ? 0.55 : 1 }}>
+              <div key={j.jobId} style={{ background: 'white', border: '1px solid #E7E3F0', borderRadius: 16, padding: '14px 16px', opacity: j.isActive === false ? 0.55 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, direction: 'rtl' }}>
                   {/* button first in RTL flow = right side */}
                   <input type="checkbox" checked={selectedJobs.has(j.jobId)}
@@ -602,8 +631,7 @@ export default function AdminPage() {
               </p>
             ) : (
               pendingReview.map(j => (
-                <div key={j.jobId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1.5px solid #FFD98A' }}>
+                <div key={j.jobId} style={{ background: 'white', borderRadius: 16, padding: '14px 16px', border: '1.5px solid #FFD98A' }}>
                   <div style={{ direction: 'ltr', textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <p style={{ fontWeight: 700, fontSize: 14, color: '#1E2A4A', margin: 0 }}>{j.company || '—'}</p>
@@ -635,12 +663,17 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* SUPPORT — "Contact us" reports from users */}
+        {tab === 'support' && (
+          <AdminSupportPanel onToast={showToast} onUnreadChange={setSupportUnread} />
+        )}
+
         {/* SELF */}
         {tab === 'self' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Switch Plan */}
-            <div style={{ background: 'white', borderRadius: 20, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ background: 'white', border: '1px solid #E7E3F0', borderRadius: 20, padding: 24 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E2A4A', margin: '0 0 6px' }}>🔄 עבור בין מסלולים</h3>
               <p style={{ fontSize: 13, color: '#777', margin: '0 0 16px' }}>
                 משנה את המסלול שלך לבדיקות — ללא תשלום. כל מסלול מגיע עם ההגבלות האמיתיות שלו.
@@ -663,7 +696,7 @@ export default function AdminPage() {
                       border: `2px solid ${color}`, background: color + '10',
                       cursor: 'pointer' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, direction: 'ltr' }}>
-                      <p style={{ fontWeight: 800, fontSize: 15, color, margin: 0 }}>{label}</p>
+                      <p style={{ fontWeight: 700, fontSize: 15, color, margin: 0 }}>{label}</p>
                       <img src={icon} alt={label} style={{ height: 64, width: 'auto', maxWidth: 110, objectFit: 'contain', flexShrink: 0 }} />
                     </div>
                     <p style={{ fontSize: 11, color: '#777', margin: 0, textAlign: 'center' }}>{sub}</p>
@@ -673,7 +706,7 @@ export default function AdminPage() {
             </div>
 
             {/* Reset quota only */}
-            <div style={{ background: 'white', borderRadius: 20, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ background: 'white', border: '1px solid #E7E3F0', borderRadius: 20, padding: 20 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E2A4A', margin: '0 0 8px' }}>⟳ איפוס Quota בלבד</h3>
               <p style={{ fontSize: 13, color: '#777', margin: '0 0 14px' }}>
                 אפס את המונה מבלי לשנות מסלול — כשהגעת ל-30 swipes ורוצה לבדוק שוב.
@@ -686,7 +719,7 @@ export default function AdminPage() {
             </div>
 
             {/* Reset swipes */}
-            <div style={{ background: 'white', borderRadius: 20, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ background: 'white', border: '1px solid #E7E3F0', borderRadius: 20, padding: 20 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E2A4A', margin: '0 0 8px' }}>🔁 איפוס היסטוריית Swipes</h3>
               <p style={{ fontSize: 13, color: '#777', margin: '0 0 6px' }}>
                 כשמוצגת "סיימת את כל המשרות" — פירושו שעברת על כל המשרות הקיימות, לא שהגעת למכסה.
@@ -713,7 +746,7 @@ export default function AdminPage() {
           style={{ position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)',
             background: toast.ok ? '#1E2A4A' : '#F44336', color: 'white',
             padding: '10px 24px', borderRadius: 20, fontWeight: 600, fontSize: 14,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.2)', zIndex: 999, whiteSpace: 'nowrap' }}>
+            boxShadow: '0 1px 3px rgba(30,20,70,0.06)', zIndex: 999, whiteSpace: 'nowrap' }}>
           {toast.msg}
         </motion.div>
       )}
@@ -746,7 +779,7 @@ export default function AdminPage() {
           onClick={() => setRevokeAdminTarget(null)}>
           <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 340, width: '90%', direction: 'rtl' }}
             onClick={e => e.stopPropagation()}>
-            <p style={{ fontWeight: 800, fontSize: 17, color: '#1E2A4A', margin: '0 0 8px' }}>🚫 הסרת הרשאות אדמין</p>
+            <p style={{ fontWeight: 700, fontSize: 17, color: '#1E2A4A', margin: '0 0 8px' }}>🚫 הסרת הרשאות אדמין</p>
             <p style={{ fontSize: 13, color: '#666', margin: '0 0 4px' }}>
               האם אתה בטוח שאתה רוצה להסיר הרשאות אדמין מ-
             </p>
@@ -786,7 +819,7 @@ export default function AdminPage() {
           onClick={() => setGrantAdminTarget(null)}>
           <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 340, width: '90%', direction: 'rtl' }}
             onClick={e => e.stopPropagation()}>
-            <p style={{ fontWeight: 800, fontSize: 17, color: '#1E2A4A', margin: '0 0 8px' }}>👑 הגדרת אדמין</p>
+            <p style={{ fontWeight: 700, fontSize: 17, color: '#1E2A4A', margin: '0 0 8px' }}>👑 הגדרת אדמין</p>
             <p style={{ fontSize: 13, color: '#666', margin: '0 0 4px' }}>
               האם אתה בטוח שאתה רוצה להגדיר את
             </p>

@@ -318,7 +318,7 @@ function PlanStep({ plan, setPlan }) {
             key={p.key}
             onClick={() => setPlan(p.key)}
             style={{
-              borderRadius: 18, border: `2px solid ${plan === p.key ? p.color : '#EDE8FC'}`,
+              borderRadius: 18, border: `2px solid ${plan === p.key ? p.color : '#E7E3F0'}`,
               background: plan === p.key ? `${p.color}14` : 'rgba(255,255,255,0.85)',
               padding: 16, cursor: 'pointer', position: 'relative',
             }}
@@ -331,7 +331,7 @@ function PlanStep({ plan, setPlan }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 17, color: p.color }}>{t(p.nameKey)}</div>
-                <div style={{ fontSize: 13, color: '#6B5E9E', marginTop: 2 }}>{t(p.priceKey)}</div>
+                <div style={{ fontSize: 13, color: '#6F6A84', marginTop: 2 }}>{t(p.priceKey)}</div>
                 {p.trialKey && <div style={{ fontSize: 11, color: '#F5A623', marginTop: 2 }}>✨ {t(p.trialKey)}</div>}
               </div>
               <div style={{
@@ -346,7 +346,7 @@ function PlanStep({ plan, setPlan }) {
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
               {p.features.map(f => (
-                <span key={f} style={{ fontSize: 12, background: '#F5F3FC', padding: '3px 10px', borderRadius: 20, color: '#8B82B8' }}>{t(f)}</span>
+                <span key={f} style={{ fontSize: 12, background: '#F5F3FC', padding: '3px 10px', borderRadius: 20, color: '#7A7592' }}>{t(f)}</span>
               ))}
             </div>
           </div>
@@ -394,12 +394,12 @@ function CvStep({ existingResume, uploading, analyzing, uploadDone, onUpload }) 
               <>
                 <div style={{ fontSize: 56 }}>📎</div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: '#7C5CFF' }}>{t('onb.clickUpload')}</div>
-                <div style={{ fontSize: 13, color: '#7D719F' }}>{t('onb.max5mb')}</div>
+                <div style={{ fontSize: 13, color: '#8F8AA3' }}>{t('onb.max5mb')}</div>
               </>
             )}
             <input type="file" accept=".pdf" style={{ display: 'none' }} disabled={uploading} onChange={e => onUpload(e.target.files[0])} />
           </label>
-          <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: '#7D719F' }}>
+          <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: '#8F8AA3' }}>
             {t('onb.noCvPre')} {t('onb.next')} {t('onb.noCvPost')}
           </p>
         </div>
@@ -432,7 +432,7 @@ function RolesStep({ aiSuggestions, selected, onToggle }) {
 
       {JOB_CATEGORIES.map(cat => (
         <div key={cat.group} style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#8B82B8', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#7A7592', marginBottom: 8 }}>
             {cat.icon} {cat.group}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -460,9 +460,9 @@ function RolesStep({ aiSuggestions, selected, onToggle }) {
 function roleTag(isSelected, isSuggested) {
   return {
     padding: '6px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: isSelected || isSuggested ? 600 : 400,
-    border: `1px solid ${isSelected ? '#7C5CFF' : isSuggested ? '#C9BBFF' : '#EDE8FC'}`,
+    border: `1px solid ${isSelected ? '#7C5CFF' : isSuggested ? '#C9BBFF' : '#E7E3F0'}`,
     background: isSelected ? '#7C5CFF' : isSuggested ? '#F1ECFF' : 'white',
-    color: isSelected ? 'white' : isSuggested ? '#7C5CFF' : '#8B82B8',
+    color: isSelected ? 'white' : isSuggested ? '#7C5CFF' : '#7A7592',
   };
 }
 
@@ -501,7 +501,7 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
       </div>
 
       <div>
-        <div style={T.label}>{t('onb.currentCompany')} <span style={{ fontWeight: 400, color: '#7D719F', fontSize: 13 }}>{t('onb.optional')}</span></div>
+        <div style={T.label}>{t('onb.currentCompany')} <span style={{ fontWeight: 400, color: '#8F8AA3', fontSize: 13 }}>{t('onb.optional')}</span></div>
         <input
           type="text"
           value={currentCompany}
@@ -512,7 +512,7 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
       </div>
 
       <div>
-        <div style={T.label}>{t('onb.gender')} <span style={{ fontWeight: 400, color: '#7D719F', fontSize: 13 }}>{t('onb.optional')}</span></div>
+        <div style={T.label}>{t('onb.gender')} <span style={{ fontWeight: 400, color: '#8F8AA3', fontSize: 13 }}>{t('onb.optional')}</span></div>
         <select
           value={gender}
           onChange={e => setGender(e.target.value)}
@@ -566,11 +566,11 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
         </div>
       </div>
 
-      <div style={{ background: '#F8F6FF', borderRadius: 16, padding: '16px', border: '1px solid #E9E4FB' }}>
+      <div style={{ background: '#F8F6FF', borderRadius: 16, padding: '16px', border: '1px solid #E7E3F0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ ...T.label, marginBottom: 4 }}>{t('onb.showAllJobs')}</div>
-            <div style={{ fontSize: 13, color: '#8B82B8', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: '#7A7592', lineHeight: 1.5 }}>
               {showAllJobs
                 ? t('onb.showAllOn')
                 : t('onb.showAllOff')}
@@ -587,7 +587,7 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
                      background: showAllJobs ? '#7C5CFF' : '#DDD6F2', transition: 'background 0.2s', marginTop: 2 }}
           >
             <div style={{ position: 'absolute', top: 3, width: 20, height: 20, borderRadius: '50%', background: 'white',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+                          boxShadow: '0 1px 3px rgba(30,20,70,0.06)', transition: 'left 0.2s',
                           left: showAllJobs ? 23 : 3 }} />
           </div>
         </div>
@@ -598,16 +598,16 @@ function SettingsStep({ location, setLocation, onCoords, radius, setRadius, expL
 
 const textInput = {
   width: '100%', marginTop: 8, padding: '12px 14px', borderRadius: 12,
-  border: '1.5px solid #E9E4FB', background: '#F8F6FF', fontSize: 15, color: '#1E2A4A',
+  border: '1.5px solid #E7E3F0', background: '#F8F6FF', fontSize: 15, color: '#1E2A4A',
   outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
 };
 
 function chipBtn(active) {
   return {
     padding: '8px 16px', borderRadius: 20, cursor: 'pointer', fontSize: 14,
-    border: `1px solid ${active ? '#7C5CFF' : '#EDE8FC'}`,
+    border: `1px solid ${active ? '#7C5CFF' : '#E7E3F0'}`,
     background: active ? '#7C5CFF' : 'white',
-    color: active ? 'white' : '#8B82B8',
+    color: active ? 'white' : '#7A7592',
     fontWeight: active ? 700 : 400,
   };
 }
@@ -635,7 +635,7 @@ function DoneStep({ plan, roles, location, expLevel }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        style={{ width: '100%', background: 'white', borderRadius: 20, padding: 20, boxShadow: '0 10px 28px rgba(108,79,212,0.14)', textAlign: 'right' }}
+        style={{ width: '100%', background: 'white', borderRadius: 20, padding: 20, boxShadow: '0 1px 3px rgba(30,20,70,0.06)', textAlign: 'right' }}
       >
         {[
           [t('onb.planTitle'), planNames[plan] || plan],
@@ -643,8 +643,8 @@ function DoneStep({ plan, roles, location, expLevel }) {
           location && [t('onb.locationTitle'), location.split(',')[0]],
           expLevel && [t('onb.expTitle'), expLevel],
         ].filter(Boolean).map(([label, value]) => (
-          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F3F0FC' }}>
-            <span style={{ fontSize: 14, color: '#8B82B8', fontWeight: 600 }}>{label}</span>
+          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F0EDF6' }}>
+            <span style={{ fontSize: 14, color: '#7A7592', fontWeight: 600 }}>{label}</span>
             <span style={{ fontSize: 14, color: '#1E2A4A', fontWeight: 600, maxWidth: '55%', textAlign: 'left' }}>{value}</span>
           </div>
         ))}
@@ -667,47 +667,47 @@ function DoneStep({ plan, roles, location, expLevel }) {
 
 const S = {
   page: {
-    minHeight: '100vh', background: 'linear-gradient(165deg, #F5F2FF 0%, #ECE6FF 45%, #F8F0FF 100%)',
+    minHeight: '100vh', background: '#FDFDFD',
     display: 'flex', flexDirection: 'column', alignItems: 'center', direction: 'inherit',
   },
   header: {
     width: '100%', maxWidth: 480, padding: '20px 24px 0',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   },
-  stepCounter: { fontSize: 13, color: '#7D719F', fontWeight: 600 },
+  stepCounter: { fontSize: 13, color: '#8F8AA3', fontWeight: 600 },
   progressWrap: { width: '100%', maxWidth: 480, padding: '14px 24px 0' },
-  progressTrack: { height: 6, background: '#E9E4FB', borderRadius: 3, overflow: 'hidden' },
+  progressTrack: { height: 4, background: '#E4DFF2', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', background: 'linear-gradient(90deg, #7C5CFF, #FF5E8A)', borderRadius: 3 },
   stepDots: { display: 'flex', justifyContent: 'space-between', marginTop: 6 },
   dotLabel: { fontSize: 10 },
   contentWrap: { flex: 1, width: '100%', maxWidth: 480, overflow: 'hidden', position: 'relative' },
   stepInner: { padding: '20px 24px 130px' },
   bottomNav: {
-    position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-    width: '100%', maxWidth: 480,
-    background: 'white', borderTop: '1px solid #F3F0FC',
-    padding: '12px 24px 24px',
+    position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+    width: '100%', maxWidth: 430,
+    background: '#FDFDFD', borderTop: '1px solid #E7E3F0',
+    padding: '12px 20px 22px',
     display: 'flex', gap: 10, direction: 'inherit',
   },
   iconBtn: {
-    padding: '12px 18px', borderRadius: 12, border: 'none',
-    background: '#F5F3FC', color: '#8B82B8', fontSize: 18, fontWeight: 700, cursor: 'pointer',
+    padding: '13px 20px', borderRadius: 999, border: '1.5px solid #CFCADD',
+    background: '#fff', color: '#1E2A4A', fontSize: 18, fontWeight: 700, cursor: 'pointer',
   },
   skipBtn: {
-    flex: 1, padding: '12px', borderRadius: 12,
-    background: 'transparent', color: '#7D719F',
-    border: '1px solid #EDE8FC', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+    flex: 1, padding: '13px', borderRadius: 999,
+    background: 'transparent', color: '#5F5A72',
+    border: '1.5px solid #E7E3F0', fontSize: 14, fontWeight: 600, cursor: 'pointer',
   },
   nextBtn: {
-    padding: '12px 22px', borderRadius: 12, border: 'none',
-    background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
+    padding: '13px 26px', borderRadius: 999, border: 'none',
+    background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)',
     color: 'white', fontSize: 18, fontWeight: 700, cursor: 'pointer',
-    boxShadow: '0 10px 24px rgba(91,61,245,0.3)',
+    boxShadow: '0 6px 16px rgba(91,61,245,0.28)',
   },
 };
 
 const T = {
-  h2: { fontSize: 22, fontWeight: 800, margin: '0 0 4px', color: '#1E2A4A' },
-  sub: { fontSize: 14, color: '#8B82B8', margin: '0 0 4px' },
+  h2: { fontSize: 26, fontWeight: 800, margin: '0 0 4px', color: '#1E2A4A', letterSpacing: '-0.3px' },
+  sub: { fontSize: 14, color: '#7A7592', margin: '0 0 4px' },
   label: { fontSize: 15, fontWeight: 700, color: '#1E2A4A' },
 };

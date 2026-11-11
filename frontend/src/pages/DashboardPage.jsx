@@ -73,7 +73,7 @@ function DashboardPage() {
       <p style={{ fontSize: '48px' }}>⚠️</p>
       <p style={{ fontSize: '18px', fontWeight: 700, color: '#FF4D67' }}>{error}</p>
       <button
-        style={{ background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '999px', padding: '12px 24px', cursor: 'pointer', fontWeight: 800, boxShadow: '0 12px 28px rgba(91,61,245,0.35)' }}
+        style={{ background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '12px', padding: '12px 24px', cursor: 'pointer', fontWeight: 700, boxShadow: '0 1px 3px rgba(30,20,70,0.06)' }}
         onClick={() => window.location.reload()}
       >
         {t('dash.retry')}
@@ -155,29 +155,29 @@ function DashboardPage() {
 
 const styles = {
   container: { minHeight: '100vh', background: 'transparent', display: 'flex', flexDirection: 'column' },
-  content: { padding: '16px', maxWidth: '720px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' },
+  content: { padding: '8px 16px 24px', width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' },
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' },
-  statCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '18px', textAlign: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
-  statNumber: { fontSize: '30px', fontWeight: 900, color: '#5B3DF5', margin: 0 },
-  statLabel: { fontSize: '12px', color: '#6B5E9E', margin: '4px 0 0 0', fontWeight: 700 },
-  quotaCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
+  statCard: { background: '#F4F2F9', borderRadius: '14px', padding: '18px', textAlign: 'center' },
+  statNumber: { fontSize: '34px', fontWeight: 800, color: '#5B3DF5', margin: 0, letterSpacing: '-0.5px' },
+  statLabel: { fontSize: '12.5px', color: '#5F5A72', margin: '2px 0 0 0', fontWeight: 600 },
+  quotaCard: { background: '#fff', border: '1px solid #E7E3F0', borderRadius: '18px', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   quotaInfo: { display: 'flex', flexDirection: 'column', gap: '4px' },
-  quotaTitle: { fontSize: '15px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
-  quotaSubtitle: { fontSize: '12px', color: '#6B5E9E', margin: 0, fontWeight: 600 },
-  quotaBadge: { width: '54px', height: '54px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 6px 16px rgba(0,0,0,0.12)' },
-  quotaNumber: { fontSize: '20px', fontWeight: 900, color: 'white', margin: 0 },
-  upgradeBtn: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', borderRadius: '14px', padding: '14px', cursor: 'pointer', fontWeight: 800, fontSize: '15px', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
-  sectionTitle: { fontSize: '17px', fontWeight: 900, margin: 0, color: '#1E2A4A' },
-  applicationsList: { display: 'flex', flexDirection: 'column', gap: '10px' },
-  applicationCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '18px', padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
+  quotaTitle: { fontSize: '15px', fontWeight: 700, margin: 0, color: '#1E2A4A' },
+  quotaSubtitle: { fontSize: '12px', color: '#6F6A84', margin: 0, fontWeight: 600 },
+  quotaBadge: { width: '54px', height: '54px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  quotaNumber: { fontSize: '20px', fontWeight: 700, color: 'white', margin: 0 },
+  upgradeBtn: { background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', borderRadius: '999px', padding: '15px', cursor: 'pointer', fontWeight: 700, fontSize: '15px', boxShadow: '0 6px 16px rgba(91,61,245,0.28)' },
+  sectionTitle: { fontSize: '19px', fontWeight: 800, margin: '6px 0 0', color: '#1E2A4A' },
+  applicationsList: { display: 'flex', flexDirection: 'column', margin: '0 -16px' },
+  applicationCard: { background: 'transparent', borderBottom: '1px solid #E7E3F0', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   appInfo: { display: 'flex', flexDirection: 'column', gap: '2px' },
-  appCompany: { fontSize: '15px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
-  appTitle: { fontSize: '13px', color: '#7C5CFF', margin: 0, fontWeight: 700 },
-  appDate: { fontSize: '11px', color: '#7D719F', margin: 0 },
-  statusBadge: { padding: '6px 14px', borderRadius: '999px', color: 'white', fontSize: '12px', fontWeight: 800 },
-  emptyApplications: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px', background: 'rgba(255,255,255,0.85)', borderRadius: '18px', textAlign: 'center' },
-  emptyTitle: { fontSize: '17px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
-  emptySubtitle: { fontSize: '13px', color: '#6B5E9E', margin: 0 },
+  appCompany: { fontSize: '16px', fontWeight: 700, margin: 0, color: '#1E2A4A' },
+  appTitle: { fontSize: '13.5px', color: '#5F5A72', margin: 0, fontWeight: 500 },
+  appDate: { fontSize: '11px', color: '#8F8AA3', margin: 0 },
+  statusBadge: { padding: '5px 13px', borderRadius: '999px', color: 'white', fontSize: '11.5px', fontWeight: 700 },
+  emptyApplications: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px', textAlign: 'center' },
+  emptyTitle: { fontSize: '17px', fontWeight: 700, margin: 0, color: '#1E2A4A' },
+  emptySubtitle: { fontSize: '13px', color: '#6F6A84', margin: 0 },
 };
 
 export default DashboardPage;

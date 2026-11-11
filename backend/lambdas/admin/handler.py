@@ -18,6 +18,7 @@ APPS_TABLE    = os.getenv("APPS_TABLE",    "joboss-applications")
 SWIPES_TABLE  = os.getenv("SWIPES_TABLE",  "joboss-swipes")
 JOBS_TABLE    = os.getenv("JOBS_TABLE",    "joboss-jobs")
 SUBS_TABLE    = os.getenv("SUBS_TABLE",    "joboss-subscriptions")
+SUPPORT_TABLE = os.getenv("SUPPORT_TABLE", "joboss-support-tickets")
 IMPORTER_FN   = os.getenv("IMPORTER_FN",  "joboss-jobs-importer")
 IMPORT_RUN_WINDOW_SECS = 240  # generous: observed runs take 45-190s
 
@@ -35,6 +36,7 @@ apps_table   = dynamodb.Table(APPS_TABLE)
 swipes_table = dynamodb.Table(SWIPES_TABLE)
 jobs_table   = dynamodb.Table(JOBS_TABLE)
 subs_table   = dynamodb.Table(SUBS_TABLE)
+support_table = dynamodb.Table(SUPPORT_TABLE)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -781,6 +783,115 @@ def handle_reset_my_quota(admin_id, body):
     return resp(200, {"success": True, "plan": plan})
 
 
+# ── support tickets (F-contact) ─────────────────────────────────────────────
+# User side: backend/lambdas/support/handler.py. Same table, same item shape:
+#   userId, ticketId, category, subject, status, createdAt, updatedAt,
+#   userEmail, userName, messages[{from, text, at}], adminUnread, userUnread
+
+SUPPORT_STATUSES = ("NEW", "IN_PROGRESS", "RESOLVED")
+SUPPORT_MAX_REPLY = 4000
+
+
+def _support_now():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def handle_list_support(admin_id):
+    log_action(admin_id, "LIST_SUPPORT")
+    items = scan_all(support_table)
+    items.sort(key=lambda i: i.get("updatedAt", ""), reverse=True)
+    return resp(200, {
+        "tickets": items,
+        "unread": sum(1 for i in items if i.get("adminUnread")),
+        "open": sum(1 for i in items if i.get("status", "NEW") != "RESOLVED"),
+    })
+
+
+def handle_support_unread(admin_id):
+    """Cheap-ish poll for the navbar badge: projects only the flag."""
+    items = scan_all(support_table, ProjectionExpression="adminUnread")
+    return resp(200, {"unread": sum(1 for i in items if i.get("adminUnread"))})
+
+
+def _send_support_reply_email(user_email, subject, reply_text):
+    if not user_email:
+        return False
+    import html as _html
+    text = (f"שלום,\n\nצוות JoBoss השיב לפנייתך \"{subject}\":\n\n{reply_text}\n\n"
+            "את כל ההתכתבות אפשר לראות באפליקציה תחת \"צור קשר\".\n\nבברכה,\nצוות JoBoss")
+    body_html = (
+        '<div dir="rtl" style="font-family:Arial,sans-serif;font-size:15px;color:#1E2A4A;line-height:1.8;'
+        'max-width:480px;margin:0 auto;text-align:right;">'
+        f"<p>שלום,</p><p>צוות JoBoss השיב לפנייתך <b>{_html.escape(subject)}</b>:</p>"
+        f'<p style="white-space:pre-wrap;background:#F4F0FF;border-radius:10px;padding:10px 14px">{_html.escape(reply_text)}</p>'
+        "<p>את כל ההתכתבות אפשר לראות באפליקציה תחת \"צור קשר\".</p><p>בברכה,<br/>צוות JoBoss</p></div>"
+    )
+    try:
+        ses.send_email(
+            Source=SES_SENDER,
+            Destination={"ToAddresses": [user_email]},
+            Message={
+                "Subject": {"Data": f"JoBoss — תשובה לפנייתך: {subject}", "Charset": "UTF-8"},
+                "Body": {"Text": {"Data": text, "Charset": "UTF-8"},
+                         "Html": {"Data": body_html, "Charset": "UTF-8"}},
+            },
+        )
+        return True
+    except Exception as e:
+        print(f"[SUPPORT] reply email failed: {e}")
+        return False
+
+
+def handle_update_support(admin_id, ticket_id, body):
+    """body: {userId (required), status?, reply?, markRead?}"""
+    user_id = (body.get("userId") or "").strip()
+    if not user_id or not ticket_id:
+        return resp(400, {"error": "userId and ticketId required"})
+
+    existing = support_table.get_item(Key={"userId": user_id, "ticketId": ticket_id}).get("Item")
+    if not existing:
+        return resp(404, {"error": "ticket not found"})
+
+    status = body.get("status")
+    if status is not None and status not in SUPPORT_STATUSES:
+        return resp(400, {"error": f"status must be one of {', '.join(SUPPORT_STATUSES)}"})
+
+    reply = (body.get("reply") or "").replace("\r\n", "\n").strip()[:SUPPORT_MAX_REPLY]
+    now = _support_now()
+
+    sets, values = ["updatedAt = :now"], {":now": now}
+    if status is not None:
+        sets.append("#st = :st")
+        values[":st"] = status
+    if reply:
+        sets.append("messages = list_append(if_not_exists(messages, :empty), :msg)")
+        sets.append("userUnread = :t")
+        values[":empty"] = []
+        values[":msg"] = [{"from": "admin", "text": reply, "at": now}]
+        values[":t"] = True
+        # A first reply moves a NEW ticket into handling unless a status was given.
+        if status is None and existing.get("status", "NEW") == "NEW":
+            sets.append("#st = :st")
+            values[":st"] = "IN_PROGRESS"
+    if body.get("markRead") or reply or status is not None:
+        sets.append("adminUnread = :f")
+        values[":f"] = False
+
+    kwargs = {
+        "Key": {"userId": user_id, "ticketId": ticket_id},
+        "UpdateExpression": "SET " + ", ".join(sets),
+        "ExpressionAttributeValues": values,
+        "ReturnValues": "ALL_NEW",
+    }
+    if "#st" in kwargs["UpdateExpression"]:
+        kwargs["ExpressionAttributeNames"] = {"#st": "status"}
+    updated = support_table.update_item(**kwargs).get("Attributes", {})
+
+    emailed = _send_support_reply_email(existing.get("userEmail"), existing.get("subject", ""), reply) if reply else False
+    log_action(admin_id, "UPDATE_SUPPORT", f"ticket={ticket_id} status={status} reply={bool(reply)}")
+    return resp(200, {"ticket": updated, "emailed": emailed})
+
+
 # ── router ────────────────────────────────────────────────────────────────────
 
 def lambda_handler(event, context):
@@ -864,6 +975,15 @@ def lambda_handler(event, context):
             job_id = parts[parts.index("jobs") + 1] if "jobs" in parts else None
             if job_id:
                 return handle_toggle_job(admin_id, job_id, body)
+
+        # Support tickets ("Contact us" reports)
+        if method == "GET" and path.endswith("/admin/support"):
+            return handle_list_support(admin_id)
+        if method == "GET" and path.endswith("/admin/support/unread"):
+            return handle_support_unread(admin_id)
+        if method == "PUT" and "/admin/support/" in path:
+            ticket_id = path.split("/admin/support/", 1)[1].split("/")[0]
+            return handle_update_support(admin_id, ticket_id, body)
 
         # Admin self reset
         if method == "POST" and path.endswith("/admin/reset-my-quota"):

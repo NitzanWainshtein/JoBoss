@@ -14,6 +14,7 @@ import ApplicationsPage from './pages/ApplicationsPage.jsx';
 import OnboardingPage from './pages/OnboardingPage.jsx';
 import AuthExtensionPage from './pages/AuthExtensionPage.jsx';
 import LegalPage from './pages/LegalPage.jsx';
+import SupportPage from './pages/SupportPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import Spinner from './components/Spinner.jsx';
@@ -23,6 +24,7 @@ import LanguageProvider from './i18n/LanguageProvider.jsx';
 import useTranslation from './i18n/useTranslation';
 import UpdateBanner from './components/UpdateBanner.jsx';
 import './styles/global.css';
+import './styles/pro.css';
 
 // Split out of the main bundle: none of these are on a path a normal user takes,
 // so there is no reason for every visitor to download them up front.
@@ -211,6 +213,11 @@ function AnimatedRoutes({ isLoggedIn, isAdmin, onboardingCompleted, onOnboarding
         <Route path="/subscription" element={
           <PageTransition>
             {isLoggedIn ? <ProfilePage initialView="subscription" /> : <Navigate to="/login" />}
+          </PageTransition>
+        } />
+        <Route path="/support" element={
+          <PageTransition>
+            {isLoggedIn ? <SupportPage /> : <Navigate to="/login" />}
           </PageTransition>
         } />
         <Route path="/applications" element={
@@ -415,15 +422,17 @@ function App() {
         ) : (
           <Router>
             {isLoggedIn && onboardingCompleted && !isAuthExtRoute && <Navbar isAdmin={isAdmin} planKey={planKey} />}
-            <div style={{ paddingBottom: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? 'calc(72px + env(safe-area-inset-bottom, 0px))' : '0', paddingTop: isLoggedIn && onboardingCompleted && !isAuthExtRoute ? 'calc(66px + env(safe-area-inset-top, 0px))' : '0' }}>
-              <Suspense fallback={<RouteFallback />}>
-                <AnimatedRoutes
-                  isLoggedIn={isLoggedIn}
-                  isAdmin={isAdmin}
-                  onboardingCompleted={onboardingCompleted}
-                  onOnboardingComplete={() => setOnboardingCompleted(true)}
-                />
-              </Suspense>
+            <div className="pro-shell">
+              <main className={`pro-content${isLoggedIn && onboardingCompleted && !isAuthExtRoute ? '' : ' bare'}`}>
+                <Suspense fallback={<RouteFallback />}>
+                  <AnimatedRoutes
+                    isLoggedIn={isLoggedIn}
+                    isAdmin={isAdmin}
+                    onboardingCompleted={onboardingCompleted}
+                    onOnboardingComplete={() => setOnboardingCompleted(true)}
+                  />
+                </Suspense>
+              </main>
             </div>
           </Router>
         )

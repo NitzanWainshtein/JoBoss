@@ -16,7 +16,7 @@ const PLANS = {
     nameEn: 'Free',
     price: 0,
     color: '#8B8299',
-    gradient: 'linear-gradient(135deg, #8B8299, #4A4470)',
+    gradient: 'linear-gradient(135deg, #2A2160, #4A35B8)',
     features: {
       daily_swipes: 'sub.FREE.daily_swipes',
       daily_applications: 'sub.FREE.daily_applications',
@@ -40,7 +40,7 @@ const PLANS = {
     nameEn: 'Premium',
     price: 9.99,
     color: '#7C5CFF',
-    gradient: 'linear-gradient(135deg, #5B3DF5, #7C5CFF)',
+    gradient: 'linear-gradient(90deg, #5B3DF5, #7C5CFF)',
     trial: 'sub.trial',
     features: {
       daily_swipes: 'sub.PREMIUM.daily_swipes',
@@ -65,7 +65,7 @@ const PLANS = {
     nameEn: 'Premium+',
     price: 19.99,
     color: '#FF5E8A',
-    gradient: 'linear-gradient(135deg, #FF5E8A, #C2185B)',
+    gradient: 'linear-gradient(90deg, #7C5CFF, #FF5E8A)',
     trial: 'sub.trial',
     popular: true,
     features: {
@@ -333,10 +333,10 @@ export default function SubscriptionPage({ api }) {
               return (
                 <div key={row.key} style={styles.featureRow}>
                   <span style={styles.featureIcon}>{row.img ? <img src={row.img} alt="" style={{ width: `${ICON_SIZES.featureRow}px`, height: `${ICON_SIZES.featureRow}px`, objectFit: 'contain' }} /> : row.icon}</span>
-                  <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#7D719F' }}>
+                  <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#8F8AA3' }}>
                     {t(currentPlan.features[row.key])}
                   </span>
-                  <span style={{ color: hasFeature ? '#12A96F' : '#EDE8FC', fontSize: '18px' }}>
+                  <span style={{ color: hasFeature ? '#12A96F' : '#CFCADD', fontSize: '18px' }}>
                     {hasFeature ? '✓' : '✕'}
                   </span>
                 </div>
@@ -566,10 +566,10 @@ function CompareTable({ plans, currentPlanKey, checkoutLoading, onCheckout }) {
             const has = plan.featureFlags[row.key];
             return (
               <div key={pk} style={styles.comparePlanCol}>
-                <div style={{ color: has ? plan.color : '#EDE8FC', fontWeight: 700, textAlign: 'center' }}>
+                <div style={{ color: has ? plan.color : '#E7E3F0', fontWeight: 700, textAlign: 'center' }}>
                   {has ? '✓' : '✕'}
                 </div>
-                <div style={{ fontSize: '11px', color: '#6B5E9E', textAlign: 'center', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: '#6F6A84', textAlign: 'center', marginTop: '2px' }}>
                   {t(plan.features[row.key])}
                 </div>
               </div>
@@ -589,23 +589,23 @@ const styles = {
     position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)',
     color: 'white', padding: '12px 24px', borderRadius: '999px',
     fontSize: '14px', fontWeight: 700, zIndex: 500,
-    boxShadow: '0 14px 34px rgba(25,15,60,0.3)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   },
   welcomeCard: {
     background: 'linear-gradient(135deg, #EBFBF2, #E6F7FF)',
     border: '1px solid #A9E9CB', borderRadius: '22px', padding: '20px',
     display: 'flex', flexDirection: 'column', gap: '8px',
-    boxShadow: '0 10px 30px rgba(18,169,111,0.16)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   },
   welcomeTitle: { margin: 0, fontSize: '18px', fontWeight: 900, color: '#0E7A52' },
   welcomeSub: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#12A96F' },
-  welcomeUnlocked: { margin: '6px 0 0', fontSize: '12px', fontWeight: 800, color: '#0E7A52' },
+  welcomeUnlocked: { margin: '6px 0 0', fontSize: '12px', fontWeight: 700, color: '#0E7A52' },
   welcomeList: { display: 'flex', flexDirection: 'column', gap: '4px' },
   welcomeItem: { fontSize: '13px', fontWeight: 600, color: '#166534' },
   welcomeBtn: {
     marginTop: '8px', alignSelf: 'flex-start', border: 'none', borderRadius: '999px',
     background: '#12A96F', color: 'white', padding: '10px 20px',
-    fontSize: '13px', fontWeight: 800, cursor: 'pointer',
+    fontSize: '13px', fontWeight: 700, cursor: 'pointer',
   },
   cancelCard: {
     background: '#FFF4EC', border: '1px solid #F7D9A8', borderRadius: '18px',
@@ -615,63 +615,63 @@ const styles = {
   cancelBody: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#8A4B1F', lineHeight: 1.6 },
   cancelHint: { margin: 0, fontSize: '12px', color: '#A9713F' },
   currentPlanCard: {
-    borderRadius: '22px', padding: '24px', position: 'relative', overflow: 'hidden',
-    display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 16px 40px rgba(91,61,245,0.3)',
+    borderRadius: '18px', padding: '22px', position: 'relative', overflow: 'hidden',
+    display: 'flex', flexDirection: 'column', gap: '8px',
   },
   currentPlanTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   currentPlanLabel: { fontSize: '12px', color: 'rgba(255,255,255,0.75)', margin: 0 },
-  currentPlanName: { fontSize: '24px', fontWeight: 900, color: 'white', margin: 0 },
+  currentPlanName: { fontSize: '30px', fontWeight: 800, color: 'white', margin: 0, letterSpacing: '-0.3px' },
   statusBadge: {
     padding: '5px 13px', borderRadius: '999px',
-    fontSize: '11.5px', fontWeight: 800,
+    fontSize: '11.5px', fontWeight: 700,
   },
   trialNote: { fontSize: '13px', color: 'rgba(255,255,255,0.9)', margin: 0 },
   currentPrice: { fontSize: '15px', color: 'rgba(255,255,255,0.92)', margin: 0, fontWeight: 700 },
-  tabs: { display: 'flex', gap: '5px', background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(14px)', border: '1px solid rgba(255,255,255,0.9)', padding: '5px', borderRadius: '16px', boxShadow: '0 6px 20px rgba(108,79,212,0.1)' },
-  tab: { flex: 1, padding: '10px', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '13px', background: 'transparent', color: '#8B82B8' },
-  tabActive: { background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', boxShadow: '0 6px 16px rgba(91,61,245,0.35)' },
+  tabs: { display: 'flex', borderBottom: '1px solid #E7E3F0' },
+  tab: { flex: 1, padding: '10px 8px 12px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '15px', background: 'transparent', color: '#9A95AC', marginBottom: '-1px', borderBottom: '3px solid transparent' },
+  tabActive: { color: '#1E2A4A', borderBottom: '3px solid #7C5CFF' },
   section: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  featureCard: { background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: '20px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 6px 20px rgba(108,79,212,0.08)' },
-  sectionTitle: { fontSize: '15px', fontWeight: 900, margin: 0, color: '#1E2A4A' },
-  featureRow: { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid #F3F0FC' },
+  featureCard: { background: '#fff', border: '1px solid #E7E3F0', borderRadius: '18px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '6px' },
+  sectionTitle: { fontSize: '17px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
+  featureRow: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid #F0EDF6' },
   featureIcon: { fontSize: '18px', width: '24px', textAlign: 'center' },
-  featureText: { flex: 1, fontSize: '13.5px', fontWeight: 600 },
+  featureText: { flex: 1, fontSize: '14.5px', fontWeight: 500 },
   upgradeSection: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  upgradeTitle: { fontSize: '15px', fontWeight: 800, color: '#1E2A4A', margin: 0, textAlign: 'center' },
+  upgradeTitle: { fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: 0, textAlign: 'center' },
   upgradeCards: { display: 'flex', gap: '12px' },
-  upgradeCard: { flex: 1, background: 'rgba(255,255,255,0.92)', borderRadius: '20px', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 10px 28px rgba(108,79,212,0.14)', overflow: 'hidden' },
-  popularBadge: { position: 'absolute', top: '12px', left: '12px', color: 'white', fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '999px' },
-  upgradePlanName: { fontSize: '16px', fontWeight: 900, margin: 0 },
-  upgradePrice: { fontSize: '21px', fontWeight: 900, color: '#1E2A4A', margin: 0 },
-  upgradePriceSub: { fontSize: '13px', fontWeight: 600, color: '#6B5E9E' },
+  upgradeCard: { flex: 1, background: '#fff', border: '1px solid #E7E3F0', borderRadius: '18px', padding: '20px 14px', display: 'flex', flexDirection: 'column', gap: '8px', overflow: 'hidden' },
+  popularBadge: { position: 'absolute', top: '12px', left: '12px', color: 'white', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px' },
+  upgradePlanName: { fontSize: '16px', fontWeight: 700, margin: 0 },
+  upgradePrice: { fontSize: '21px', fontWeight: 700, color: '#1E2A4A', margin: 0 },
+  upgradePriceSub: { fontSize: '13px', fontWeight: 600, color: '#6F6A84' },
   trialTag: { fontSize: '12px', color: '#F5A623', fontWeight: 700, margin: 0 },
   upgradeFeatures: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
   upgradeFeature: { fontSize: '12px', margin: 0 },
-  checkoutBtn: { width: '100%', padding: '13px', borderRadius: '14px', border: 'none', color: 'white', fontSize: '14px', fontWeight: 800, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: '0 10px 24px rgba(91,61,245,0.3)' },
+  checkoutBtn: { width: '100%', padding: '13px', borderRadius: '999px', border: 'none', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' },
   billingNote: {
-    fontSize: '11px', lineHeight: 1.55, color: '#5A5478',
+    fontSize: '11px', lineHeight: 1.55, color: '#5F5A72',
     margin: '8px 0 0', textAlign: 'center',
   },
-  paymentMethods: { fontSize: '10px', color: '#7D719F', margin: 0, textAlign: 'center' },
+  paymentMethods: { fontSize: '10px', color: '#8F8AA3', margin: 0, textAlign: 'center' },
   warningCard: { background: '#FFF4EC', border: '2px solid #F5A623', borderRadius: '18px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' },
-  warningTitle: { fontSize: '15px', fontWeight: 800, color: '#C2410C', margin: 0 },
-  warningText: { fontSize: '13px', color: '#8B82B8', margin: 0 },
-  primaryBtn: { background: '#F5A623', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 20px', cursor: 'pointer', fontWeight: 800, fontSize: '14px' },
+  warningTitle: { fontSize: '15px', fontWeight: 700, color: '#C2410C', margin: 0 },
+  warningText: { fontSize: '13px', color: '#7A7592', margin: 0 },
+  primaryBtn: { background: '#F5A623', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
   cancelSection: { display: 'flex', justifyContent: 'center', paddingTop: '8px' },
   cancelBtn: { background: 'transparent', border: 'none', color: '#FF4D67', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline', padding: '4px', fontWeight: 600 },
   confirmBox: { background: '#FFEBEE', borderRadius: '18px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' },
   confirmText: { fontSize: '14px', color: '#B71C1C', margin: 0, lineHeight: 1.5, textAlign: 'center' },
-  confirmCancelBtn: { flex: 1, padding: '10px', background: '#FF4D67', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 800, fontSize: '14px' },
-  confirmKeepBtn: { flex: 1, padding: '10px', background: '#12A96F', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 800, fontSize: '14px' },
+  confirmCancelBtn: { flex: 1, padding: '10px', background: '#FF4D67', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
+  confirmKeepBtn: { flex: 1, padding: '10px', background: '#12A96F', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' },
   compareSection: { overflow: 'hidden' },
-  compareTable: { display: 'flex', flexDirection: 'column', gap: '0', background: 'rgba(255,255,255,0.92)', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 6px 20px rgba(108,79,212,0.1)' },
-  compareHeader: { display: 'flex', padding: '16px', gap: '4px', background: 'white', borderBottom: '2px solid #F3F0FC' },
+  compareTable: { display: 'flex', flexDirection: 'column', gap: '0', background: '#fff', border: '1px solid #E7E3F0', borderRadius: '18px', overflow: 'hidden' },
+  compareHeader: { display: 'flex', padding: '16px', gap: '4px', background: 'white', borderBottom: '2px solid #F0EDF6' },
   compareFeatureCol: { flex: 1.2, display: 'flex', alignItems: 'center', gap: '8px' },
   comparePlanCol: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px', borderRadius: '12px' },
-  comparePlanName: { fontSize: '13px', fontWeight: 900, margin: 0, textAlign: 'center' },
-  comparePlanPrice: { fontSize: '11px', color: '#6B5E9E', margin: 0, textAlign: 'center' },
-  currentBadge: { background: '#EBFBF2', color: '#12A96F', fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '999px' },
-  compareCheckoutBtn: { color: 'white', border: 'none', borderRadius: '10px', padding: '6px 12px', cursor: 'pointer', fontWeight: 800, fontSize: '11px' },
+  comparePlanName: { fontSize: '13px', fontWeight: 700, margin: 0, textAlign: 'center' },
+  comparePlanPrice: { fontSize: '11px', color: '#6F6A84', margin: 0, textAlign: 'center' },
+  currentBadge: { background: '#EBFBF2', color: '#12A96F', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px' },
+  compareCheckoutBtn: { color: 'white', border: 'none', borderRadius: '999px', padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '11px' },
   compareRow: { display: 'flex', padding: '12px 16px', gap: '4px', alignItems: 'center' },
   compareFeatLabel: { fontSize: '13px', color: '#1E2A4A', fontWeight: 600 },
   spinner: { width: '32px', height: '32px', borderRadius: '50%', border: '3px solid #E4DCFC', borderTop: '3px solid #7C5CFF', animation: 'spin 0.8s linear infinite' },

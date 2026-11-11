@@ -1,16 +1,12 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'aws-amplify/auth';
-import ICON_SIZES from '../iconSizes';
-import { getMyProfile, uploadProfileImage } from '../api';
+import { getMyProfile, uploadProfileImage, getMySupportTickets, adminGetSupportUnread } from '../api';
 import { EditProfileModal, ChangePasswordModal } from './ProfileModals';
 import useTranslation from '../i18n/useTranslation';
 import AccessibilityMenu from './AccessibilityMenu';
 import AvatarCropper from './AvatarCropper';
-
-// The pill's height. Its vertical position is derived from the active button so
-// it stays centred on the icon+label; only the height is a design constant.
-const BUBBLE_HEIGHT = 52;
+import Icon from './Icon';
 
 const PLAN_LOGOS = {
   FREE:         '/icons/free_members_icon.png',
@@ -26,14 +22,9 @@ function getHeaderLogo(isAdmin, planKey) {
 function Navbar({ isAdmin = false, planKey = '' }) {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { t, language, toggleLanguage, nextLanguage } = useTranslation();
-  const itemRefs  = useRef([]);
-  const navRef    = useRef(null);
+  const { t, toggleLanguage, nextLanguage } = useTranslation();
   const menuRef   = useRef(null);
   const imgInputRef = useRef(null);
-
-  const [bubble, setBubble] = useState({ left: 0, width: 0, top: 0 });
-  const [ready,  setReady]  = useState(false);
 
   const [profileImage,   setProfileImage]   = useState(null);
   const [userName,       setUserName]       = useState('');
@@ -46,105 +37,18 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   const [pendingImage,   setPendingImage]   = useState(null);
 
   const navItems = [
-    { path: '/swipe',        icon: '/icons/jobs_icon.png',       label: t('nav.jobs')         },
-    { path: '/applications', icon: '/icons/applies_icon.png',    label: t('nav.applications') },
-    { path: '/profile',      icon: '/icons/profile_icon.png',    label: t('nav.profile')      },
-    ...(isAdmin ? [{ path: '/admin', icon: '/icons/admin_edit_icon.png', label: t('nav.admin') }] : []),
+    { path: '/swipe',        icon: 'jobs', label: t('nav.jobs')         },
+    { path: '/applications', icon: 'applications', label: t('nav.applications') },
+    { path: '/profile',      icon: 'profile', label: t('nav.profile')      },
+    ...(isAdmin ? [{ path: '/admin', icon: 'admin', label: t('nav.admin') }] : []),
   ];
 
   // /settings and /subscription are sub-screens of Profile, so the Profile tab
   // stays lit there — an exact match would leave no tab active at all.
-  const PROFILE_SUB_ROUTES = ['/settings', '/subscription'];
+  const PROFILE_SUB_ROUTES = ['/settings', '/subscription', '/support'];
   const matchesTab = (item) =>
     location.pathname === item.path ||
     (item.path === '/profile' && PROFILE_SUB_ROUTES.includes(location.pathname));
-  const activeIndex = navItems.findIndex(matchesTab);
-
-  // Measure the active tab button directly rather than deriving it from the
-  // nav width + a hardcoded padding — that derivation silently drifts whenever
-  // the navbar's CSS padding changes, and never reflects the real button box.
-  //
-  // offset* rather than getBoundingClientRect(): the accessibility menu's text
-  // size applies `zoom` to <body> (see global.css), and getBoundingClientRect()
-  // reports the VISUAL box — already multiplied by that zoom. Feeding those
-  // numbers back as `left`/`width` on the bubble, which lives inside the same
-  // zoomed subtree, applies the zoom a second time. The error is proportional to
-  // the distance from the nav's left edge, so every tab was off by a different
-  // amount (~14px, ~39px, ~65px across three tabs at 1.2x) and the bubble
-  // visibly slid off the tab and past the end of the bar. offsetLeft/offsetWidth
-  // are layout values in the nav's own coordinate space — the same space `left`
-  // is resolved in — so they survive any zoom or transform on an ancestor.
-  // offsetParent is the nav itself (it is position: fixed), and offset* excludes
-  // its 1px top border exactly as an absolute `top` does, so the two agree.
-  const measureBubble = useCallback(() => {
-    const el = itemRefs.current[activeIndex];
-    if (!navRef.current || !el || activeIndex < 0) return;
-    if (!el.offsetWidth) return;          // not laid out yet
-    const INSET = 2;                      // keeps the bubble just inside the tab
-    setBubble({
-      left:  el.offsetLeft + INSET,
-      width: el.offsetWidth - INSET * 2,
-      // Centre on the button instead of a hardcoded top. The icon and label sit
-      // between equal 8px paddings, so the button's centre is the content's
-      // centre and the pill ends up symmetric by construction — the previous
-      // fixed 7px left 3px of clearance above and 4px below, and drifted further
-      // whenever the label's line height changed with the font or text size.
-      top:   el.offsetTop + el.offsetHeight / 2 - BUBBLE_HEIGHT / 2,
-    });
-    setReady(true);
-  }, [activeIndex]);
-
-  useEffect(() => {
-    measureBubble();
-    // Re-measure one frame after paint: icon images can shift the tab widths
-    // after the first layout pass. `language` is a dependency because switching
-    // it swaps every tab label.
-    const raf = requestAnimationFrame(measureBubble);
-
-    // Heebo loads asynchronously (index.html defers it so it never blocks first
-    // paint), and the swap from the fallback font changes the label's line
-    // height — which changes the button height the pill is now centred on. Tab
-    // WIDTHS are immune (every tab is flex: 1), so this only matters vertically,
-    // but a pill a couple of pixels off centre is still visible.
-    // document.fonts.ready resolves once every requested font has loaded, so it
-    // catches exactly that swap; the timer covers mobile browser chrome
-    // (a collapsing address bar) settling a beat after the listeners below have
-    // already fired once.
-    let cancelled = false;
-    document.fonts?.ready?.then(() => { if (!cancelled) measureBubble(); });
-    const settleTimer = setTimeout(measureBubble, 400);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      cancelled = true;
-      clearTimeout(settleTimer);
-    };
-  }, [measureBubble, navItems.length, language]);
-
-  // Keep the bubble locked to the active tab across viewport/orientation changes.
-  useEffect(() => {
-    const nav = navRef.current;
-    if (!nav) return;
-
-    let raf = 0;
-    const schedule = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(measureBubble);
-    };
-
-    window.addEventListener('resize', schedule);
-    window.addEventListener('orientationchange', schedule);
-
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
-    ro?.observe(nav);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', schedule);
-      window.removeEventListener('orientationchange', schedule);
-      ro?.disconnect();
-    };
-  }, [measureBubble]);
 
   useEffect(() => {
     getMyProfile().then(data => {
@@ -166,6 +70,39 @@ function Navbar({ isAdmin = false, planKey = '' }) {
     window.addEventListener('profile-updated', onProfileUpdated);
     return () => window.removeEventListener('profile-updated', onProfileUpdated);
   }, []);
+
+  // ── Support ("Contact us") notifications ──────────────────────────────
+  // userUnread: team replies the user has not opened yet (menu + avatar dot).
+  // adminUnread: new reports waiting for an admin (Admin tab badge + toast).
+  const [userUnread, setUserUnread] = useState(0);
+  const [adminUnread, setAdminUnread] = useState(0);
+  const [adminToast, setAdminToast] = useState(null);
+  const prevAdminUnread = useRef(null);
+
+  useEffect(() => {
+    let alive = true;
+    const poll = () => {
+      getMySupportTickets().then(d => { if (alive) setUserUnread(d?.unread || 0); }).catch(() => {});
+      if (isAdmin) {
+        adminGetSupportUnread().then(d => {
+          if (!alive) return;
+          const n = d?.unread || 0;
+          const prev = prevAdminUnread.current;
+          // Pop on first load if anything is waiting, and whenever the count grows.
+          if (n > 0 && (prev === null || n > prev)) {
+            setAdminToast(n);
+            setTimeout(() => alive && setAdminToast(null), 7000);
+          }
+          prevAdminUnread.current = n;
+          setAdminUnread(n);
+        }).catch(() => {});
+      }
+    };
+    poll();
+    const id = setInterval(poll, 60000);
+    window.addEventListener('support-updated', poll);
+    return () => { alive = false; clearInterval(id); window.removeEventListener('support-updated', poll); };
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -210,13 +147,14 @@ function Navbar({ isAdmin = false, planKey = '' }) {
   };
 
   const menuItems = [
-    { icon: '✏️', label: t('menu.editProfile'), action: () => { setMenuOpen(false); setShowEdit(true); } },
-    { icon: '📷', label: uploadingImg ? t('menu.uploadingPhoto') : t('menu.uploadPhoto'), action: () => { setMenuOpen(false); imgInputRef.current?.click(); } },
-    { icon: '🔑', label: t('menu.changePassword'), action: () => { setMenuOpen(false); setShowChangePass(true); } },
-    { icon: '⚙️', label: t('settings.title'), action: () => { setMenuOpen(false); navigate('/settings'); } },
-    { icon: '👑', label: t('profile.subscription'), action: () => { setMenuOpen(false); navigate('/subscription'); } },
-    { icon: nextLanguage.flag, label: `${t('menu.language')} · ${nextLanguage.label}`, action: () => { toggleLanguage(); } },
-    { icon: '🚪', label: t('menu.logout'), action: handleLogout, danger: true },
+    { icon: 'edit', label: t('menu.editProfile'), action: () => { setMenuOpen(false); setShowEdit(true); } },
+    { icon: 'camera', label: uploadingImg ? t('menu.uploadingPhoto') : t('menu.uploadPhoto'), action: () => { setMenuOpen(false); imgInputRef.current?.click(); } },
+    { icon: 'key', label: t('menu.changePassword'), action: () => { setMenuOpen(false); setShowChangePass(true); } },
+    { icon: 'settings', label: t('settings.title'), action: () => { setMenuOpen(false); navigate('/settings'); } },
+    { icon: 'crown', label: t('profile.subscription'), action: () => { setMenuOpen(false); navigate('/subscription'); } },
+    { icon: 'mail', label: t('support.menu'), badge: userUnread, action: () => { setMenuOpen(false); navigate('/support'); } },
+    { icon: 'globe', label: `${t('menu.language')} · ${nextLanguage.label}`, action: () => { toggleLanguage(); } },
+    { icon: 'logout', label: t('menu.logout'), action: handleLogout, danger: true },
   ];
 
   return (
@@ -229,62 +167,63 @@ function Navbar({ isAdmin = false, planKey = '' }) {
         />
       )}
 
-      <div style={styles.header}>
-        <img src={getHeaderLogo(isAdmin, planKey)} alt="joBoss" style={styles.logo} />
+      <header className="pro-header">
+        <img src={getHeaderLogo(isAdmin, planKey)} alt="joBoss" className="pro-header-logo" />
 
-        {/* Opposite the avatar, so neither crowds the logo. */}
-        <AccessibilityMenu />
+        <div className="pro-header-actions">
+          <AccessibilityMenu />
 
-        <div ref={menuRef} style={styles.avatarWrap}>
-          <button style={styles.avatarBtn} onClick={() => setMenuOpen(v => !v)}>
-            <div style={styles.avatarRing}>
-              {profileImage ? (
-                <img src={profileImage} alt="avatar" style={styles.avatarImg} />
-              ) : (
-                <img src="/icons/panel_icons/male_profile.png" alt="avatar" style={styles.avatarImg} />
-              )}
-            </div>
-            {uploadingImg && <div style={styles.avatarSpinner} />}
-          </button>
-
-          {menuOpen && (
-            <div style={styles.dropdown}>
-              <div style={styles.dropdownHeader}>
-                <p style={styles.dropdownName}>{userName}</p>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button className="pro-icon-btn" onClick={() => setMenuOpen(v => !v)} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={t('nav.profile')}>
+              <div className="pro-avatar-ring">
+                <img src={profileImage || '/icons/panel_icons/male_profile.png'} alt="" />
               </div>
-              {menuItems.map((item, i) => (
-                <button key={i}
-                  style={{ ...styles.dropdownItem, color: item.danger ? '#FF4D67' : '#1E2A4A' }}
-                  onClick={item.action}>
-                  <span style={styles.dropdownIcon}>{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
+              {userUnread > 0 && <span className="pro-dot" aria-label={t('support.newReply')} />}
+              {uploadingImg && <div style={styles.avatarSpinner} />}
+            </button>
+
+            {menuOpen && (
+              <div className="pro-menu" role="menu">
+                <div className="pro-menu-head"><p>{userName}</p></div>
+                {menuItems.map((item, i) => (
+                  <button key={i} role="menuitem" className={`pro-menu-item${item.danger ? ' danger' : ''}`} onClick={item.action}>
+                    <Icon name={item.icon} size={19} />
+                    {item.label}
+                    {item.badge > 0 && <span className="pro-count">{item.badge}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }}
         onChange={handleImageSelected} />
 
-      <nav ref={navRef} style={styles.navbar}>
-        {ready && activeIndex >= 0 && (
-          <div style={{ ...styles.bubble, left: bubble.left, width: bubble.width, top: bubble.top }} />
-        )}
-        {navItems.map((item, i) => {
+      <nav className="pro-nav">
+        {navItems.map((item) => {
           const active = matchesTab(item);
           return (
-            <button key={item.path} ref={el => (itemRefs.current[i] = el)}
-              onClick={() => navigate(item.path)}
-              style={{ ...styles.navBtn, color: active ? 'white' : 'rgba(90,80,120,0.55)', fontWeight: active ? 700 : 500 }}>
-              <img src={item.icon} alt={item.label}
-                style={{ ...styles.iconImg, filter: active ? 'brightness(0) invert(1)' : 'grayscale(40%) opacity(0.6)' }} />
-              <span style={styles.label}>{item.label}</span>
+            <button key={item.path} className={`pro-tab${active ? ' active' : ''}`}
+              onClick={() => navigate(item.path)} aria-current={active ? 'page' : undefined}>
+              <span className="pro-tab-ico">
+                <Icon name={item.icon} size={25} strokeWidth={active ? 2.3 : 1.9}
+                  fill={active ? 'rgba(124,92,255,0.16)' : 'none'} />
+                {item.path === '/admin' && adminUnread > 0 && <span className="pro-count pro-tab-count">{adminUnread}</span>}
+              </span>
+              <span>{item.label}</span>
             </button>
           );
         })}
       </nav>
+
+      {adminToast && (
+        <button type="button" className="pro-toast" onClick={() => { setAdminToast(null); navigate('/admin?tab=support'); }}>
+          <Icon name="mail" size={18} />
+          {adminToast === 1 ? t('support.adminToast') : `${adminToast} ${t('support.adminToastMany')}`}
+        </button>
+      )}
 
       {showEdit && (
         <EditProfileModal
@@ -304,89 +243,10 @@ function Navbar({ isAdmin = false, planKey = '' }) {
 }
 
 const styles = {
-  header: {
-    position: 'fixed', top: 0, left: 0, right: 0,
-    height: 'calc(58px + env(safe-area-inset-top, 0px))',
-    paddingTop: 'env(safe-area-inset-top, 0px)',
-    background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)',
-    borderBottom: '1px solid rgba(124,92,255,0.14)',
-    borderRadius: '0 0 20px 20px',
-    boxShadow: '0 6px 24px rgba(108,79,212,0.12)',
-    display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 200,
-  },
-  logo: { height: '38px', objectFit: 'contain' },
-
-  avatarWrap: { position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' },
-  avatarBtn: {
-    width: '40px', height: '40px', border: 'none', background: 'none',
-    cursor: 'pointer', padding: 0, position: 'relative',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  avatarRing: {
-    width: '100%', height: '100%', borderRadius: '50%', padding: '2.5px',
-    background: 'linear-gradient(135deg, #7C5CFF, #FF5E8A)',
-    boxShadow: '0 4px 12px rgba(108,79,212,0.35)', overflow: 'hidden',
-  },
-  avatarImg: { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', background: 'white' },
   avatarSpinner: {
     position: 'absolute', inset: 0, borderRadius: '50%',
     background: 'rgba(0,0,0,0.35)', animation: 'spin 1s linear infinite',
   },
-  dropdown: {
-    position: 'absolute', top: 'calc(100% + 10px)', left: 0,
-    background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
-    borderRadius: '18px', minWidth: '220px',
-    boxShadow: '0 18px 50px rgba(70,45,160,0.25)',
-    border: '1px solid rgba(124,92,255,0.12)', overflow: 'hidden', zIndex: 300,
-    animation: 'dropdownIn 0.18s ease',
-  },
-  dropdownHeader: {
-    padding: '14px 16px 10px', borderBottom: '1px solid #F1EEFC',
-    background: 'linear-gradient(135deg, rgba(124,92,255,0.08), rgba(255,94,138,0.05))',
-  },
-  dropdownName: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E2A4A' },
-  dropdownItem: {
-    display: 'flex', alignItems: 'center', gap: '10px',
-    width: '100%', padding: '13px 16px', background: 'transparent',
-    border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
-    textAlign: 'right', transition: 'background 0.15s',
-  },
-  dropdownIcon: { fontSize: '16px', flexShrink: 0 },
-
-  // Flush to the bottom edge: floating it left content visible in the gap and
-  // around the rounded corners while scrolling. Only the top corners stay round,
-  // and the safe-area inset is added to the height so the bar still clears the
-  // home indicator on iOS instead of sitting under it.
-  navbar: {
-    position: 'fixed', bottom: 0, left: 0, right: 0,
-    height: 'calc(66px + env(safe-area-inset-bottom, 0px))',
-    background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)',
-    borderTop: '1px solid rgba(124,92,255,0.14)',
-    borderRadius: '22px 22px 0 0',
-    boxShadow: '0 -8px 28px rgba(90,61,200,0.12)',
-    display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-    zIndex: 100, direction: 'ltr', boxSizing: 'border-box',
-    // Single shorthand — a separate paddingBottom key would be overwritten by it.
-    padding: '0 6px env(safe-area-inset-bottom, 0px)', overflow: 'hidden',
-  },
-  bubble: {
-    // top is set per-render from the measured button; see measureBubble.
-    position: 'absolute', height: `${BUBBLE_HEIGHT}px`, borderRadius: '999px',
-    background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
-    boxShadow: '0 10px 24px rgba(91,61,245,0.4)',
-    pointerEvents: 'none', zIndex: 0,
-    transition: 'left 0.32s cubic-bezier(0.4,0,0.2,1), width 0.32s cubic-bezier(0.4,0,0.2,1)',
-  },
-  navBtn: {
-    position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '3px', background: 'transparent', border: 'none',
-    cursor: 'pointer', padding: '8px 0', transition: 'color 0.25s ease',
-  },
-  iconImg: {
-    width: `${ICON_SIZES.navbar}px`, height: `${ICON_SIZES.navbar}px`,
-    objectFit: 'contain', transition: 'filter 0.25s ease',
-  },
-  label: { fontSize: '10px' },
 };
 
 export default Navbar;

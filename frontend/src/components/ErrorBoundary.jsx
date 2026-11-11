@@ -73,10 +73,10 @@ const S = {
     textAlign: 'center', background: 'var(--background, #F7F6FB)',
   },
   logo: { width: 90, marginBottom: 24 },
-  title: { color: '#1E2A4A', fontSize: 22, fontWeight: 800, margin: '0 0 12px' },
+  title: { color: '#1E2A4A', fontSize: 22, fontWeight: 700, margin: '0 0 12px' },
   text: { color: '#555', fontSize: 15, maxWidth: 320, lineHeight: 1.6, margin: '0 0 24px' },
   btn: {
-    background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white',
+    background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white',
     border: 'none', borderRadius: 12, padding: '12px 32px',
     fontSize: 15, fontWeight: 700, cursor: 'pointer',
   },

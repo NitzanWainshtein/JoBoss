@@ -149,15 +149,19 @@ function LoginPage() {
 
   return (
     <div style={styles.container}>
+      <div style={styles.hero}>
+        <div style={styles.logoTile}>
+          <img src="/app_logo.png" alt="joBoss" style={{ width: '168px', display: 'block' }} />
+        </div>
+      </div>
       <div style={styles.card}>
-        <img src="/app_logo.png" alt="joBoss" style={{ width: '160px', marginBottom: '8px' }} />
         <p style={styles.subtitle}>{subtitle()}</p>
 
         {/* Google sign-in: only on login/register */}
         {(mode === 'login' || mode === 'register') && (
           <>
             <button style={styles.googleBtn} onClick={handleGoogleSignIn} disabled={loading}>
-              <img src="https://www.google.com/favicon.ico" alt="Google" style={{ width: '18px', height: '18px' }} />
+              <span aria-hidden="true" style={styles.googleMark}>G</span>
               {mode === 'login' ? t('login.googleContinue') : t('login.googleSignUp')}
             </button>
             <div style={styles.divider}>
@@ -182,7 +186,7 @@ function LoginPage() {
 
         {/* Password field: login/register only */}
         {(mode === 'login' || mode === 'register') && (<>
-          <input style={{ ...styles.input, fontSize: '12px' }}
+          <input style={{ ...styles.input, fontSize: '13px' }}
             placeholder={t('login.passHint')}
             type={showPassword ? 'text' : 'password'} value={password}
             onChange={(e) => { setPassword(e.target.value); setError(''); }} />
@@ -266,31 +270,34 @@ function LoginPage() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: 'linear-gradient(165deg, #F5F2FF 0%, #ECE6FF 45%, #F8F0FF 100%)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' },
-  card: { background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(10px)', borderRadius: '28px', padding: '40px', width: '100%', maxWidth: '360px', boxShadow: '0 24px 60px rgba(91,61,245,0.18)', border: '1px solid rgba(255,255,255,0.9)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' },
-  subtitle: { color: '#6B5E9E', fontSize: '14px', margin: 0, fontWeight: 600 },
+  container: { minHeight: '100svh', background: 'linear-gradient(165deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', display: 'flex', flexDirection: 'column' },
+  card: { background: '#FDFDFD', borderRadius: '28px 28px 0 0', padding: '28px 28px 32px', width: '100%', display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', boxShadow: '0 -10px 40px rgba(20,10,60,0.18)' },
+  hero: { flex: 1, minHeight: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '56px 24px 40px' },
+  logoTile: { background: '#fff', borderRadius: '28px', padding: '22px 30px', boxShadow: '0 20px 50px rgba(20,10,60,0.3)' },
+  googleMark: { width: '22px', height: '22px', borderRadius: '50%', background: '#F4F2F9', color: '#1E2A4A', fontSize: '13px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+  subtitle: { color: '#1E2A4A', fontSize: '22px', margin: '0 0 4px', fontWeight: 800, letterSpacing: '-0.2px' },
   googleBtn: {
-    width: '100%', padding: '12px', borderRadius: '14px', background: 'white',
-    border: '1.5px solid #EDE8FC', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
+    width: '100%', padding: '14px', borderRadius: '999px', background: 'white',
+    border: '1.5px solid #CFCADD', fontSize: '15px', fontWeight: 700, cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
     color: '#1E2A4A', transition: 'all 0.2s',
   },
   divider: { width: '100%', display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' },
-  dividerLine: { flex: 1, height: '1px', background: '#EDE8FC' },
-  dividerText: { fontSize: '13px', color: '#7D719F', fontWeight: 600 },
-  input: { width: '100%', padding: '13px 16px', borderRadius: '14px', border: '1.5px solid #E9E4FB', background: '#F8F6FF', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
-  btn: { width: '100%', padding: '15px', borderRadius: '14px', background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 800, cursor: 'pointer', transition: 'opacity 0.2s', boxShadow: '0 12px 28px rgba(91,61,245,0.35)' },
+  dividerLine: { flex: 1, height: '1px', background: '#E7E3F0' },
+  dividerText: { fontSize: '13px', color: '#8F8AA3', fontWeight: 600 },
+  input: { width: '100%', padding: '14px 20px', borderRadius: '999px', border: '1.5px solid #E0DCEA', background: '#fff', fontSize: '15px', outline: 'none', boxSizing: 'border-box' },
+  btn: { width: '100%', padding: '15px', borderRadius: '999px', background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white', border: 'none', fontSize: '16px', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s', boxShadow: '0 6px 16px rgba(91,61,245,0.28)' },
   error: { fontSize: '13px', margin: 0, textAlign: 'center' },
   showPass: {
     display: 'flex', alignItems: 'center', gap: '7px', width: '100%',
-    marginTop: '-4px', fontSize: '12px', fontWeight: 600, color: '#5A5478', cursor: 'pointer',
+    marginTop: '-4px', fontSize: '12px', fontWeight: 600, color: '#5F5A72', cursor: 'pointer',
   },
   consent: {
     display: 'flex', alignItems: 'flex-start', gap: '9px', width: '100%',
-    fontSize: '12.5px', lineHeight: 1.55, color: '#5A5478', cursor: 'pointer',
+    fontSize: '12.5px', lineHeight: 1.55, color: '#5F5A72', cursor: 'pointer',
   },
-  toggle: { fontSize: '13px', color: '#6B5E9E', margin: 0, fontWeight: 600 },
-  link: { color: '#5B3DF5', cursor: 'pointer', fontWeight: 800 },
+  toggle: { fontSize: '13px', color: '#6F6A84', margin: 0, fontWeight: 600 },
+  link: { color: '#5B3DF5', cursor: 'pointer', fontWeight: 700 },
 };
 
 export default LoginPage;

@@ -308,6 +308,15 @@ export const adminResolveJobReview     = (jid, action)  => apiCall('POST', `/adm
 export const adminResetMyQuota   = (plan)       => apiCall('POST',   '/admin/reset-my-quota',           { plan });
 export const adminResetMySwipes  = ()           => apiCall('POST',   '/admin/reset-my-swipes',           {});
 
+// ===== SUPPORT ("Contact us") =====
+// User side: /support (own tickets only). Admin side: /admin/support.
+export const getMySupportTickets   = ()             => apiCall('GET', '/support');
+export const createSupportTicket   = (data)         => apiCall('POST', '/support', data);
+export const markSupportRead       = (ticketId)     => apiCall('PUT', '/support', { ticketId });
+export const adminGetSupportTickets = ()            => apiCall('GET', '/admin/support');
+export const adminGetSupportUnread  = ()            => apiCall('GET', '/admin/support/unread');
+export const adminUpdateSupportTicket = (ticketId, data) => apiCall('PUT', `/admin/support/${encodeURIComponent(ticketId)}`, data);
+
 export const tailorCVForJob = async (jobId, force = false) => {
   return apiCall('POST', '/ai/tailor', { jobId, ...(force && { force: true }) });
 };

@@ -180,7 +180,7 @@ const styles = {
   modal: {
     background: 'white', borderRadius: '24px', padding: '32px 24px',
     maxWidth: '420px', width: '100%', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '16px', boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+    alignItems: 'center', gap: '16px', boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   },
   iconWrap: {
     width: '72px', height: '72px', borderRadius: '50%',
@@ -188,11 +188,11 @@ const styles = {
     display: 'flex', justifyContent: 'center', alignItems: 'center',
   },
   icon: { fontSize: '32px' },
-  title: { fontSize: '22px', fontWeight: 800, margin: 0, color: '#1E2A4A', textAlign: 'center' },
+  title: { fontSize: '22px', fontWeight: 700, margin: 0, color: '#1E2A4A', textAlign: 'center' },
   sub: { fontSize: '14px', color: '#666', margin: 0, textAlign: 'center', lineHeight: 1.6 },
   countdownBox: { background: '#F0F2FF', borderRadius: '16px', padding: '16px 32px', textAlign: 'center', width: '100%' },
   countdownLabel: { fontSize: '12px', color: '#6C4FD4', fontWeight: 600, margin: '0 0 4px 0' },
-  countdown: { fontSize: '32px', fontWeight: 800, color: '#1E2A4A', margin: 0, letterSpacing: '2px', fontVariantNumeric: 'tabular-nums' },
+  countdown: { fontSize: '32px', fontWeight: 700, color: '#1E2A4A', margin: 0, letterSpacing: '2px', fontVariantNumeric: 'tabular-nums' },
   plansRow: { display: 'flex', gap: '12px', width: '100%' },
   planCard: {
     flex: 1, borderRadius: '16px', padding: '16px 12px', cursor: 'pointer',
@@ -214,8 +214,8 @@ const styles = {
     background: 'rgba(255,255,255,0.3)', fontSize: '10px', fontWeight: 700,
     padding: '2px 8px', borderRadius: '20px', color: 'white',
   },
-  planName: { fontSize: '15px', fontWeight: 800, margin: 0 },
-  planPrice: { fontSize: '20px', fontWeight: 800, margin: '4px 0 0 0' },
+  planName: { fontSize: '15px', fontWeight: 700, margin: 0 },
+  planPrice: { fontSize: '20px', fontWeight: 700, margin: '4px 0 0 0' },
   featureList: { display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '6px' },
   feature: { fontSize: '11px', margin: 0 },
   laterBtn: {

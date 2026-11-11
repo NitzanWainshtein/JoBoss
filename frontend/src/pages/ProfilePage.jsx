@@ -25,37 +25,28 @@ import SubscriptionPage from './SubscriptionPage';
 import LocationInput from '../components/LocationInput';
 import { JOB_CATEGORIES } from '../data/jobCategories';
 import { EditProfileModal, ChangePasswordModal } from '../components/ProfileModals';
+import Icon from '../components/Icon';
 import useTranslation from '../i18n/useTranslation';
 import AvatarCropper from '../components/AvatarCropper';
-
-// ── Subscription badge for profile header ────────────────────────────────────
-function PlanBadge({ planKey }) {
-  const logoMap = {
-    FREE: '/icons/free_members_icon.png',
-    PREMIUM: '/icons/premium_member_icon.png',
-    PREMIUM_PLUS: '/icons/plus_members_icon.png',
-  };
-
-  const logo = logoMap[planKey] || logoMap.FREE;
-
-  return <img src={logo} alt={planKey} style={{ height: `${ICON_SIZES.planBadge}px`, objectFit: 'contain' }} />;
-}
 
 
 // ── Settings list row ────────────────────────────────────────────────────────
 // `trailing` decides the affordance: a chevron navigates, a switch flips in
 // place. Single switches deliberately stay on the row — burying a setting the
 // user flips often behind an extra tap is a regression, whatever the mockup does.
+// Mock: the emoji the real rows pass are mapped onto the concept's line icons.
+const ROW_ICONS = { '👤': 'profile', '🔑': 'key', '🎯': 'star', '📍': 'pin', '🤖': 'bolt', '📄': 'doc', '🌐': 'globe', '🔒': 'lock', '♿': 'a11y' };
+
 function SettingsRow({ icon, title, subtitle, onClick, trailing, danger }) {
   return (
     <button type="button" onClick={onClick} style={{ ...rowStyles.row, cursor: onClick ? 'pointer' : 'default' }}>
-      <span style={rowStyles.icon}>{icon}</span>
+      <span style={rowStyles.icon}><Icon name={ROW_ICONS[icon] || 'settings'} size={19} /></span>
       <span style={rowStyles.text}>
         <span style={{ ...rowStyles.title, color: danger ? '#FF4D67' : '#1E2A4A' }}>{title}</span>
         {subtitle && <span style={rowStyles.sub}>{subtitle}</span>}
       </span>
       {trailing === 'chevron'
-        ? <span style={rowStyles.chev}>›</span>
+        ? <span className="pro-chev" style={rowStyles.chev}><Icon name="chevron" size={18} /></span>
         : trailing}
     </button>
   );
@@ -78,14 +69,14 @@ function Switch({ on, disabled, onChange, label }) {
       }}
       style={{
         width: 48, height: 27, borderRadius: 999, padding: 3, flexShrink: 0,
-        background: on ? '#12A96F' : '#DDD6F2', opacity: disabled ? 0.5 : 1,
+        background: on ? '#7C5CFF' : '#D9D4E6', opacity: disabled ? 0.5 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer', transition: 'background .2s',
-        display: 'flex', alignItems: 'center',
+        display: 'flex', alignItems: 'center', direction: 'ltr',
       }}
     >
       <div style={{
         width: 21, height: 21, borderRadius: '50%', background: 'white',
-        boxShadow: '0 2px 6px rgba(0,0,0,.25)',
+        boxShadow: '0 1px 4px rgba(30,20,70,0.3)',
         transform: on ? 'translateX(21px)' : 'translateX(0)', transition: 'transform .2s',
       }} />
     </div>
@@ -94,29 +85,29 @@ function Switch({ on, disabled, onChange, label }) {
 
 const rowStyles = {
   row: {
-    display: 'flex', alignItems: 'center', gap: 13, width: '100%',
-    padding: '14px 18px', background: 'transparent', border: 'none',
-    textAlign: 'start', direction: 'inherit',
+    display: 'flex', alignItems: 'center', gap: 14, width: '100%',
+    padding: '13px 16px', background: 'transparent', border: 'none',
+    textAlign: 'start', direction: 'inherit', borderBottom: '1px solid #F0EDF6',
   },
-  icon: { fontSize: 19, width: 24, textAlign: 'center', flexShrink: 0 },
+  icon: { width: 36, height: 36, borderRadius: '50%', background: '#F4F0FF', color: '#5B3DF5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   text: { display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 },
-  title: { fontSize: 14.5, fontWeight: 800 },
-  sub: { fontSize: 12, fontWeight: 600, color: '#6B5E9E' },
-  chev: { flexShrink: 0, fontSize: 22, color: '#7D719F', lineHeight: 1 },
-  group: { marginTop: 14 },
+  title: { fontSize: 15, fontWeight: 600 },
+  sub: { fontSize: 12.5, fontWeight: 400, color: '#7A7592' },
+  chev: { flexShrink: 0, color: '#B4AFC6', display: 'flex' },
+  group: { marginTop: 8 },
   groupTitle: {
-    fontSize: 11, fontWeight: 800, color: '#6B5E9E',
-    margin: '0 4px 7px', letterSpacing: '.3px',
+    fontSize: 12, fontWeight: 700, color: '#9A95AC',
+    margin: '0 4px 8px', letterSpacing: '.6px', textTransform: 'uppercase',
   },
   panelHeader: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '2px 0 6px',
   },
   backBtn: {
-    width: 34, height: 34, borderRadius: '50%', border: '1px solid #E9E4FB',
-    background: 'rgba(255,255,255,0.9)', cursor: 'pointer', fontSize: 18,
-    color: '#5A5478', lineHeight: 1, flexShrink: 0,
+    width: 38, height: 38, borderRadius: '50%', border: 'none',
+    background: '#F4F2F9', cursor: 'pointer', fontSize: 18,
+    color: '#1E2A4A', lineHeight: 1, flexShrink: 0,
   },
-  panelTitle: { fontSize: 17, fontWeight: 900, color: '#1E2A4A', flex: 1, textAlign: 'center' },
+  panelTitle: { fontSize: 19, fontWeight: 800, color: '#1E2A4A', flex: 1, textAlign: 'center' },
 };
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -541,21 +532,24 @@ function ProfilePage({ initialView = null }) {
         {/* Identity card: profile screen only — it was stacking above Settings
             and Subscription, duplicating chrome on every visit. */}
         {!settingsView && tab === 'profile' && (
-        <div style={styles.card}>
+        <div style={styles.hero}>
           {/* Avatar with dropdown */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
-            <button style={styles.avatarBtn} onClick={() => setAvatarMenuOpen(v => !v)}>
-              <img
-                src={profileImage || '/icons/panel_icons/male_profile.png'}
-                alt="Profile"
-                style={{ ...styles.avatarImg, opacity: uploadingImage ? 0.5 : 1 }}
-              />
-              {uploadingImage && <div style={styles.avatarSpinner}>⏳</div>}
-            </button>
+            <div style={styles.avatarRing}>
+              <button style={styles.avatarBtn} onClick={() => setAvatarMenuOpen(v => !v)}>
+                <img
+                  src={profileImage || '/icons/panel_icons/male_profile.png'}
+                  alt="Profile"
+                  style={{ ...styles.avatarImg, opacity: uploadingImage ? 0.5 : 1 }}
+                />
+                {uploadingImage && <div style={styles.avatarSpinner}>⏳</div>}
+              </button>
+            </div>
             <div role="button" tabIndex={0}
               aria-label={t('menu.uploadPhoto')}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarMenuOpen(v => !v); } }}
-              style={styles.avatarEditBadge} onClick={() => setAvatarMenuOpen(v => !v)}>✏️</div>
+              style={styles.avatarEditBadge} onClick={() => setAvatarMenuOpen(v => !v)}><Icon name="edit" size={16} /></div>
+            <span style={styles.planPill}>{t(`profile.plan.${planKey}`)}</span>
 
             {avatarMenuOpen && (
               <div style={styles.avatarDropdown}>
@@ -563,16 +557,16 @@ function ProfilePage({ initialView = null }) {
                   <p style={styles.dropdownName}>{userName}</p>
                 </div>
                 {[
-                  { icon: '✏️', label: t('menu.editProfile'), action: () => { setAvatarMenuOpen(false); setShowEditModal(true); } },
-                  { icon: '📷', label: uploadingImage ? t('menu.uploadingPhoto') : t('menu.uploadPhoto'), action: () => { setAvatarMenuOpen(false); profileImgInputRef.current?.click(); } },
-                  ...(profileImage ? [{ icon: '🗑️', label: t('menu.removePhoto'), action: handleRemoveProfileImage, danger: true }] : []),
-                  { icon: '🔑', label: t('menu.changePassword'), action: () => { setAvatarMenuOpen(false); setShowChangePass(true); } },
-                  { icon: '🚪', label: t('menu.logout'), action: handleLogout, danger: true },
+                  { icon: 'edit', label: t('menu.editProfile'), action: () => { setAvatarMenuOpen(false); setShowEditModal(true); } },
+                  { icon: 'camera', label: uploadingImage ? t('menu.uploadingPhoto') : t('menu.uploadPhoto'), action: () => { setAvatarMenuOpen(false); profileImgInputRef.current?.click(); } },
+                  ...(profileImage ? [{ icon: 'x', label: t('menu.removePhoto'), action: handleRemoveProfileImage, danger: true }] : []),
+                  { icon: 'key', label: t('menu.changePassword'), action: () => { setAvatarMenuOpen(false); setShowChangePass(true); } },
+                  { icon: 'logout', label: t('menu.logout'), action: handleLogout, danger: true },
                 ].map((item, i) => (
                   <button key={i}
                     style={{ ...styles.dropdownItem, color: item.danger ? '#FF4D67' : '#1E2A4A' }}
                     onClick={item.action}>
-                    <span style={{ fontSize: '16px', flexShrink: 0 }}>{item.icon}</span>
+                    <Icon name={item.icon} size={18} />
                     {item.label}
                   </button>
                 ))}
@@ -585,82 +579,50 @@ function ProfilePage({ initialView = null }) {
             onChange={handleAvatarImageSelected} />
 
           <h2 style={styles.username}>{userName}</h2>
-          <PlanBadge planKey={planKey} />
+          {profile?.email && <p style={styles.heroEmail}>{profile.email}</p>}
         </div>
         )}
 
         {/* Profile body (also hosts the settings views) */}
         {tab === 'profile' && (
           <>
-            {!settingsView && (<>
-            {/* Account information — label → value rows, per the design.
-                "Member since" is omitted: the profile API does not return
-                createdAt. "Payment History" is omitted: no endpoint exists,
-                and a row that looks tappable but does nothing is worse than
-                no row at all. */}
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>{t('profile.accountInfo')}</h3>
-
-              <div style={styles.infoList}>
-                <div style={styles.infoRow}>
-                  <span style={styles.infoLabel}>
-                    <img src="/icons/premium_icon.png" alt="" style={styles.infoIcon} />
-                    {t('profile.plan')}
+            {!settingsView && (
+            <div style={styles.panel}>
+              {/* Three quick tiles: plan, AI credits, settings. Plan and Settings
+                  navigate exactly where the old list rows did. */}
+              <div style={styles.tiles}>
+                <button type="button" style={styles.tile} onClick={() => navigate('/subscription')}>
+                  <span style={{ ...styles.tileIcon, color: '#F5A623' }}><Icon name="crown" size={22} fill="currentColor" strokeWidth={1.4} /></span>
+                  <span style={styles.tileValue}>{t(`profile.plan.${planKey}`)}</span>
+                  <span style={styles.tileLabel}>{t('profile.plan')}</span>
+                </button>
+                <div style={styles.tile}>
+                  <span style={{ ...styles.tileIcon, color: '#7C5CFF' }}><Icon name="sparkle" size={22} fill="currentColor" strokeWidth={1.4} /></span>
+                  <span style={styles.tileValue}>
+                    {!quota ? '—' : quota.tailorLimit == null
+                      ? t('profile.unlimited')
+                      : `${Math.max(0, quota.tailorRemaining ?? 0)} ${t('profile.remaining')}`}
                   </span>
-                  <span style={styles.infoValue}>{t(`profile.plan.${planKey}`)}</span>
+                  <span style={styles.tileLabel}>{t('profile.aiCredits')}</span>
                 </div>
-
-                {profile?.email && (
-                  <div style={styles.infoRow}>
-                    <span style={styles.infoLabel}>
-                      <img src="/icons/members_icon.png" alt="" style={styles.infoIcon} />
-                      {t('profile.emailLabel')}
-                    </span>
-                    <span style={{ ...styles.infoValue, direction: 'ltr', unicodeBidi: 'plaintext' }}>
-                      {profile.email}
-                    </span>
-                  </div>
-                )}
-
-                {quota && (
-                  <div style={{ ...styles.infoRow, borderBottom: 'none' }}>
-                    <span style={styles.infoLabel}>
-                      <img src="/icons/robot_icon.png" alt="" style={styles.infoIcon} />
-                      {t('profile.aiCredits')}
-                    </span>
-                    <span style={styles.infoValue}>
-                      {quota.tailorLimit == null
-                        ? t('profile.unlimited')
-                        : `${Math.max(0, quota.tailorRemaining ?? 0)} ${t('profile.remaining')}`}
-                    </span>
-                  </div>
-                )}
+                <button type="button" style={styles.tile} onClick={() => navigate('/settings')}>
+                  <span style={{ ...styles.tileIcon, color: '#FF5E8A' }}><Icon name="settings" size={22} /></span>
+                  <span style={styles.tileValue}>{t('settings.title')}</span>
+                  <span style={styles.tileLabel}>{t('settings.sub')}</span>
+                </button>
               </div>
-            </div>
 
-            {/* Navigational rows — icon | title + subtitle | chevron.
-                Toggles deliberately stay inline below; they are changed often
-                and burying them behind a tap would be a regression. */}
-            <div style={{ ...styles.card, padding: '6px 0', gap: 0 }}>
-              <button type="button" style={styles.navRow} onClick={() => navigate('/subscription')}>
-                <img src="/icons/premium_member_icon.png" alt="" style={styles.navRowIcon} />
+              {/* Subscription: one tappable box (title + explanation). */}
+              <button type="button" style={styles.subBox} onClick={() => navigate('/subscription')}>
+                <span style={styles.subBoxIcon}><Icon name="crown" size={20} fill="currentColor" strokeWidth={1.4} /></span>
                 <span style={styles.navRowText}>
                   <span style={styles.navRowTitle}>{t('profile.subscription')}</span>
                   <span style={styles.navRowSub}>{t('profile.subscriptionSub')}</span>
                 </span>
-                <span style={styles.chevron}>›</span>
-              </button>
-
-              <button type="button" style={styles.navRow} onClick={() => navigate('/settings')}>
-                <span style={{ ...styles.navRowIcon, fontSize: '19px', textAlign: 'center' }}>⚙️</span>
-                <span style={styles.navRowText}>
-                  <span style={styles.navRowTitle}>{t('settings.title')}</span>
-                  <span style={styles.navRowSub}>{t('settings.sub')}</span>
-                </span>
-                <span style={styles.chevron}>›</span>
+                <span style={styles.chevron} aria-hidden="true">›</span>
               </button>
             </div>
-            </>)}
+            )}
 
             {/* ── Settings panel header (shared by every settings view) ── */}
             {settingsView && (
@@ -744,6 +706,8 @@ function ProfilePage({ initialView = null }) {
                     trailing={<span style={styles.navRowBadge}>{nextLanguage.flag} {nextLanguage.label}</span>}
                     onClick={toggleLanguage}
                   />
+                  <SettingsRow icon="✉️" title={t('support.title')} subtitle={t('support.settingsSub')}
+                    trailing="chevron" onClick={() => navigate('/support')} />
                 </div>
               </div>
 
@@ -856,7 +820,7 @@ function ProfilePage({ initialView = null }) {
                         padding: '12px',
                         background: resume.isActive ? '#F1ECFF' : '#F5F3FC',
                         borderRadius: '16px',
-                        border: resume.isActive ? '2px solid #7C5CFF' : '1px solid #E9E4FB',
+                        border: resume.isActive ? '2px solid #7C5CFF' : '1px solid #E7E3F0',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -885,7 +849,7 @@ function ProfilePage({ initialView = null }) {
                           <button
                             style={{
                               padding: '6px 12px',
-                              background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)',
+                              background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)',
                               color: 'white',
                               border: 'none',
                               borderRadius: '999px',
@@ -1076,7 +1040,7 @@ function ProfilePage({ initialView = null }) {
 
             {settingsView === 'root' && (
             <button style={styles.logoutBtn} onClick={handleLogout}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>{t('menu.logout')}<img src="/icons/logout_icon.png" alt="" style={{ width: `${ICON_SIZES.logout}px`, height: `${ICON_SIZES.logout}px`, objectFit: 'contain' }} /></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Icon name="logout" size={19} />{t('menu.logout')}</span>
             </button>
             )}
           </>
@@ -1133,69 +1097,65 @@ const styles = {
     justifyContent: 'center',
   },
   content: {
-    padding: '24px',
-    maxWidth: '480px',
+    padding: '8px 16px 24px',
     width: '100%',
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '14px',
   },
   card: {
-    background: 'rgba(255,255,255,0.88)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255,255,255,0.9)',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 6px 20px rgba(108,79,212,0.08)',
+    background: '#fff',
+    border: '1px solid #E7E3F0',
+    borderRadius: '18px',
+    padding: '20px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: '12px',
+    overflow: 'hidden',
   },
   avatarBtn: {
-    width: '80px', height: '80px', borderRadius: '50%', padding: 0,
-    border: '3px solid rgba(124,92,255,0.35)', cursor: 'pointer',
-    overflow: 'hidden', position: 'relative', background: 'none',
-    boxShadow: '0 8px 22px rgba(108,79,212,0.28)',
+    width: '100%', height: '100%', borderRadius: '50%', padding: 0,
+    border: '3px solid #fff', cursor: 'pointer',
+    overflow: 'hidden', position: 'relative', background: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
   avatarEditBadge: {
-    position: 'absolute', bottom: '-2px', right: '-2px',
-    width: '26px', height: '26px', borderRadius: '50%',
-    background: '#7C5CFF', border: '2.5px solid white',
+    position: 'absolute', top: '2px', insetInlineEnd: '-4px',
+    width: '32px', height: '32px', borderRadius: '50%',
+    background: '#fff', color: '#4A4560',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '11px', cursor: 'pointer',
-    boxShadow: '0 2px 6px rgba(108,79,212,0.35)',
+    cursor: 'pointer', boxShadow: '0 3px 10px rgba(30,20,70,0.22)',
   },
   avatarSpinner: {
     position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
     justifyContent: 'center', background: 'rgba(0,0,0,0.35)', fontSize: '20px',
   },
   avatarDropdown: {
-    position: 'absolute', top: 'calc(100% + 10px)', left: '50%',
+    position: 'absolute', top: 'calc(100% + 26px)', left: '50%',
     transform: 'translateX(-50%)',
-    background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)',
-    borderRadius: '18px', minWidth: '220px',
-    boxShadow: '0 18px 50px rgba(70,45,160,0.25)',
-    border: '1px solid rgba(124,92,255,0.12)', overflow: 'hidden', zIndex: 300,
+    background: '#fff', borderRadius: '16px', minWidth: '232px',
+    boxShadow: '0 14px 36px rgba(30,20,70,0.16)',
+    border: '1px solid #E7E3F0', overflow: 'hidden', zIndex: 300,
     animation: 'dropdownIn 0.18s ease',
   },
   dropdownHeader: {
-    padding: '14px 16px 10px', borderBottom: '1px solid #F1EEFC',
-    background: 'linear-gradient(135deg, rgba(124,92,255,0.08), rgba(255,94,138,0.05))',
+    padding: '14px 16px 12px', borderBottom: '1px solid #E7E3F0',
   },
   dropdownName: { margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E2A4A' },
   dropdownItem: {
-    display: 'flex', alignItems: 'center', gap: '10px',
-    width: '100%', padding: '13px 16px', background: 'transparent',
+    display: 'flex', alignItems: 'center', gap: '12px',
+    width: '100%', padding: '12px 16px', background: 'transparent',
     border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
-    textAlign: 'right', transition: 'background 0.15s',
+    textAlign: 'start', transition: 'background 0.15s',
   },
   username: {
     fontSize: '20px',
-    fontWeight: 700,
-    margin: 0,
+    fontWeight: 800,
+    margin: '16px 0 0',
+    color: '#1E2A4A',
+    letterSpacing: '-0.3px',
   },
   cardTitle: {
     fontSize: '16px',
@@ -1217,7 +1177,7 @@ const styles = {
   },
   settingDesc: {
     fontSize: '13px',
-    color: '#6B5E9E',
+    color: '#6F6A84',
     margin: '4px 0 0 0',
   },
   toggle: {
@@ -1247,7 +1207,7 @@ const styles = {
   },
   sliderLabel: {
     fontSize: '12px',
-    color: '#7D719F',
+    color: '#8F8AA3',
   },
   radiusBadge: {
     background: '#F1ECFF',
@@ -1261,9 +1221,9 @@ const styles = {
     width: '100%',
     padding: '13px 16px',
     borderRadius: '14px',
-    border: '1.5px solid #E9E4FB',
-    background: '#F8F6FF',
-    fontSize: '14px',
+    border: '1.5px solid #E0DCEA',
+    background: '#fff',
+    fontSize: '15px',
     outline: 'none',
     boxSizing: 'border-box',
   },
@@ -1272,10 +1232,10 @@ const styles = {
     top: '100%',
     left: 0,
     right: 0,
-    background: 'rgba(255,255,255,0.97)',
+    background: '#fff',
     backdropFilter: 'blur(20px)',
     borderRadius: '16px',
-    boxShadow: '0 18px 50px rgba(70,45,160,0.22)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
     zIndex: 100,
     overflow: 'hidden',
     marginTop: '4px',
@@ -1284,19 +1244,19 @@ const styles = {
     padding: '12px 16px',
     cursor: 'pointer',
     fontSize: '13px',
-    borderBottom: '1px solid #F3F0FC',
+    borderBottom: '1px solid #F0EDF6',
   },
   uploadBtn: {
     width: '100%',
     padding: '14px',
-    borderRadius: '16px',
-    border: '2px dashed #7C5CFF',
-    color: '#7C5CFF',
+    borderRadius: '999px',
+    border: '1.5px dashed #7C5CFF',
+    color: '#5B3DF5',
     fontWeight: 700,
     fontSize: '15px',
     cursor: 'pointer',
     textAlign: 'center',
-    background: '#F1ECFF',
+    background: '#F7F4FF',
   },
   aiLockBanner: {
     width: '100%',
@@ -1325,15 +1285,15 @@ const styles = {
   infoList: { width: '100%', display: 'flex', flexDirection: 'column' },
   infoRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    gap: '12px', padding: '11px 0', borderBottom: '1px solid #F3F0FC',
+    gap: '12px', padding: '11px 0', borderBottom: '1px solid #F0EDF6',
   },
   infoIcon: { width: '17px', height: '17px', objectFit: 'contain', flexShrink: 0 },
   infoLabel: {
     display: 'flex', alignItems: 'center', gap: '9px',
-    fontSize: '13.5px', fontWeight: 600, color: '#8B82B8', minWidth: 0,
+    fontSize: '13.5px', fontWeight: 600, color: '#7A7592', minWidth: 0,
   },
   infoValue: {
-    fontSize: '13.5px', fontWeight: 800, color: '#1E2A4A',
+    fontSize: '13.5px', fontWeight: 700, color: '#1E2A4A',
     textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
 
@@ -1345,27 +1305,68 @@ const styles = {
   },
   navRowIcon: { width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0 },
   navRowText: { display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 },
-  navRowTitle: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A' },
-  navRowSub: { fontSize: '12px', fontWeight: 600, color: '#6B5E9E' },
+  navRowTitle: { fontSize: '14px', fontWeight: 700, color: '#1E2A4A' },
+  navRowSub: { fontSize: '12px', fontWeight: 600, color: '#6F6A84' },
   navRowBadge: {
-    flexShrink: 0, fontSize: '12.5px', fontWeight: 800, color: '#7C5CFF',
-    background: '#F1ECFF', border: '1px solid #E9E4FB',
-    borderRadius: '999px', padding: '5px 11px',
+    flexShrink: 0, fontSize: '12.5px', fontWeight: 700, color: '#5B3DF5',
+    background: '#F4F0FF', borderRadius: '999px', padding: '5px 12px',
   },
   // No transform: U+203A is bidi-mirrored, so it flips with the text direction on its own.
-  chevron: { flexShrink: 0, fontSize: '22px', color: '#7D719F', lineHeight: 1 },
+  chevron: { flexShrink: 0, fontSize: '22px', color: '#8F8AA3', lineHeight: 1 },
 
+  hero: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0 6px' },
+  avatarRing: {
+    width: '112px', height: '112px', borderRadius: '50%', padding: '4px',
+    background: 'linear-gradient(135deg, #5B3DF5 0%, #7C5CFF 45%, #FF5E8A 100%)',
+  },
+  planPill: {
+    position: 'absolute', bottom: '-11px', left: '50%', transform: 'translateX(-50%)',
+    minWidth: '96px', padding: '4px 14px', borderRadius: '999px', textAlign: 'center',
+    background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)',
+    color: '#fff', fontSize: '11px', fontWeight: 700, letterSpacing: '.5px', whiteSpace: 'nowrap',
+    textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(91,61,245,0.3)',
+  },
+  heroEmail: { margin: '2px 0 0', fontSize: '12.5px', color: '#7A7592', direction: 'ltr' },
+  panel: {
+    background: 'transparent', margin: '6px 0 0', padding: '16px 0 20px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+  },
+  tiles: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', width: '100%' },
+  tile: {
+    background: 'rgba(255,255,255,0.7)', border: '1.5px solid #DDD3F7', borderRadius: '18px', padding: '16px 6px 14px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+    cursor: 'pointer', minWidth: 0, boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
+  },
+  tileIcon: { display: 'flex', marginBottom: '2px' },
+  tileValue: { fontSize: '13.5px', fontWeight: 700, color: '#1E2A4A', textAlign: 'center', lineHeight: 1.2 },
+  tileLabel: {
+    fontSize: '10.5px', fontWeight: 600, color: '#7A7592', textAlign: 'center', lineHeight: 1.25,
+    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+  },
+  subBox: {
+    display: 'flex', alignItems: 'center', gap: '12px', width: '100%', marginTop: '14px',
+    padding: '14px 16px', background: 'rgba(255,255,255,0.7)', border: '1.5px solid #DDD3F7', borderRadius: '18px',
+    boxShadow: 'none', cursor: 'pointer', textAlign: 'start', direction: 'inherit',
+  },
+  subBoxIcon: {
+    width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0, color: '#F5A623',
+    background: '#FFF6E5', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  upsellTitle: { margin: '22px 0 0', fontSize: '17px', fontWeight: 800, color: '#1E2A4A' },
+  upsellSub: { margin: '4px 0 14px', fontSize: '14px', color: '#5F5A72', textAlign: 'center' },
+  upsellBtn: { padding: '12px 40px', fontSize: '15px', minWidth: '238px' },
   logoutBtn: {
     width: '100%',
-    padding: '14px',
+    padding: '15px',
     borderRadius: '999px',
     background: 'white',
-    color: '#FF4D67',
-    border: '2px solid #FF4D67',
-    fontSize: '16px',
-    fontWeight: 800,
+    color: '#1E2A4A',
+    border: '1.5px solid #CFCADD',
+    fontSize: '15px',
+    fontWeight: 700,
     cursor: 'pointer',
+    marginTop: '10px',
   },
 };
 
-export default ProfilePage;
+export default ProfilePage;

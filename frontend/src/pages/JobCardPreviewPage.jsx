@@ -348,7 +348,7 @@ export default function JobCardPreviewPage() {
             style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}
           >
             <p style={{ fontSize: '64px', margin: 0 }}>🎉</p>
-            <p style={{ fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0 }}>
+            <p style={{ fontSize: '18px', fontWeight: 700, color: '#1E2A4A', margin: 0 }}>
               סיימת את ה-Preview!
             </p>
             <button
@@ -406,7 +406,7 @@ const modalSt = {
   sheet:       { background: 'white', borderRadius: '20px', padding: '20px 24px 32px', width: 'min(360px, 95vw)', maxHeight: '80vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' },
   header:      { display: 'flex', alignItems: 'center', gap: '12px', direction: 'ltr' },
   logo:        { width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #6C4FD4, #4A90E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 700, color: 'white', flexShrink: 0 },
-  title:       { fontSize: '20px', fontWeight: 800, color: '#1E2A4A', margin: 0 },
+  title:       { fontSize: '20px', fontWeight: 700, color: '#1E2A4A', margin: 0 },
   company:     { fontSize: '14px', color: '#6C4FD4', fontWeight: 600, margin: 0 },
   closeBtn:    { background: '#f5f5f5', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', flexShrink: 0, marginRight: 'auto' },
   meta:        { display: 'flex', gap: '8px', flexWrap: 'wrap' },
@@ -416,7 +416,7 @@ const modalSt = {
   tags:        { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   tag:         { background: '#F0F2FF', color: '#6C4FD4', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600 },
   descSection: { background: '#F8FAFC', border: '1px solid #EEF2F7', borderRadius: '14px', padding: '14px' },
-  descHeading: { fontSize: '14px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 8px' },
+  descHeading: { fontSize: '14px', fontWeight: 700, color: '#1E2A4A', margin: '0 0 8px' },
   descText:    { fontSize: '14px', color: '#5F6675', lineHeight: 1.65, margin: 0 },
   list:        { margin: 0, paddingInlineStart: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px', direction: 'ltr', textAlign: 'left' },
   listItem:    { fontSize: '14px', color: '#5F6675', lineHeight: 1.55 },

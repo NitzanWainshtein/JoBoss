@@ -17,7 +17,7 @@ export const modalStyles = {
     background: 'white', borderRadius: '24px 24px 0 0',
     padding: '16px 24px 40px', width: '100%', maxWidth: '480px',
     display: 'flex', flexDirection: 'column', gap: '14px',
-    boxShadow: '0 -8px 32px rgba(108,79,212,0.18)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   },
   handle: {
     width: '40px', height: '4px', borderRadius: '99px',
@@ -33,11 +33,11 @@ export const modalStyles = {
   error: { fontSize: '13px', color: '#F44336', margin: 0, textAlign: 'center' },
   btnRow: { display: 'flex', gap: '10px', marginTop: '4px' },
   cancelBtn: {
-    flex: 1, padding: '13px', borderRadius: '12px', border: '1.5px solid #E5E7EB',
+    flex: 1, padding: '13px', borderRadius: '999px', border: '1.5px solid #E5E7EB',
     background: 'white', color: '#6B7280', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
   },
   saveBtn: {
-    flex: 2, padding: '13px', borderRadius: '12px', border: 'none',
+    flex: 2, padding: '13px', borderRadius: '999px', border: 'none',
     background: 'linear-gradient(135deg, #6C4FD4, #1E2A4A)',
     color: 'white', fontSize: '15px', fontWeight: 700, cursor: 'pointer',
     transition: 'opacity 0.2s',

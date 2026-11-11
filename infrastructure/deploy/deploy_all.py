@@ -40,6 +40,7 @@ LAMBDAS = [
      "deps": "backend/lambdas/subscriptions/vendor"},  # gitignored; rebuild: pip install stripe -t backend/lambdas/subscriptions/vendor
     {"fn": "joboss-admin",                "dir": "backend/lambdas/admin",              "mode": "single", "entry": "handler.py"},
     {"fn": "joboss-auto-apply",           "dir": "backend/lambdas/auto-apply",         "mode": "single", "entry": "handler.py"},
+    {"fn": "joboss-support",              "dir": "backend/lambdas/support",            "mode": "single", "entry": "handler.py"},  # created by infrastructure/setup_support.py
     {"fn": "joboss-jobs-importer",        "dir": "backend/lambdas/jobs_importer",      "mode": "manual", "entry": "handler.py",
      "reason": "bundles telethon (Linux wheels) — build & deploy via its own packaged zip"},
 ]

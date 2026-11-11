@@ -170,10 +170,10 @@ const S = {
   sheet: {
     background: '#FFFFFF', borderRadius: '24px', padding: '20px',
     width: 'min(340px, 96vw)', display: 'flex', flexDirection: 'column', gap: '10px',
-    boxShadow: '0 26px 70px rgba(15,8,50,0.5)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   },
-  title: { margin: 0, fontSize: '16px', fontWeight: 900, color: '#1E2A4A', textAlign: 'center' },
-  hint: { margin: 0, fontSize: '12px', color: '#5A5478', textAlign: 'center' },
+  title: { margin: 0, fontSize: '16px', fontWeight: 700, color: '#1E2A4A', textAlign: 'center' },
+  hint: { margin: 0, fontSize: '12px', color: '#5F5A72', textAlign: 'center' },
   stage: {
     position: 'relative', width: BOX, height: BOX, alignSelf: 'center',
     overflow: 'hidden', borderRadius: '14px', background: '#F5F3FC',
@@ -190,13 +190,13 @@ const S = {
   range: { flex: 1, accentColor: '#7C5CFF', cursor: 'pointer' },
   actions: { display: 'flex', gap: '8px', marginTop: '4px' },
   cancel: {
-    flex: 1, padding: '11px', borderRadius: '999px', border: '1.5px solid #E9E4FB',
-    background: 'white', color: '#5A5478', fontSize: '14px', fontWeight: 800, cursor: 'pointer',
+    flex: 1, padding: '11px', borderRadius: '12px', border: '1.5px solid #E7E3F0',
+    background: 'white', color: '#5F5A72', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
   },
   save: {
-    flex: 1, padding: '11px', borderRadius: '999px', border: 'none',
-    background: 'linear-gradient(135deg, #7C5CFF, #5B3DF5)', color: 'white',
-    fontSize: '14px', fontWeight: 800, cursor: 'pointer',
-    boxShadow: '0 10px 24px rgba(91,61,245,0.32)',
+    flex: 1, padding: '11px', borderRadius: '12px', border: 'none',
+    background: 'linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 48%, #FF5E8A 118%)', color: 'white',
+    fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   },
 };

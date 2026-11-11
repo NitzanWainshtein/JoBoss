@@ -243,12 +243,12 @@ const s = {
   /* ── Quota bar ──────────────────────────────────────────────── */
   quotaBar: {
     width: 'min(360px, 95vw)',
-    background: 'rgba(255,255,255,0.88)',
+    background: '#fff',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
     borderRadius: '14px',
     padding: '10px 14px',
-    boxShadow: '0 2px 16px rgba(108,79,212,0.12)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
     border: '1px solid rgba(237,233,254,0.7)',
   },
   quotaTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
@@ -291,7 +291,7 @@ const s = {
     backgroundPosition: 'center',
     borderRadius: '20px',
     padding: '16px 20px',
-    boxShadow: '0 8px 40px rgba(108,79,212,0.18)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
     height: '100%',
     boxSizing: 'border-box',
     display: 'flex',
@@ -317,7 +317,7 @@ const s = {
   locationText: { fontSize: '11px', color: '#888', margin: '1px 0 0', direction: 'rtl', textAlign: 'right' },
   title: { fontSize: '19px', fontWeight: 700, color: '#6C4FD4', margin: 0 },
   summaryBlock: { flex: 1 },
-  summaryTitle: { fontSize: '15px', fontWeight: 800, color: '#1E2A4A', margin: '0 0 4px' },
+  summaryTitle: { fontSize: '15px', fontWeight: 700, color: '#1E2A4A', margin: '0 0 4px' },
   summaryText: { fontSize: '13px', color: '#4B5563', lineHeight: 1.6, margin: 0 },
   techRow: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
   techBadge: {
@@ -336,18 +336,18 @@ const s = {
   /* ── Feedback toast ─────────────────────────────────────────── */
   feedbackToast: {
     fontSize: '13px', fontWeight: 600, color: '#1E2A4A',
-    background: 'rgba(255,255,255,0.82)',
+    background: '#fff',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
     padding: '5px 16px', borderRadius: '20px',
-    boxShadow: '0 2px 8px rgba(108,79,212,0.1)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
   },
 
   /* ── Bottom navbar ──────────────────────────────────────────── */
   navbar: {
     position: 'fixed', bottom: 0, left: 0, right: 0, height: '64px',
     background: 'white',
-    boxShadow: '0 -2px 12px rgba(108,79,212,0.12)',
+    boxShadow: '0 1px 3px rgba(30,20,70,0.06)',
     display: 'flex', justifyContent: 'space-around', alignItems: 'center',
     zIndex: 100, direction: 'ltr',
   },

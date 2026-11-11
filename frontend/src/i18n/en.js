@@ -619,4 +619,22 @@ export default {
   'support.status.RESOLVED': 'Resolved',
   'support.adminToast': 'New report received',
   'support.adminToastMany': 'new reports',
+  // Login redesign
+  'login.welcome': 'Welcome to joBoss',
+  'login.welcomeSub': 'Sign in to discover jobs that fit you exactly',
+  'login.password': 'Password',
+  // Job detail sheet
+  'job.section.summary': 'Summary',
+  'job.section.responsibilities': 'Responsibilities',
+  'job.section.requirements': 'Requirements',
+  'job.section.niceToHave': 'Nice to have',
+  'job.section.technologies': 'Technologies',
+  'job.reject': 'Pass',
+  'job.submit': 'Apply now',
+  'job.close': 'Close',
+  'job.share': 'Share job',
+  'job.copied': 'Link copied',
+  'job.openPosting': 'Original job posting',
+  // Subscription redesign
+  'sub.upgradeNowBtn': 'Upgrade now',
 };

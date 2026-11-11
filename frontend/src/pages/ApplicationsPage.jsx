@@ -562,7 +562,7 @@ function ApplicationsPage() {
   // Wide layout gets the full 5-column table from the design; narrow folds the
   // date under the role so the row still fits a phone.
   const [isWide, setIsWide] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 99999px)').matches
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 900px)').matches
   );
   const PAGE_SIZE = 10;
   const [loading, setLoading] = useState(true);
@@ -769,7 +769,7 @@ function ApplicationsPage() {
   };
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 99999px)');
+    const mq = window.matchMedia('(min-width: 900px)');
     const onChange = e => setIsWide(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);

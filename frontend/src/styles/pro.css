@@ -442,3 +442,166 @@ html[dir='rtl'] .pro-chev { transform: scaleX(-1); }
 .pro-img-btn img { display: block; object-fit: contain; user-select: none; pointer-events: none; }
 .pro-deck:has(.pro-actions) .pro-card { inset: 0 0 82px 0; }
 .pro-actions { bottom: 2px; }
+
+/* ── Round 5: viewport fit (mobile) + desktop layout ─────────────────────── */
+
+/* Dynamic viewport: when the phone's toolbar collapses the shell must grow with
+   it, otherwise the body colour shows as a grey band above the tab bar.
+   Body is lilac too, so a rounding gap could never read as "grey". */
+body { background: #EFEAFB; }
+.pro-shell { min-height: 100svh; min-height: 100dvh; }
+.pro-swipe {
+  height: calc(100svh - var(--pro-header) - var(--pro-nav) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  height: calc(100dvh - var(--pro-header) - var(--pro-nav) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+.pro-card-hero { height: clamp(140px, 32svh, 230px); height: clamp(140px, 32dvh, 230px); }
+
+/* Very small phones (≤ 360px wide or ≤ 600px tall): tighter chrome. */
+@media (max-width: 360px) {
+  .pro-quota-frame { padding: 6px 8px; }
+  .pro-quota-text { font-size: 11.5px; }
+  .pro-card-body { padding: 10px 12px; }
+  .pro-actions { padding: 0 10px; }
+  .pro-img-btn { width: 62px; height: 62px; }
+  .pro-img-btn img { width: 66px !important; height: 66px !important; }
+}
+@media (max-height: 600px) {
+  .pro-deck:has(.pro-actions) .pro-card { inset: 0 0 70px 0; }
+  .pro-img-btn { width: 60px; height: 60px; }
+  .pro-img-btn img { width: 64px !important; height: 64px !important; }
+}
+
+/* ── Desktop: top navigation, wide content, bigger card ──────────────────── */
+@media (min-width: 900px) {
+  :root { --pro-header: 68px; }
+  body { background: linear-gradient(165deg, #F7F3FF 0%, #EDE6FF 50%, #F8F0FF 100%) fixed; }
+
+  .pro-shell { max-width: none; background: transparent; box-shadow: none; }
+
+  .pro-header {
+    max-width: none; left: 0; right: 0;
+    padding-inline: max(32px, calc((100vw - 1180px) / 2));
+    background: rgba(253, 252, 255, .88);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .pro-header-logo { height: 38px; }
+
+  /* The bottom tab bar becomes a centred pill nav inside the top bar. */
+  .pro-nav {
+    top: 0; bottom: auto; left: 50%; right: auto; transform: translateX(-50%);
+    width: auto; max-width: none; height: var(--pro-header); padding: 0;
+    background: transparent; border-top: none; gap: 6px; justify-content: center; z-index: 201;
+  }
+  .pro-tab {
+    flex: none; flex-direction: row; gap: 8px; align-self: center; height: 42px; padding: 0 18px;
+    border-radius: 999px; font-size: 14px; letter-spacing: 0;
+  }
+  .pro-tab:hover { background: rgba(124, 92, 255, .08); }
+  .pro-tab.active { background: #EEE8FF; }
+  .pro-tab.active::before { display: none; }
+  .pro-tab .pro-tab-ico svg { width: 21px; height: 21px; }
+
+  .pro-content { max-width: 1180px; margin: 0 auto; padding-bottom: 40px; }
+  .pro-content.bare { max-width: none; }
+  /* Pages read best at a comfortable width; the swipe stage can be wider. */
+  .pro-content:not(.bare) > * { max-width: 860px; margin-inline: auto; }
+  .pro-content:not(.bare) > *:has(.pro-swipe) { max-width: none; }
+
+  .pro-swipe {
+    height: calc(100dvh - var(--pro-header) - 24px);
+    padding: 14px 0 0;
+  }
+  .pro-quota-frame { width: min(480px, 100%); }
+  .pro-deck { max-width: 480px; max-height: 760px; }
+  .pro-deck:has(.pro-actions) .pro-card { inset: 0 0 92px 0; }
+  .pro-actions { bottom: 8px; padding: 0 36px; }
+  .pro-img-btn { width: 78px; height: 78px; }
+  .pro-img-btn img { width: 83px !important; height: 83px !important; }
+  .pro-card-hero { height: clamp(240px, 40dvh, 340px); }
+  .pro-card-hero .pro-card-title { font-size: 24px; }
+  .pro-card-place { font-size: 14px; }
+  .pro-card-body { padding: 16px 22px; gap: 10px; }
+  .pro-card-desc { font-size: 15.5px; -webkit-line-clamp: 6; }
+  .pro-card-logo-chip { width: 72px; height: 72px; }
+  .pro-card-more > span { font-size: 15px; padding: 10px 26px; }
+
+  /* Sheets / modals stay phone-sized and centred on a big screen. */
+  .pro-toast { top: calc(var(--pro-header) + 12px); }
+}
+
+/* ── Job detail sheet (redesign) ─────────────────────────────────────────── */
+.jd-sheet {
+  width: 100%; max-width: 520px; max-height: 92svh; max-height: 92dvh; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 28px 28px 0 0; background: linear-gradient(180deg, #ECE3FF 0%, #F5F0FF 38%, #FBFAFF 100%);
+  box-shadow: 0 -12px 48px rgba(60, 40, 140, .25);
+}
+@media (min-width: 900px) {
+  .jd-sheet { border-radius: 28px; max-height: 88dvh; margin-bottom: 4dvh; align-self: center; max-width: 560px; }
+}
+.jd-top { flex-shrink: 0; padding: 10px 18px 14px; direction: ltr; }
+.jd-handle { display: block; width: 44px; height: 5px; border-radius: 999px; background: #C9BFEA; margin: 0 auto 10px; }
+.jd-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.jd-round {
+  width: 42px; height: 42px; border-radius: 50%; border: none; background: #fff; color: #1E2A4A; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(60, 40, 140, .14);
+}
+.jd-head { display: flex; align-items: center; gap: 16px; }
+.jd-logo {
+  width: 84px; height: 84px; border-radius: 22px; flex-shrink: 0; overflow: hidden; background: #fff;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(60, 40, 140, .22);
+  border: 1px solid #E7E0FA;
+}
+.jd-head-text { min-width: 0; flex: 1; text-align: left; }
+.jd-title { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 800; color: #1E2A4A; letter-spacing: -.3px; unicode-bidi: plaintext; }
+.jd-company { margin: 4px 0 0; display: inline-flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 800; color: #6A4CF5; text-decoration: none; }
+.jd-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.jd-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px;
+  background: rgba(255, 255, 255, .8); color: #3A3552; font-size: 14px; font-weight: 600;
+}
+.jd-chip.green { background: #E3F8EE; color: #10905F; font-weight: 700; }
+
+.jd-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: 6px 16px 10px; display: flex; flex-direction: column; gap: 12px;
+}
+.jd-section {
+  display: flex; align-items: flex-start; gap: 14px; padding: 14px 14px 14px 16px; border-radius: 22px;
+  background: rgba(255, 255, 255, .86); border: 1px solid #E8E1FA; box-shadow: 0 2px 10px rgba(60, 40, 140, .05);
+}
+.jd-section-ico {
+  width: 48px; height: 48px; border-radius: 15px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: #ECE6FF; color: #5B3DF5;
+}
+.jd-section-main { flex: 1; min-width: 0; }
+.jd-section-title { margin: 2px 0 6px; font-size: 19px; font-weight: 800; color: #1E2A4A; text-align: start; }
+.jd-section-body { text-align: start; }
+.jd-chev {
+  width: 32px; height: 32px; flex-shrink: 0; border: none; background: transparent; color: #4A4560; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; transition: transform .2s ease;
+}
+.jd-chev:not(.open) { transform: rotate(-90deg); }
+.jd-text { margin: 0; font-size: 15.5px; line-height: 1.6; color: #2C2744; text-align: start; unicode-bidi: plaintext; }
+.jd-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.jd-list li { position: relative; padding-inline-start: 24px; font-size: 15.5px; line-height: 1.55; color: #2C2744; text-align: start; }
+.jd-list li > i { position: absolute; inset-inline-start: 2px; top: .62em; width: 9px; height: 9px; border-radius: 50%; background: #5B3DF5; }
+.jd-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.jd-pill { padding: 6px 12px; border-radius: 999px; background: #F1ECFF; border: 1px solid #E0D6FA; color: #5B3DF5; font-size: 13.5px; font-weight: 700; }
+.jd-original {
+  align-self: center; display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 2px;
+  color: #5B3DF5; font-size: 16px; font-weight: 700; text-decoration: underline;
+}
+
+.jd-footer {
+  flex-shrink: 0; display: flex; gap: 12px; direction: ltr; padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #E8E1FA; background: rgba(255, 255, 255, .92);
+}
+.jd-btn {
+  height: 54px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 17px; font-weight: 800;
+}
+.jd-btn.reject { flex: 1; background: #fff; border: 2px solid #FF6B81; color: #F0455F; }
+.jd-btn.apply {
+  flex: 1.25; border: none; color: #fff; background: linear-gradient(90deg, #5B3DF5 0%, #7C5CFF 50%, #FF5E8A 120%);
+  box-shadow: 0 10px 24px rgba(91, 61, 245, .3);
+}

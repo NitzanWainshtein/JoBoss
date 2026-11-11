@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ICON_SIZES from '../iconSizes';
 import { motion, AnimatePresence } from 'framer-motion';
 import useTranslation from '../i18n/useTranslation';
+import Icon from '../components/Icon';
 
 /**
  * Feature #SUB-UI-001 — Subscription management page
@@ -99,12 +100,12 @@ const STATUS_MAP = {
 };
 
 const FEATURE_ROWS = [
-  { key: 'daily_swipes',       labelKey: 'sub.row.daily_swipes',   icon: null, img: '/icons/jobs_icon.png' },
-  { key: 'daily_applications', labelKey: 'sub.row.daily_applications',    icon: null, img: '/icons/applies_icon.png' },
-  { key: 'ai_tailoring',       labelKey: 'sub.row.ai_tailoring',        icon: null, img: '/icons/robot_icon.png' },
-  { key: 'auto_apply',         labelKey: 'sub.row.auto_apply',      icon: null, img: '/icons/waiting_to_apply_icon.png' },
-  { key: 'analytics',          labelKey: 'sub.row.analytics',       icon: null, img: '/icons/process_icon.png' },
-  { key: 'priority_matching',  labelKey: 'sub.row.priority_matching',  icon: null, img: '/icons/search_icon.png' },
+  { key: 'daily_swipes',       labelKey: 'sub.row.daily_swipes',   icon: null, ico: 'jobs' },
+  { key: 'daily_applications', labelKey: 'sub.row.daily_applications',    icon: null, ico: 'doc' },
+  { key: 'ai_tailoring',       labelKey: 'sub.row.ai_tailoring',        icon: null, ico: 'sparkle' },
+  { key: 'auto_apply',         labelKey: 'sub.row.auto_apply',      icon: null, ico: 'bolt' },
+  { key: 'analytics',          labelKey: 'sub.row.analytics',       icon: null, ico: 'chart' },
+  { key: 'priority_matching',  labelKey: 'sub.row.priority_matching',  icon: null, ico: 'target' },
 ];
 
 export default function SubscriptionPage({ api }) {
@@ -117,6 +118,7 @@ export default function SubscriptionPage({ api }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [toast, setToast] = useState(null);
   const [view, setView] = useState('overview'); // 'overview' | 'compare'
+  const plansRef = useRef(null);
   // Set only on the Stripe success redirect, so the celebration shows once
   // per purchase rather than on every visit to the page.
   const [justUpgraded, setJustUpgraded] = useState(false);
@@ -183,6 +185,11 @@ export default function SubscriptionPage({ api }) {
     }
   };
 
+  const goToPlans = () => {
+    setView('overview');
+    setTimeout(() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
+
   const currentPlan = PLANS[planKey] || PLANS.FREE;
   const status = subscription?.status || 'FREE';
   const statusInfo = STATUS_MAP[status] || STATUS_MAP.FREE;
@@ -208,7 +215,7 @@ export default function SubscriptionPage({ api }) {
   }
 
   return (
-    <div style={styles.root} dir="rtl">
+    <div style={styles.root} dir={language === 'en' ? 'ltr' : 'rtl'}>
       {/* Toast */}
       <AnimatePresence>
         {justUpgraded && currentPlan && planKey !== 'FREE' && (
@@ -277,18 +284,27 @@ export default function SubscriptionPage({ api }) {
         )}
       </AnimatePresence>
 
-      {/* Current plan header */}
+      {/* Current plan banner */}
       <div style={{ ...styles.currentPlanCard, background: currentPlan.gradient }}>
+        <span aria-hidden="true" style={styles.bannerWave} />
         <div style={styles.currentPlanTop}>
-          <div>
+          <span style={styles.crownTile}><Icon name="crown" size={34} fill="currentColor" strokeWidth={1.4} /></span>
+          <div style={{ minWidth: 0, flex: '1 1 120px' }}>
             <p style={styles.currentPlanLabel}>{t('sub.currentPlan')}</p>
             <h2 style={styles.currentPlanName}>{language === 'en' ? currentPlan.nameEn : currentPlan.name}</h2>
           </div>
-          <div style={{ ...styles.statusBadge, color: statusInfo.color, background: statusInfo.bg }}>
-            {t(statusInfo.labelKey)}
-          </div>
+          {planKey !== 'PREMIUM_PLUS' && (
+            <button type="button" style={styles.upgradeNowBtn} onClick={goToPlans}>
+              {t('sub.upgradeNowBtn')}<Icon name="arrowUp" size={16} strokeWidth={2.6} />
+            </button>
+          )}
         </div>
 
+        {status !== 'FREE' && (
+          <div style={{ ...styles.statusBadge, color: statusInfo.color, background: statusInfo.bg, alignSelf: 'flex-start' }}>
+            {t(statusInfo.labelKey)}
+          </div>
+        )}
         {status === 'TRIAL' && trialEnd && (
           <p style={styles.trialNote}>{t('sub.trialEndsOn')}{trialEnd}</p>
         )}
@@ -332,12 +348,12 @@ export default function SubscriptionPage({ api }) {
               const hasFeature = currentPlan.featureFlags[row.key];
               return (
                 <div key={row.key} style={styles.featureRow}>
-                  <span style={styles.featureIcon}>{row.img ? <img src={row.img} alt="" style={{ width: `${ICON_SIZES.featureRow}px`, height: `${ICON_SIZES.featureRow}px`, objectFit: 'contain' }} /> : row.icon}</span>
-                  <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#8F8AA3' }}>
+                  <span style={styles.featureIconBox}><Icon name={row.ico} size={22} /></span>
+                  <span style={{ ...styles.featureText, color: hasFeature ? '#1E2A4A' : '#5F5A72' }}>
                     {t(currentPlan.features[row.key])}
                   </span>
-                  <span style={{ color: hasFeature ? '#12A96F' : '#CFCADD', fontSize: '18px' }}>
-                    {hasFeature ? '✓' : '✕'}
+                  <span style={{ color: hasFeature ? '#5B3DF5' : '#8F8AA3', display: 'flex' }}>
+                    <Icon name={hasFeature ? 'check' : 'x'} size={20} strokeWidth={2.4} />
                   </span>
                 </div>
               );
@@ -346,8 +362,8 @@ export default function SubscriptionPage({ api }) {
 
           {/* Upgrade section for free users */}
           {planKey === 'FREE' && (
-            <div style={styles.upgradeSection}>
-              <p style={styles.upgradeTitle}>{t('sub.upgradeAll')}</p>
+            <div style={styles.upgradeSection} ref={plansRef}>
+              <UpgradeHeading text={t('sub.upgradeAll')} />
               <div style={styles.upgradeCards}>
                 {['PREMIUM', 'PREMIUM_PLUS'].map((pk) => (
                   <UpgradeCard
@@ -358,13 +374,14 @@ export default function SubscriptionPage({ api }) {
                   />
                 ))}
               </div>
+              <p style={styles.paymentMethods}>{t('sub.paymentMethods')}</p>
             </div>
           )}
 
           {/* Upgrade section for premium users */}
           {planKey === 'PREMIUM' && (
-            <div style={styles.upgradeSection}>
-              <p style={styles.upgradeTitle}>{t('sub.upgradePlus')}</p>
+            <div style={styles.upgradeSection} ref={plansRef}>
+              <UpgradeHeading text={t('sub.upgradePlus')} />
               <div style={styles.upgradeCards}>
                 <UpgradeCard
                   plan={PLANS.PREMIUM_PLUS}
@@ -372,6 +389,7 @@ export default function SubscriptionPage({ api }) {
                   onCheckout={() => handleCheckout('PREMIUM_PLUS')}
                 />
               </div>
+              <p style={styles.paymentMethods}>{t('sub.paymentMethods')}</p>
             </div>
           )}
 
@@ -440,49 +458,70 @@ export default function SubscriptionPage({ api }) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+function UpgradeHeading({ text }) {
+  return (
+    <div style={styles.upgradeHead}>
+      <span style={styles.upgradeLine} />
+      <p style={styles.upgradeTitle}><Icon name="crown" size={22} />{text}</p>
+      <span style={styles.upgradeLine} />
+    </div>
+  );
+}
+
 function UpgradeCard({ plan, loading, onCheckout }) {
   const { t, language } = useTranslation();
+  const isPlus = plan.key === 'PREMIUM_PLUS';
+  const name = language === 'en' ? plan.nameEn : plan.name;
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
+      whileHover={{ y: -2 }}
       style={{
         ...styles.upgradeCard,
-        border: `2px solid ${plan.color}`,
+        border: isPlus ? '2px solid #8A6CFF' : '1.5px solid #E4DFF2',
+        background: isPlus ? 'linear-gradient(180deg, #F6F1FF 0%, #FFFFFF 60%)' : '#fff',
         position: 'relative',
       }}
     >
       {plan.popular && (
-        <div style={{ ...styles.popularBadge, background: plan.color }}>{t('sub.mostPopular')}</div>
+        <div style={styles.popularBadge}>{t('sub.mostPopular')}</div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
-        <img src={plan.key === 'FREE' ? '/icons/free_members_icon.png' : plan.key === 'PREMIUM' ? '/icons/premium_member_icon.png' : '/icons/plus_members_icon.png'} alt="" style={{ width: `${ICON_SIZES.planLogoCard}px`, height: `${ICON_SIZES.planLogoCard}px`, objectFit: 'contain' }} />
-        <p style={{ ...styles.upgradePlanName, color: plan.color, margin: 0 }}>{language === 'en' ? plan.nameEn : plan.name}</p>
+      <div style={styles.planHeadRow}>
+        <span style={{ ...styles.planTile, background: isPlus ? '#7C5CFF' : '#B7A5FF' }}>
+          <Icon name={isPlus ? 'crown' : 'bolt'} size={24} strokeWidth={1.8} />
+        </span>
+        <p style={{ ...styles.upgradePlanName, color: isPlus ? '#5B3DF5' : '#6A4CF5' }}>{name}</p>
       </div>
       <p style={styles.upgradePrice}>
-        ${plan.price}
+        <span dir="ltr">${plan.price}</span>
         <span style={styles.upgradePriceSub}> {t('sub.perMonth')}</span>
       </p>
       {plan.trial && (
         <p style={styles.trialTag}>✨ {t(plan.trial)}</p>
       )}
       <div style={styles.upgradeFeatures}>
-        {FEATURE_ROWS.map((row) => (
-          <p key={row.key} style={{ ...styles.upgradeFeature, color: plan.featureFlags[row.key] ? '#1E2A4A' : '#D5CEE8' }}>
-            {plan.featureFlags[row.key] ? '✓' : '✕'} {t(plan.features[row.key])}
-          </p>
-        ))}
+        {FEATURE_ROWS.map((row) => {
+          const has = plan.featureFlags[row.key];
+          return (
+            <p key={row.key} style={{ ...styles.upgradeFeature, color: has ? '#1E2A4A' : '#9A95AC' }}>
+              <span style={{ color: has ? '#5B3DF5' : '#B9B4CC', display: 'inline-flex', flexShrink: 0 }}>
+                <Icon name={has ? 'check' : 'x'} size={16} strokeWidth={2.6} />
+              </span>
+              <span>{t(plan.features[row.key])}</span>
+            </p>
+          );
+        })}
       </div>
       <motion.button
-        style={{ ...styles.checkoutBtn, background: plan.gradient }}
-        whileHover={{ opacity: 0.9 }}
+        style={isPlus ? { ...styles.checkoutBtn, background: 'linear-gradient(90deg, #5B3DF5, #8A6CFF)', color: '#fff' }
+                      : { ...styles.checkoutBtn, background: '#fff', color: '#5B3DF5', border: '1.5px solid #5B3DF5' }}
         whileTap={{ scale: 0.97 }}
         onClick={onCheckout}
         disabled={loading}
       >
         {loading ? (
-          <div style={{ ...styles.spinner, width: '18px', height: '18px', borderWidth: '2px', borderTopColor: 'white' }} />
+          <div style={{ ...styles.spinner, width: '18px', height: '18px', borderWidth: '2px', borderTopColor: isPlus ? 'white' : '#5B3DF5' }} />
         ) : (
-          `${t('sub.upgradeTo')}${language === 'en' ? plan.nameEn : plan.name}`
+          `${t('sub.upgradeTo')}${name}`
         )}
       </motion.button>
       <p style={styles.billingNote}>
@@ -492,9 +531,6 @@ function UpgradeCard({ plan, loading, onCheckout }) {
         ).replace('{price}', `$${plan.price}`)}
         {' '}
         {t('sub.disclosureCancel')}
-      </p>
-      <p style={styles.paymentMethods}>
-        {t('sub.paymentMethods')}
       </p>
     </motion.div>
   );
@@ -615,11 +651,24 @@ const styles = {
   cancelBody: { margin: 0, fontSize: '13px', fontWeight: 600, color: '#8A4B1F', lineHeight: 1.6 },
   cancelHint: { margin: 0, fontSize: '12px', color: '#A9713F' },
   currentPlanCard: {
-    borderRadius: '18px', padding: '22px', position: 'relative', overflow: 'hidden',
-    display: 'flex', flexDirection: 'column', gap: '8px',
+    borderRadius: '22px', padding: '18px', position: 'relative', overflow: 'hidden',
+    display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 14px 30px rgba(60,40,140,0.25)',
   },
-  currentPlanTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  currentPlanLabel: { fontSize: '12px', color: 'rgba(255,255,255,0.75)', margin: 0 },
+  bannerWave: {
+    position: 'absolute', insetInlineEnd: '-40px', bottom: '-70px', width: '260px', height: '170px', borderRadius: '50%',
+    background: 'rgba(255,255,255,0.08)', pointerEvents: 'none',
+  },
+  crownTile: {
+    width: '68px', height: '68px', borderRadius: '20px', flexShrink: 0, color: '#E7DDFF',
+    background: 'linear-gradient(145deg, rgba(255,255,255,0.28), rgba(255,255,255,0.08))',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)',
+  },
+  upgradeNowBtn: {
+    flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', border: 'none', cursor: 'pointer',
+    background: '#E9E3FF', color: '#4A2FD8', borderRadius: '999px', padding: '11px 18px', fontSize: '15px', fontWeight: 800,
+  },
+  currentPlanTop: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px 14px', position: 'relative' },
+  currentPlanLabel: { fontSize: '14px', color: 'rgba(255,255,255,0.8)', margin: 0, whiteSpace: 'nowrap' },
   currentPlanName: { fontSize: '30px', fontWeight: 800, color: 'white', margin: 0, letterSpacing: '-0.3px' },
   statusBadge: {
     padding: '5px 13px', borderRadius: '999px',
@@ -631,28 +680,36 @@ const styles = {
   tab: { flex: 1, padding: '10px 8px 12px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '15px', background: 'transparent', color: '#9A95AC', marginBottom: '-1px', borderBottom: '3px solid transparent' },
   tabActive: { color: '#1E2A4A', borderBottom: '3px solid #7C5CFF' },
   section: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  featureCard: { background: '#fff', border: '1px solid #E7E3F0', borderRadius: '18px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '6px' },
-  sectionTitle: { fontSize: '17px', fontWeight: 800, margin: 0, color: '#1E2A4A' },
-  featureRow: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid #F0EDF6' },
+  featureCard: { background: 'rgba(255,255,255,0.9)', border: '1px solid #E7E3F0', borderRadius: '22px', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: '2px' },
+  sectionTitle: { fontSize: '20px', fontWeight: 800, margin: '0 0 6px', color: '#1E2A4A' },
+  featureRow: { display: 'flex', alignItems: 'center', gap: '14px', padding: '11px 0', borderBottom: '1px solid #EFEBF8' },
   featureIcon: { fontSize: '18px', width: '24px', textAlign: 'center' },
-  featureText: { flex: 1, fontSize: '14.5px', fontWeight: 500 },
+  featureIconBox: {
+    width: '46px', height: '46px', borderRadius: '14px', flexShrink: 0, background: '#ECE6FF', color: '#5B3DF5',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  },
+  featureText: { flex: 1, fontSize: '16px', fontWeight: 500 },
   upgradeSection: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  upgradeTitle: { fontSize: '17px', fontWeight: 800, color: '#1E2A4A', margin: 0, textAlign: 'center' },
-  upgradeCards: { display: 'flex', gap: '12px' },
-  upgradeCard: { flex: 1, background: '#fff', border: '1px solid #E7E3F0', borderRadius: '18px', padding: '20px 14px', display: 'flex', flexDirection: 'column', gap: '8px', overflow: 'hidden' },
-  popularBadge: { position: 'absolute', top: '12px', left: '12px', color: 'white', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px' },
-  upgradePlanName: { fontSize: '16px', fontWeight: 700, margin: 0 },
-  upgradePrice: { fontSize: '21px', fontWeight: 700, color: '#1E2A4A', margin: 0 },
+  upgradeHead: { display: 'flex', alignItems: 'center', gap: '12px', margin: '6px 0 4px' },
+  upgradeLine: { flex: 1, height: '1px', background: '#D9D2EE' },
+  upgradeTitle: { fontSize: '18px', fontWeight: 800, color: '#1E2A4A', margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', textAlign: 'center' },
+  upgradeCards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', paddingTop: '8px' },
+  upgradeCard: { borderRadius: '22px', padding: '22px 14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 },
+  popularBadge: { position: 'absolute', top: '-13px', insetInlineStart: '14px', background: '#8A3DD6', color: 'white', fontSize: '12px', fontWeight: 800, padding: '4px 12px', borderRadius: '999px', whiteSpace: 'nowrap' },
+  upgradePlanName: { fontSize: '16px', fontWeight: 800, margin: 0, lineHeight: 1.15 },
+  planHeadRow: { display: 'flex', alignItems: 'center', gap: '10px' },
+  planTile: { width: '46px', height: '46px', borderRadius: '14px', flexShrink: 0, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+  upgradePrice: { fontSize: '26px', fontWeight: 800, color: '#1E2A4A', margin: 0, lineHeight: 1.1, whiteSpace: 'nowrap' },
   upgradePriceSub: { fontSize: '13px', fontWeight: 600, color: '#6F6A84' },
   trialTag: { fontSize: '12px', color: '#F5A623', fontWeight: 700, margin: 0 },
-  upgradeFeatures: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
-  upgradeFeature: { fontSize: '12px', margin: 0 },
-  checkoutBtn: { width: '100%', padding: '13px', borderRadius: '999px', border: 'none', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' },
+  upgradeFeatures: { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, margin: '4px 0 6px' },
+  upgradeFeature: { fontSize: '13.5px', margin: 0, display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.35 },
+  checkoutBtn: { width: '100%', padding: '13px 8px', borderRadius: '999px', border: 'none', fontSize: '14.5px', fontWeight: 800, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' },
   billingNote: {
     fontSize: '11px', lineHeight: 1.55, color: '#5F5A72',
     margin: '8px 0 0', textAlign: 'center',
   },
-  paymentMethods: { fontSize: '10px', color: '#8F8AA3', margin: 0, textAlign: 'center' },
+  paymentMethods: { fontSize: '12px', color: '#6F6A84', margin: '2px 0 0', textAlign: 'center' },
   warningCard: { background: '#FFF4EC', border: '2px solid #F5A623', borderRadius: '18px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' },
   warningTitle: { fontSize: '15px', fontWeight: 700, color: '#C2410C', margin: 0 },
   warningText: { fontSize: '13px', color: '#7A7592', margin: 0 },

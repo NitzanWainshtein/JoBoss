@@ -629,4 +629,22 @@ export default {
   'support.status.RESOLVED': 'טופלה',
   'support.adminToast': 'דיווח חדש התקבל',
   'support.adminToastMany': 'דיווחים חדשים',
+  // Login redesign
+  'login.welcome': 'ברוכים הבאים ל-joBoss',
+  'login.welcomeSub': 'התחברו כדי לגלות משרות שמתאימות בדיוק לכם',
+  'login.password': 'סיסמה',
+  // Job detail sheet
+  'job.section.summary': 'סיכום',
+  'job.section.responsibilities': 'תחומי אחריות',
+  'job.section.requirements': 'דרישות',
+  'job.section.niceToHave': 'יתרון',
+  'job.section.technologies': 'טכנולוגיות',
+  'job.reject': 'דחה',
+  'job.submit': 'הגש מועמדות',
+  'job.close': 'סגור',
+  'job.share': 'שיתוף המשרה',
+  'job.copied': 'הקישור הועתק',
+  'job.openPosting': 'לינק למשרה המקורית',
+  // Subscription redesign
+  'sub.upgradeNowBtn': 'שדרג עכשיו',
 };

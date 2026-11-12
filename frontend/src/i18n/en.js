@@ -637,4 +637,6 @@ export default {
   'job.openPosting': 'Original job posting',
   // Subscription redesign
   'sub.upgradeNowBtn': 'Upgrade now',
+  // Applications candidacy empty state
+  'app.emptyCandidacy': 'No jobs with a candidacy status yet. Tap ⋮ on a job to mark it Submitted, In process, Accepted or Rejected.',
 };

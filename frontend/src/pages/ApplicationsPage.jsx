@@ -11,7 +11,7 @@ import { getMyApplications, updateApplication, tailorCVForJob, getSubscription, 
 import LimitModal from '../components/LimitModal';
 import MismatchWarningModal from '../components/MismatchWarningModal';
 import Spinner from '../components/Spinner';
-import { isStalePending } from '../utils/autoApply';
+import { isStalePending, displayStatus } from '../utils/autoApply';
 
 // ── Track B: user-set funnel status ──────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -562,7 +562,7 @@ function ApplicationsPage() {
   // Wide layout gets the full 5-column table from the design; narrow folds the
   // date under the role so the row still fits a phone.
   const [isWide, setIsWide] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 900px)').matches
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 99999px)').matches
   );
   const PAGE_SIZE = 10;
   const [loading, setLoading] = useState(true);
@@ -769,7 +769,7 @@ function ApplicationsPage() {
   };
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 900px)');
+    const mq = window.matchMedia('(min-width: 99999px)');
     const onChange = e => setIsWide(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
@@ -800,7 +800,7 @@ function ApplicationsPage() {
 
   const filtered = applications.filter(a => {
     const auto = a.autoApplyStatus;
-    const status = (a.status || '').toUpperCase();
+    const status = displayStatus(a);
 
     if (searchTerm) {
       const haystack = `${a.company || ''} ${a.title || ''}`.toLowerCase();
@@ -821,7 +821,7 @@ function ApplicationsPage() {
     switch (sortBy) {
       case 'date_asc':    return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
       case 'company':     return (a.company || '').localeCompare(b.company || '');
-      case 'status':      return (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+      case 'status':      return (STATUS_ORDER[displayStatus(a)] ?? 99) - (STATUS_ORDER[displayStatus(b)] ?? 99);
       case 'date_desc':
       default:            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     }
@@ -1097,7 +1097,7 @@ function ApplicationsPage() {
           <div style={styles.empty}>
             <p style={{ fontSize: '48px', margin: 0 }}>📋</p>
             <p style={styles.emptyTitle}>
-              {primaryTab === 'all' ? t('app.emptyTitle') : t('app.emptyCategory')}
+              {primaryTab === 'all' ? t('app.emptyTitle') : primaryTab === 'candidacy' ? t('app.emptyCandidacy') : t('app.emptyCategory')}
             </p>
             <p style={styles.emptySub}>{t('app.swipeToCreate')}</p>
           </div>
@@ -1136,7 +1136,7 @@ function ApplicationsPage() {
               const isPendingManual = (app.autoApplyStatus === 'manual' || app.autoApplyStatus === 'pending' || app.autoApplyStatus === 'failed') && app.status === 'SUBMITTED';
               const cfg = isPendingManual
                 ? { color: '#F5A623', labelKey: 'app.tab.pending' }
-                : (STATUS_CONFIG[app.status] || { color: '#FFC107', labelKey: 'app.pending' });
+                : (STATUS_CONFIG[displayStatus(app)] || { color: '#FFC107', labelKey: 'app.pending' });
               const isUpdating = updating === app.jobId;
               const isSelected = selected.has(app.jobId);
               return (
@@ -1201,12 +1201,12 @@ function ApplicationsPage() {
                               disabled={isUpdating}
                               style={{
                                 ...styles.rowMenuItem,
-                                color: app.status === s ? '#fff' : STATUS_CONFIG[s]?.color || '#5F5A72',
-                                background: app.status === s ? STATUS_CONFIG[s]?.color || '#7C5CFF' : 'transparent',
+                                color: displayStatus(app) === s ? '#fff' : STATUS_CONFIG[s]?.color || '#5F5A72',
+                                background: displayStatus(app) === s ? STATUS_CONFIG[s]?.color || '#7C5CFF' : 'transparent',
                               }}
                               onClick={() => { handleStatusChange(app.jobId, s); setOpenRowMenu(null); }}
                             >
-                              {isUpdating && app.status !== s ? '...' : t(STATUS_CONFIG[s]?.labelKey)}
+                              {isUpdating && displayStatus(app) !== s ? '...' : t(STATUS_CONFIG[s]?.labelKey)}
                             </button>
                           ))}
                         </div>

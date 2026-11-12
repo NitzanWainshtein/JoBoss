@@ -471,63 +471,7 @@ body { background: #EFEAFB; }
   .pro-img-btn img { width: 64px !important; height: 64px !important; }
 }
 
-/* ── Desktop: top navigation, wide content, bigger card ──────────────────── */
-@media (min-width: 900px) {
-  :root { --pro-header: 68px; }
-  body { background: linear-gradient(165deg, #F7F3FF 0%, #EDE6FF 50%, #F8F0FF 100%) fixed; }
-
-  .pro-shell { max-width: none; background: transparent; box-shadow: none; }
-
-  .pro-header {
-    max-width: none; left: 0; right: 0;
-    padding-inline: max(32px, calc((100vw - 1180px) / 2));
-    background: rgba(253, 252, 255, .88);
-    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-  }
-  .pro-header-logo { height: 38px; }
-
-  /* The bottom tab bar becomes a centred pill nav inside the top bar. */
-  .pro-nav {
-    top: 0; bottom: auto; left: 50%; right: auto; transform: translateX(-50%);
-    width: auto; max-width: none; height: var(--pro-header); padding: 0;
-    background: transparent; border-top: none; gap: 6px; justify-content: center; z-index: 201;
-  }
-  .pro-tab {
-    flex: none; flex-direction: row; gap: 8px; align-self: center; height: 42px; padding: 0 18px;
-    border-radius: 999px; font-size: 14px; letter-spacing: 0;
-  }
-  .pro-tab:hover { background: rgba(124, 92, 255, .08); }
-  .pro-tab.active { background: #EEE8FF; }
-  .pro-tab.active::before { display: none; }
-  .pro-tab .pro-tab-ico svg { width: 21px; height: 21px; }
-
-  .pro-content { max-width: 1180px; margin: 0 auto; padding-bottom: 40px; }
-  .pro-content.bare { max-width: none; }
-  /* Pages read best at a comfortable width; the swipe stage can be wider. */
-  .pro-content:not(.bare) > * { max-width: 860px; margin-inline: auto; }
-  .pro-content:not(.bare) > *:has(.pro-swipe) { max-width: none; }
-
-  .pro-swipe {
-    height: calc(100dvh - var(--pro-header) - 24px);
-    padding: 14px 0 0;
-  }
-  .pro-quota-frame { width: min(480px, 100%); }
-  .pro-deck { max-width: 480px; max-height: 760px; }
-  .pro-deck:has(.pro-actions) .pro-card { inset: 0 0 92px 0; }
-  .pro-actions { bottom: 8px; padding: 0 36px; }
-  .pro-img-btn { width: 78px; height: 78px; }
-  .pro-img-btn img { width: 83px !important; height: 83px !important; }
-  .pro-card-hero { height: clamp(240px, 40dvh, 340px); }
-  .pro-card-hero .pro-card-title { font-size: 24px; }
-  .pro-card-place { font-size: 14px; }
-  .pro-card-body { padding: 16px 22px; gap: 10px; }
-  .pro-card-desc { font-size: 15.5px; -webkit-line-clamp: 6; }
-  .pro-card-logo-chip { width: 72px; height: 72px; }
-  .pro-card-more > span { font-size: 15px; padding: 10px 26px; }
-
-  /* Sheets / modals stay phone-sized and centred on a big screen. */
-  .pro-toast { top: calc(var(--pro-header) + 12px); }
-}
+/* Desktop keeps the phone-sized column and bottom tab bar (by design). */
 
 /* ── Job detail sheet (redesign) ─────────────────────────────────────────── */
 .jd-sheet {

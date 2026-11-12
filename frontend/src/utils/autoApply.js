@@ -23,3 +23,15 @@ export function isStalePending(app, now = Date.now()) {
   if (!startedAt) return false;
   return now - startedAt >= AUTO_APPLY_STALE_MS;
 }
+
+// The two tracks used to contradict each other: a job the auto-applier submitted
+// successfully (autoApplyStatus 'success') sat in the "Submitted successfully"
+// tab but kept the default funnel status SUBMITTED, whose label is "Waiting to
+// apply". One source of truth for what to SHOW: a successful auto-apply the user
+// has not moved on yet counts as "Submitted" (REVIEWED). Anything the user set
+// explicitly is left untouched.
+export function displayStatus(app) {
+  const status = (app.status || 'SUBMITTED').toUpperCase();
+  if (app.autoApplyStatus === 'success' && status === 'SUBMITTED') return 'REVIEWED';
+  return status;
+}

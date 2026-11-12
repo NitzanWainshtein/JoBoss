@@ -647,4 +647,6 @@ export default {
   'job.openPosting': 'לינק למשרה המקורית',
   // Subscription redesign
   'sub.upgradeNowBtn': 'שדרג עכשיו',
+  // Applications candidacy empty state
+  'app.emptyCandidacy': 'אין עדיין משרות עם סטטוס מועמדות. לחץ על ⋮ בשורת משרה כדי לעדכן אם הוגש, בתהליך, התקבלת או נדחה.',
 };

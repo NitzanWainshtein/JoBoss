@@ -9,7 +9,7 @@ import useTranslation from '../i18n/useTranslation';
 import Icon from '../components/Icon';
 
 function LoginPage() {
-  const { t, language } = useTranslation();
+  const { t, language, toggleLanguage, nextLanguage } = useTranslation();
   // Unticked by default and required before signup: pre-ticked consent is not consent.
   const [agreed, setAgreed] = useState(false);
   // One toggle covers both password fields — they are never on screen together.
@@ -164,6 +164,12 @@ function LoginPage() {
       <span aria-hidden="true" style={styles.blobTop} />
       <span aria-hidden="true" style={styles.blobBottom} />
 
+      {/* Language switch is available before sign-in. */}
+      <button type="button" style={styles.langBtn} onClick={toggleLanguage}
+        aria-label={`${t('menu.language')}: ${nextLanguage.label}`}>
+        <Icon name="globe" size={18} />{nextLanguage.label}
+      </button>
+
       <div style={styles.card}>
         <img src="/app_logo.png" alt="joBoss" style={styles.logo} />
 
@@ -317,6 +323,11 @@ const styles = {
   blobBottom: {
     position: 'absolute', bottom: '-130px', insetInlineEnd: '-100px', width: '320px', height: '320px', borderRadius: '50%',
     background: 'linear-gradient(135deg, #C9C6F7, #DAD6FB)', pointerEvents: 'none',
+  },
+  langBtn: {
+    position: 'absolute', top: '16px', insetInlineEnd: '16px', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: '7px',
+    padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(124,92,255,0.25)', background: 'rgba(255,255,255,0.92)',
+    color: '#3A3552', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(60,50,140,0.12)',
   },
   card: {
     position: 'relative', zIndex: 1, width: '100%', maxWidth: '440px', boxSizing: 'border-box',

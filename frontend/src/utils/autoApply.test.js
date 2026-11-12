@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isStalePending, AUTO_APPLY_STALE_MS } from './autoApply';
+import { isStalePending, displayStatus, AUTO_APPLY_STALE_MS } from './autoApply';
 
 // Fixed clock so the assertions don't drift with real time.
 const NOW = new Date('2026-08-24T12:00:00Z').getTime();
@@ -45,5 +45,23 @@ describe('isStalePending', () => {
 
   it('tolerates a missing record', () => {
     expect(isStalePending(undefined, NOW)).toBe(false);
+  });
+});
+
+describe('displayStatus', () => {
+  // The bug: "Auto-applied successfully" jobs showed "Waiting to apply".
+  it('shows a successful auto-apply as Submitted, not Waiting to apply', () => {
+    expect(displayStatus({ autoApplyStatus: 'success', status: 'SUBMITTED' })).toBe('REVIEWED');
+    expect(displayStatus({ autoApplyStatus: 'success' })).toBe('REVIEWED');
+  });
+
+  it('never overrides a status the user set', () => {
+    expect(displayStatus({ autoApplyStatus: 'success', status: 'INTERVIEW' })).toBe('INTERVIEW');
+    expect(displayStatus({ autoApplyStatus: 'success', status: 'rejected' })).toBe('REJECTED');
+  });
+
+  it('leaves non-success records as they are', () => {
+    expect(displayStatus({ autoApplyStatus: 'pending', status: 'SUBMITTED' })).toBe('SUBMITTED');
+    expect(displayStatus({ status: 'SUBMITTED' })).toBe('SUBMITTED');
   });
 });

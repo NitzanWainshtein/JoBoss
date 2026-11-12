@@ -65,105 +65,153 @@ function getJobSummary(description = '') {
   return summary?.items?.join(' ') || description;
 }
 
-function JobDescription({ description }) {
-  const sections = parseJobDescription(description);
+// Section meta: the description parser keeps the English headings the source
+// data uses; the visible title is always localised (he / en) via i18n.
+const SECTION_META = {
+  summary:          { key: 'job.section.summary',          icon: 'doc' },
+  responsibilities: { key: 'job.section.responsibilities', icon: 'clipboard' },
+  requirements:     { key: 'job.section.requirements',     icon: 'graduation' },
+  'nice to have':   { key: 'job.section.niceToHave',       icon: 'star' },
+  technologies:     { key: 'job.section.technologies',     icon: 'bolt' },
+};
 
-  if (!sections.length) return null;
-
+function JobSection({ icon, title, children }) {
+  const [open, setOpen] = useState(true);
   return (
-    <div style={modal.descriptionPanel}>
-      {sections.map((section) => {
-        const normalizedTitle = section.title.toLowerCase();
-        const isBulletSection = ['responsibilities', 'requirements', 'nice to have'].includes(normalizedTitle);
-        const isTechnologySection = normalizedTitle === 'technologies';
-
-        return (
-          <div key={section.title} style={modal.descriptionSection}>
-            <h4 style={modal.descriptionHeading}>{section.title}</h4>
-
-            {isTechnologySection ? (
-              <div style={modal.techList}>
-                {section.items.join(', ').split(',').map(item => item.trim()).filter(Boolean).map(item => (
-                  <span key={item} style={modal.techPill}>{item}</span>
-                ))}
-              </div>
-            ) : isBulletSection ? (
-              <ul style={modal.bulletList}>
-                {section.items.map((item, index) => (
-                  <li key={`${section.title}-${index}`} style={modal.bulletItem}>{item}</li>
-                ))}
-              </ul>
-            ) : (
-              <p style={modal.descriptionText}>{section.items.join(' ')}</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
+    <section className="jd-section">
+      <span className="jd-section-ico"><Icon name={icon} size={22} /></span>
+      <div className="jd-section-main">
+        <h4 className="jd-section-title">{title}</h4>
+        {open && <div className="jd-section-body">{children}</div>}
+      </div>
+      <button type="button" className={`jd-chev${open ? ' open' : ''}`} aria-expanded={open}
+        aria-label={title} onClick={() => setOpen(o => !o)}>
+        <Icon name="chevronDown" size={20} />
+      </button>
+    </section>
   );
 }
 
-// ── Job detail modal (unchanged) ────────────────────────────────────────────
-function JobDetailModal({ job, onClose }) {
+function JobSections({ job }) {
   const { t } = useTranslation();
+  const sections = parseJobDescription(job.description);
+  const hasTechSection = sections.some(sec => sec.title.toLowerCase() === 'technologies');
+  const techList = job.technologies || job.requirements || [];
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} style={modal.overlay} onClick={onClose}>
+    <>
+      {sections.map((section) => {
+        const norm = section.title.toLowerCase();
+        const meta = SECTION_META[norm] || SECTION_META.summary;
+        const title = SECTION_META[norm] ? t(meta.key) : section.title;
+        const isList = ['responsibilities', 'requirements', 'nice to have'].includes(norm);
+        const isTech = norm === 'technologies';
+        return (
+          <JobSection key={section.title} icon={meta.icon} title={title}>
+            {isTech ? (
+              <div className="jd-pills">
+                {section.items.join(', ').split(',').map(x => x.trim()).filter(Boolean).map(x => (
+                  <span key={x} className="jd-pill">{x}</span>
+                ))}
+              </div>
+            ) : isList ? (
+              <ul className="jd-list">
+                {section.items.map((item, i) => (
+                  <li key={i} dir="auto"><i aria-hidden="true" />{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="jd-text" dir="auto">{section.items.join(' ')}</p>
+            )}
+          </JobSection>
+        );
+      })}
+      {!hasTechSection && techList.length > 0 && (
+        <JobSection icon="bolt" title={t('job.section.technologies')}>
+          <div className="jd-pills">
+            {techList.map(x => <span key={x} className="jd-pill">{x}</span>)}
+          </div>
+        </JobSection>
+      )}
+    </>
+  );
+}
+
+// ── Job detail sheet ─────────────────────────────────────────────────────────
+function JobDetailModal({ job, onClose }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    if (!job.applyUrl) return;
+    const data = { title: job.title, text: `${job.title} · ${job.company}`, url: job.applyUrl };
+    try {
+      if (navigator.share) { await navigator.share(data); return; }
+      await navigator.clipboard.writeText(job.applyUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch { /* user cancelled the share sheet */ }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} style={modal.overlay} onClick={() => onClose()}>
       <motion.div
+        className="jd-sheet"
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%', transition: { duration: 0.22, ease: 'easeIn' } }}
         transition={{ type: 'spring', damping: 32, stiffness: 280 }}
-        style={modal.sheet} onClick={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog" aria-modal="true" aria-label={job.title}
       >
-        {/* ── Sticky header ── */}
-        <div style={modal.stickyHeader}>
-          <div style={modal.dragHandle} />
-          <div style={modal.header}>
-            <CompanyLogo company={job.company} style={modal.logo} />
-            <div style={{ flex: 1 }}>
-              <h2 style={modal.title}>{job.title}</h2>
-              <p style={modal.company}>{job.company}</p>
-            </div>
-            <button style={modal.closeBtn} onClick={onClose}>✕</button>
+        <div className="jd-top">
+          <span className="jd-handle" />
+          <div className="jd-toolbar">
+            {job.applyUrl
+              ? <button type="button" className="jd-round" onClick={share} aria-label={t('job.share')} title={copied ? t('job.copied') : t('job.share')}>
+                  <Icon name={copied ? 'check' : 'share'} size={20} />
+                </button>
+              : <span />}
+            <button type="button" className="jd-round" onClick={() => onClose()} aria-label={t('job.close')}>
+              <Icon name="x" size={20} />
+            </button>
           </div>
-          <div style={modal.meta}>
-            <span style={modal.metaItem}>📍 {job.location}</span>
-            {job.distanceKm != null && (
-              <span style={{ ...modal.metaItem, background: '#EBFBF2', color: '#12A96F' }}>🗺 {job.distanceKm.toFixed(1)} {t('swipe.km')}</span>
-            )}
-          </div>
-        </div>
 
-        {/* ── Scrollable body ── */}
-        <div style={modal.scrollBody}>
-          {(job.technologies || job.requirements)?.length > 0 && (
-            <div style={modal.section}>
-              <p style={modal.sectionTitle}>{t('swipe.techRequired')}</p>
-              <div style={modal.tags}>
-                {(job.technologies || job.requirements).map(tech => <span key={tech} style={modal.tag}>{tech}</span>)}
+          <div className="jd-head">
+            <div className="jd-logo">
+              <CompanyLogo company={job.company} style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'contain', fontSize: '40px' }} />
+            </div>
+            <div className="jd-head-text">
+              <h2 className="jd-title">{job.title}</h2>
+              {job.applyUrl
+                ? <a className="jd-company" href={job.applyUrl} target="_blank" rel="noreferrer">{job.company}<Icon name="external" size={17} /></a>
+                : <p className="jd-company">{job.company}</p>}
+              <div className="jd-chips">
+                {job.location && <span className="jd-chip"><Icon name="pin" size={16} />{job.location}</span>}
+                {job.distanceKm != null && (
+                  <span className="jd-chip green"><Icon name="pin" size={16} /><span dir="ltr">{job.distanceKm.toFixed(1)}</span> {t('swipe.km')}</span>
+                )}
               </div>
             </div>
-          )}
-          {parseJobDescription(job.description).length > 0 && (
-            <div style={modal.section}>
-              <p style={modal.sectionTitle}>{t('swipe.jobDescription')}</p>
-              <JobDescription description={job.description} />
-            </div>
-          )}
+          </div>
+        </div>
+
+        <div className="jd-scroll">
+          <JobSections job={job} />
           {job.applyUrl && (
-            <div style={modal.section}>
-              <a href={job.applyUrl} target="_blank" rel="noreferrer" style={modal.applyLink}>{t('swipe.originalLink')}</a>
-            </div>
+            <a className="jd-original" href={job.applyUrl} target="_blank" rel="noreferrer">
+              {t('job.openPosting')}<Icon name="external" size={17} />
+            </a>
           )}
         </div>
 
-        {/* ── Sticky footer ── */}
-        {/* RTL sheet: first child renders on the RIGHT — keep הגש on the right
-            and דלג on the left, matching the like/pass sides of the swipe screen. */}
-        <div style={modal.stickyFooter}>
-          <button style={modal.applyBtn} onClick={() => onClose('apply')}>{t('swipe.apply')}</button>
-          <button style={modal.passBtn} onClick={() => onClose('pass')}>{t('swipe.pass')}</button>
+        <div className="jd-footer">
+          <button type="button" className="jd-btn reject" onClick={() => onClose('pass')}>
+            <Icon name="x" size={20} strokeWidth={2.6} />{t('job.reject')}
+          </button>
+          <button type="button" className="jd-btn apply" onClick={() => onClose('apply')}>
+            {t('job.submit')}<Icon name="heart" size={20} />
+          </button>
         </div>
       </motion.div>
     </motion.div>

@@ -31,6 +31,7 @@ const P = {
   arrowUp: <><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></>,
   chart: <><path d="M5 20V11" /><path d="M12 20V5" /><path d="M19 20v-7" /></>,
   target: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>,
+  eye: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></>,
   mail: <><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3.5 7l8.5 6 8.5-6" /></>,
   check: <path d="M4.5 12.500l5 5 10-11" />,
   a11y: <><circle cx="12" cy="4.5" r="1.8" /><path d="M5 8.500c4.5 1.3 9.5 1.3 14 0" /><path d="M12 9.500v5" /><path d="M8.5 21l3.5-6.5 3.5 6.5" /></>,

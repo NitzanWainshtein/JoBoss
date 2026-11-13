@@ -863,6 +863,29 @@ function ProfilePage({ initialView = null }) {
                           </button>
                         )}
 
+                        {/* View: opens the stored file itself in a new tab. The server returns a
+                            short-lived link per CV (viewUrl); older responses only carry one for
+                            the active CV, so fall back to that. Hidden when there is no link. */}
+                        {(() => {
+                          const viewUrl = resume.viewUrl || (resume.isActive ? profile?.resumePresignedUrl : '');
+                          return viewUrl ? (
+                            <a
+                              href={viewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`${t('profile.viewResume')}: ${resume.fileName}`}
+                              title={t('profile.viewResume')}
+                              style={{
+                                padding: '6px 12px', background: '#fff', color: '#5B3DF5', border: '1px solid #5B3DF5',
+                                borderRadius: '999px', fontSize: '12px', fontWeight: 700, textDecoration: 'none',
+                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              }}
+                            >
+                              <Icon name="eye" size={15} />{t('profile.viewResume')}
+                            </a>
+                          ) : null;
+                        })()}
+
                         <button
                           style={{
                             padding: '6px 12px',

@@ -780,4 +780,6 @@ export default {
   'adm.sup.replyPh': 'תשובה למשתמש (תופיע אצלו באפליקציה ותישלח במייל)',
   'adm.sup.sending': 'שולח...',
   'adm.sup.send': 'שלח תשובה',
+  // View resume
+  'profile.viewResume': 'צפייה',
 };

@@ -770,4 +770,6 @@ export default {
   'adm.sup.replyPh': 'Reply to the user (shown in their app and sent by email)',
   'adm.sup.sending': 'Sending...',
   'adm.sup.send': 'Send reply',
+  // View resume
+  'profile.viewResume': 'View',
 };
